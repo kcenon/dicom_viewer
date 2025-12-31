@@ -1,0 +1,64 @@
+# AD-SDLC Project Configuration
+# DICOM Viewer Project
+
+project:
+  name: dicom_viewer
+  version: 0.2.0
+  description: High-performance medical image viewer for DICOM files
+  language: C++20
+  build_system: CMake 3.20+
+
+frameworks:
+  - name: Qt6
+    version: "6.5+"
+    purpose: GUI framework
+  - name: VTK
+    version: "9.3+"
+    purpose: Visualization
+  - name: ITK
+    version: "5.4+"
+    purpose: Image processing
+  - name: pacs_system
+    version: latest
+    purpose: DICOM processing
+
+priorities:
+  P0_critical:
+    - DICOM series loading
+    - Volume rendering (GPU Ray Casting)
+    - MPR views (Axial, Coronal, Sagittal)
+    - Surface rendering (Marching Cubes)
+    - Transfer function presets
+  P1_high:
+    - PACS integration (C-FIND, C-MOVE, C-STORE)
+    - Segmentation tools
+    - Measurement tools
+    - Image preprocessing
+  P2_medium:
+    - DR/CR 2D viewing
+    - Analysis reports
+    - Advanced quantitative analysis
+
+documents:
+  prd: docs/PRD.md
+  srs: docs/SRS.md
+  sds: docs/SDS.md
+
+github:
+  owner: kcenon
+  repo: dicom_viewer
+  default_branch: main
+
+milestones:
+  - version: "0.3.0"
+    name: MVP
+    target: CT/MRI 3D Viewer
+    priority: P0
+  - version: "0.4.0"
+    name: Core Features
+    target: PACS, Segmentation, Measurement
+    priority: P1
+  - version: "0.5.0"
+    name: Enhancement
+    target: DR/CR, Reports
+    priority: P2

@@ -1,0 +1,58 @@
+# AD-SDLC Agent Configuration
+
+agents:
+  orchestration:
+    - ad-sdlc-orchestrator
+    - analysis-orchestrator
+
+  document_pipeline:
+    - collector
+    - prd-writer
+    - srs-writer
+    - sds-writer
+
+  document_update:
+    - prd-updater
+    - srs-updater
+    - sds-updater
+
+  issue_management:
+    - issue-generator
+    - issue-reader
+    - controller
+
+  execution:
+    - worker
+    - pr-reviewer
+    - ci-fixer
+
+  analysis:
+    - code-reader
+    - document-reader
+    - codebase-analyzer
+    - impact-analyzer
+    - regression-tester
+
+settings:
+  auto_generate_issues: true
+  auto_assign_workers: false
+  require_pr_review: true
+
+issue_labels:
+  priority:
+    - "priority: P0-critical"
+    - "priority: P1-high"
+    - "priority: P2-medium"
+    - "priority: P3-low"
+  type:
+    - "type: feature"
+    - "type: enhancement"
+    - "type: bug"
+    - "type: documentation"
+  component:
+    - "component: core"
+    - "component: ui"
+    - "component: rendering"
+    - "component: network"
+    - "component: segmentation"
+    - "component: measurement"
