@@ -1,0 +1,29 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+    "name": "dicom-viewer",
+    "version": "0.3.0",
+    "description": "High-performance DICOM Viewer with 3D Volume Rendering",
+    "homepage": "https://github.com/kcenon/dicom_viewer",
+    "license": "MIT",
+    "dependencies": [
+        {
+            "name": "qt6",
+            "default-features": false,
+            "features": ["widgets", "gui", "opengl"]
+        },
+        {
+            "name": "vtk",
+            "default-features": false,
+            "features": ["qt", "opengl"]
+        },
+        {
+            "name": "itk",
+            "default-features": false,
+            "features": ["vtk", "gdcm"]
+        },
+        "spdlog",
+        "fmt",
+        "nlohmann-json"
+    ],
+    "builtin-baseline": "2024.01.12"
+}
