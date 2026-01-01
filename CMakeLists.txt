@@ -90,7 +90,7 @@ add_library(dicom_viewer_core STATIC
     src/core/dicom/series_builder.cpp
     src/core/dicom/transfer_syntax_decoder.cpp
     src/core/image/image_converter.cpp
-    src/core/image/hu_converter.cpp
+    src/core/image/hounsfield_converter.cpp
     src/core/data/patient_data.cpp
 )
 
