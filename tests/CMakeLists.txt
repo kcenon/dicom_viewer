@@ -93,9 +93,24 @@ target_include_directories(mpr_renderer_test PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
 
+# Unit tests for Surface Renderer
+add_executable(surface_renderer_test
+    unit/surface_renderer_test.cpp
+)
+
+target_link_libraries(surface_renderer_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(surface_renderer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
 # VTK module autoinit for tests
 vtk_module_autoinit(
-    TARGETS volume_renderer_test transfer_function_manager_test mpr_renderer_test
+    TARGETS volume_renderer_test transfer_function_manager_test mpr_renderer_test surface_renderer_test
     MODULES ${VTK_LIBRARIES}
 )
 
@@ -107,3 +122,4 @@ gtest_discover_tests(hounsfield_converter_test)
 gtest_discover_tests(volume_renderer_test)
 gtest_discover_tests(transfer_function_manager_test)
 gtest_discover_tests(mpr_renderer_test)
+gtest_discover_tests(surface_renderer_test)
