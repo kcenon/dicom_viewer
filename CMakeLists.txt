@@ -35,6 +35,7 @@ find_package(Qt6 REQUIRED COMPONENTS
     Gui
     OpenGL
     OpenGLWidgets
+    Test
 )
 
 find_package(VTK REQUIRED COMPONENTS
@@ -146,6 +147,7 @@ add_library(pacs_service STATIC
     src/services/pacs/dicom_find_scu.cpp
     src/services/pacs/dicom_move_scu.cpp
     src/services/pacs/pacs_config_manager.cpp
+    include/services/pacs_config_manager.hpp
 )
 
 target_include_directories(pacs_service PUBLIC
