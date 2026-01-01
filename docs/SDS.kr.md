@@ -2173,11 +2173,11 @@ sequenceDiagram
 | FR-003.4 | SRS-FR-009 | SDS-MOD-003 | RenderService | Planned |
 | FR-003.5 | SRS-FR-010 | SDS-MOD-003 | RenderService | Planned |
 | FR-003.6 | SRS-FR-011 | SDS-MOD-003 | RenderService | Planned |
-| FR-004.1 | SRS-FR-012 | SDS-MOD-003 | RenderService | Planned |
-| FR-004.2 | SRS-FR-012 | SDS-MOD-003 | RenderService | Planned |
-| FR-004.3 | SRS-FR-013 | SDS-MOD-003 | RenderService | Planned |
-| FR-004.4 | SRS-FR-014 | SDS-MOD-003 | RenderService | Planned |
-| FR-004.5 | SRS-FR-015 | SDS-MOD-003 | RenderService | Planned |
+| FR-004.1 | SRS-FR-012 | SDS-MOD-003 | RenderService | Implemented |
+| FR-004.2 | SRS-FR-012 | SDS-MOD-003 | RenderService | Implemented |
+| FR-004.3 | SRS-FR-013 | SDS-MOD-003 | RenderService | Implemented |
+| FR-004.4 | SRS-FR-014 | SDS-MOD-003 | RenderService | Implemented |
+| FR-004.5 | SRS-FR-015 | SDS-MOD-003 | RenderService | Implemented |
 | FR-005.1 | SRS-FR-016 | SDS-MOD-002 | ImageService | Planned |
 | FR-005.2 | SRS-FR-017 | SDS-MOD-002 | ImageService | Planned |
 | FR-005.3 | SRS-FR-018 | SDS-MOD-002 | ImageService | Planned |
