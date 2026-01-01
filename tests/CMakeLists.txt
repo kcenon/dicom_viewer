@@ -276,3 +276,20 @@ target_include_directories(label_manager_test PRIVATE
 )
 
 gtest_discover_tests(label_manager_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Morphological Processor
+add_executable(morphological_processor_test
+    unit/morphological_processor_test.cpp
+)
+
+target_link_libraries(morphological_processor_test PRIVATE
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(morphological_processor_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(morphological_processor_test DISCOVERY_TIMEOUT 60)
