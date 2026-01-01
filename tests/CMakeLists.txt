@@ -155,3 +155,20 @@ gtest_discover_tests(mpr_renderer_test)
 gtest_discover_tests(surface_renderer_test)
 gtest_discover_tests(dicom_echo_scu_test)
 gtest_discover_tests(dicom_find_scu_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for DICOM Move SCU
+add_executable(dicom_move_scu_test
+    unit/dicom_move_scu_test.cpp
+)
+
+target_link_libraries(dicom_move_scu_test PRIVATE
+    pacs_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(dicom_move_scu_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(dicom_move_scu_test DISCOVERY_TIMEOUT 60)

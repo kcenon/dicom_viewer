@@ -144,6 +144,7 @@ target_link_libraries(measurement_service PUBLIC
 add_library(pacs_service STATIC
     src/services/pacs/dicom_echo_scu.cpp
     src/services/pacs/dicom_find_scu.cpp
+    src/services/pacs/dicom_move_scu.cpp
 )
 
 target_include_directories(pacs_service PUBLIC
