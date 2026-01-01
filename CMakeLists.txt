@@ -142,6 +142,15 @@ target_link_libraries(measurement_service PUBLIC
     ${ITK_LIBRARIES}
 )
 
+add_library(segmentation_service STATIC
+    src/services/segmentation/threshold_segmenter.cpp
+)
+
+target_link_libraries(segmentation_service PUBLIC
+    dicom_viewer_core
+    ${ITK_LIBRARIES}
+)
+
 add_library(pacs_service STATIC
     src/services/pacs/dicom_echo_scu.cpp
     src/services/pacs/dicom_find_scu.cpp
@@ -181,6 +190,7 @@ target_link_libraries(dicom_viewer_controller PUBLIC
     image_service
     render_service
     measurement_service
+    segmentation_service
     pacs_service
 )
 
