@@ -1117,14 +1117,14 @@ classDiagram
 
 **Components**:
 
-| Component | Description | Traces to |
-|-----------|-------------|-----------|
-| MainWindow | 메인 윈도우 | SRS-FR-055 |
-| ViewportWidget | VTK 렌더링 위젯 | SRS-FR-056 |
-| PatientBrowser | 환자/시리즈 탐색 | SRS-FR-057 |
-| ToolsPanel | 도구 패널 | SRS-FR-058 |
-| SegmentationPanel | 분할 도구 패널 | SRS-FR-024 |
-| MeasurementPanel | 측정 도구 패널 | SRS-FR-036 |
+| Component | Description | Traces to | Status |
+|-----------|-------------|-----------|--------|
+| MainWindow | 도킹 패널, 다크 테마를 포함한 메인 윈도우 | SRS-FR-055 | ✅ 구현됨 |
+| ViewportWidget | QVTKOpenGLNativeWidget 기반 VTK 렌더링 위젯 | SRS-FR-056 | ✅ 구현됨 |
+| PatientBrowser | 검색 기능이 있는 환자/검사/시리즈 트리 브라우저 | SRS-FR-057 | ✅ 구현됨 |
+| ToolsPanel | Window/Level 컨트롤, 프리셋, 시각화 모드 | SRS-FR-058 | ✅ 구현됨 |
+| SegmentationPanel | 분할 도구 패널 | SRS-FR-024 | ⏳ 계획됨 |
+| MeasurementPanel | 측정 도구 패널 | SRS-FR-036 | ⏳ 계획됨 |
 
 **Widget Hierarchy**:
 

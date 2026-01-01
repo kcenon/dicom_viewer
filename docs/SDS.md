@@ -1117,14 +1117,14 @@ classDiagram
 
 **Components**:
 
-| Component | Description | Traces to |
-|-----------|-------------|-----------|
-| MainWindow | Main window | SRS-FR-055 |
-| ViewportWidget | VTK rendering widget | SRS-FR-056 |
-| PatientBrowser | Patient/series browser | SRS-FR-057 |
-| ToolsPanel | Tools panel | SRS-FR-058 |
-| SegmentationPanel | Segmentation tools panel | SRS-FR-024 |
-| MeasurementPanel | Measurement tools panel | SRS-FR-036 |
+| Component | Description | Traces to | Status |
+|-----------|-------------|-----------|--------|
+| MainWindow | Main window with dockable panels, dark theme | SRS-FR-055 | ✅ Implemented |
+| ViewportWidget | VTK rendering widget with QVTKOpenGLNativeWidget | SRS-FR-056 | ✅ Implemented |
+| PatientBrowser | Patient/study/series tree browser with search | SRS-FR-057 | ✅ Implemented |
+| ToolsPanel | Window/level controls, presets, visualization modes | SRS-FR-058 | ✅ Implemented |
+| SegmentationPanel | Segmentation tools panel | SRS-FR-024 | ⏳ Planned |
+| MeasurementPanel | Measurement tools panel | SRS-FR-036 | ⏳ Planned |
 
 **Widget Hierarchy**:
 
