@@ -146,8 +146,10 @@ add_library(pacs_service STATIC
     src/services/pacs/dicom_echo_scu.cpp
     src/services/pacs/dicom_find_scu.cpp
     src/services/pacs/dicom_move_scu.cpp
+    src/services/pacs/dicom_store_scp.cpp
     src/services/pacs/pacs_config_manager.cpp
     include/services/pacs_config_manager.hpp
+    include/services/dicom_store_scp.hpp
 )
 
 target_include_directories(pacs_service PUBLIC

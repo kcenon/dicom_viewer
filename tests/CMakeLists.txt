@@ -191,3 +191,20 @@ target_include_directories(pacs_config_manager_test PRIVATE
 )
 
 gtest_discover_tests(pacs_config_manager_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for DICOM Store SCP
+add_executable(dicom_store_scp_test
+    unit/dicom_store_scp_test.cpp
+)
+
+target_link_libraries(dicom_store_scp_test PRIVATE
+    pacs_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(dicom_store_scp_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(dicom_store_scp_test DISCOVERY_TIMEOUT 60)
