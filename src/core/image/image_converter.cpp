@@ -45,7 +45,7 @@ ImageConverter::itkToVtk(FloatImageType::Pointer itkImage)
     return vtkImage;
 }
 
-CTImageType::Pointer
+ImageConverter::CTImageType::Pointer
 ImageConverter::vtkToItkCT(vtkSmartPointer<vtkImageData> vtkImage)
 {
     using ConnectorType = itk::VTKImageToImageFilter<CTImageType>;
@@ -58,7 +58,7 @@ ImageConverter::vtkToItkCT(vtkSmartPointer<vtkImageData> vtkImage)
     return output;
 }
 
-FloatImageType::Pointer
+ImageConverter::FloatImageType::Pointer
 ImageConverter::vtkToItkFloat(vtkSmartPointer<vtkImageData> vtkImage)
 {
     using ConnectorType = itk::VTKImageToImageFilter<FloatImageType>;
