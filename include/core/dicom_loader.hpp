@@ -1,11 +1,13 @@
 #pragma once
 
+#include <array>
+#include <expected>
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
-#include <expected>
 
 #include <itkImage.h>
 #include <itkSmartPointer.h>
@@ -153,6 +155,10 @@ private:
 
     /// Calculate Z position from image position and orientation
     static double calculateSlicePosition(const SliceInfo& slice);
+
+    /// Calculate position along given normal direction
+    static double calculateSlicePosition(const SliceInfo& slice,
+                                         const std::array<double, 3>& normal);
 };
 
 } // namespace dicom_viewer::core

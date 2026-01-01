@@ -23,7 +23,8 @@
         },
         "spdlog",
         "fmt",
-        "nlohmann-json"
+        "nlohmann-json",
+        "gtest"
     ],
     "builtin-baseline": "2024.01.12"
 }

@@ -1,0 +1,36 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Compiled objects
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+
+# Test data (downloaded DICOM samples)
+tests/data/ct_sample/
+tests/data/mr_sample/
+tests/data/*.dcm
+tests/data/*.zip
+
+# vcpkg
+vcpkg_installed/
+
+# macOS
+.DS_Store
+
+# Qt
+moc_*.cpp
+ui_*.h
+qrc_*.cpp

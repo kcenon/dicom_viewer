@@ -2,7 +2,7 @@
 
 > **High-Performance Medical Image Viewer** - CT/MRI 3D Volume Rendering and MPR View Support
 
-[![Version](https://img.shields.io/badge/version-0.2.0--pre-orange)](https://github.com)
+[![Version](https://img.shields.io/badge/version-0.3.0--pre-orange)](https://github.com)
 [![C++](https://img.shields.io/badge/C++-20-blue.svg)](https://isocpp.org)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause-green.svg)](LICENSE)
 
@@ -181,16 +181,24 @@ dicom_viewer/
 │   ├── SRS.md                      # Software Requirements Specification
 │   ├── SDS.md                      # Software Design Specification
 │   └── reference/                  # Technical Reference Documentation
-│       ├── 01-itk-overview.md      # ITK Architecture and API
-│       ├── 02-vtk-overview.md      # VTK Architecture and API
-│       ├── 03-itk-vtk-integration.md  # ITK-VTK Integration Guide
-│       ├── 04-dicom-pipeline.md    # DICOM Processing Pipeline
-│       └── 05-pacs-integration.md  # pacs_system Integration Guide
-├── src/                            # Source Code (planned)
+├── include/                        # Header Files
+│   └── core/                       # Core module headers
+│       ├── dicom_loader.hpp        # DICOM file loading
+│       ├── series_builder.hpp      # Series assembly and 3D volume
+│       └── image_converter.hpp     # Image format conversion
+├── src/                            # Source Code
 │   ├── core/                       # Core Data Structures
-│   ├── service/                    # Service Layer
+│   │   ├── dicom/                  # DICOM loading and series assembly
+│   │   ├── image/                  # Image processing and HU conversion
+│   │   └── data/                   # Patient data management
+│   ├── services/                   # Service Layer
+│   │   ├── image/                  # Image processing services
+│   │   ├── render/                 # Volume/Surface/MPR rendering
+│   │   └── measurement/            # Measurement tools
 │   ├── controller/                 # Controller Layer
 │   └── ui/                         # Qt UI Components
+├── tests/                          # Unit and Integration Tests
+│   └── unit/                       # Unit tests
 ├── LICENSE
 └── README.md
 ```
