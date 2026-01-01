@@ -265,11 +265,11 @@ TEST_F(SurfaceRendererTest, GetAllActorsEmpty) {
 
 // Test renderer integration
 TEST_F(SurfaceRendererTest, AddToRenderer) {
-    auto vtkRenderer = vtkSmartPointer<vtkRenderer>::New();
+    auto vtkRen = vtkSmartPointer<vtkRenderer>::New();
     renderer->addPresetSurface(TissueType::Bone);
 
-    EXPECT_NO_THROW(renderer->addToRenderer(vtkRenderer));
-    EXPECT_EQ(vtkRenderer->GetActors()->GetNumberOfItems(), 1);
+    EXPECT_NO_THROW(renderer->addToRenderer(vtkRen));
+    EXPECT_EQ(vtkRen->GetActors()->GetNumberOfItems(), 1);
 }
 
 TEST_F(SurfaceRendererTest, AddToRendererNull) {
@@ -278,14 +278,14 @@ TEST_F(SurfaceRendererTest, AddToRendererNull) {
 }
 
 TEST_F(SurfaceRendererTest, RemoveFromRenderer) {
-    auto vtkRenderer = vtkSmartPointer<vtkRenderer>::New();
+    auto vtkRen = vtkSmartPointer<vtkRenderer>::New();
     renderer->addPresetSurface(TissueType::Bone);
-    renderer->addToRenderer(vtkRenderer);
+    renderer->addToRenderer(vtkRen);
 
-    EXPECT_EQ(vtkRenderer->GetActors()->GetNumberOfItems(), 1);
+    EXPECT_EQ(vtkRen->GetActors()->GetNumberOfItems(), 1);
 
-    renderer->removeFromRenderer(vtkRenderer);
-    EXPECT_EQ(vtkRenderer->GetActors()->GetNumberOfItems(), 0);
+    renderer->removeFromRenderer(vtkRen);
+    EXPECT_EQ(vtkRen->GetActors()->GetNumberOfItems(), 0);
 }
 
 TEST_F(SurfaceRendererTest, RemoveFromRendererNull) {
