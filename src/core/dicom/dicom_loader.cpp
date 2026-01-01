@@ -1,4 +1,5 @@
 #include "core/dicom_loader.hpp"
+#include "core/transfer_syntax_decoder.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -372,32 +373,12 @@ double DicomLoader::calculateSlicePosition(const SliceInfo& slice,
 
 bool DicomLoader::isTransferSyntaxSupported(const std::string& uid)
 {
-    static const std::vector<std::string> supported = {
-        "1.2.840.10008.1.2",       // Implicit VR Little Endian
-        "1.2.840.10008.1.2.1",     // Explicit VR Little Endian
-        "1.2.840.10008.1.2.4.50",  // JPEG Baseline
-        "1.2.840.10008.1.2.4.70",  // JPEG Lossless
-        "1.2.840.10008.1.2.4.90",  // JPEG 2000 Lossless
-        "1.2.840.10008.1.2.4.91",  // JPEG 2000
-        "1.2.840.10008.1.2.4.80",  // JPEG-LS Lossless
-        "1.2.840.10008.1.2.5"      // RLE Lossless
-    };
-
-    return std::find(supported.begin(), supported.end(), uid) != supported.end();
+    return TransferSyntaxDecoder::isSupported(uid);
 }
 
 std::vector<std::string> DicomLoader::getSupportedTransferSyntaxes()
 {
-    return {
-        "1.2.840.10008.1.2",
-        "1.2.840.10008.1.2.1",
-        "1.2.840.10008.1.2.4.50",
-        "1.2.840.10008.1.2.4.70",
-        "1.2.840.10008.1.2.4.90",
-        "1.2.840.10008.1.2.4.91",
-        "1.2.840.10008.1.2.4.80",
-        "1.2.840.10008.1.2.5"
-    };
+    return TransferSyntaxDecoder::getSupportedUIDs();
 }
 
 } // namespace dicom_viewer::core
