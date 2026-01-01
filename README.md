@@ -82,12 +82,13 @@
 
 | Component | Technology | Version |
 |-----------|------------|---------|
-| **Language** | C++ | C++20 |
+| **Language** | C++ | C++23 |
 | **Build** | CMake | 3.20+ |
 | **GUI** | Qt | 6.5+ |
 | **Image Processing** | ITK | 5.4+ |
 | **Visualization** | VTK | 9.3+ |
-| **DICOM** | pacs_system | Latest |
+| **DICOM Network** | DCMTK | 3.6.8+ |
+| **DICOM I/O** | GDCM (via ITK) | Latest |
 
 ## Architecture
 
@@ -191,7 +192,9 @@ dicom_viewer/
 │   └── services/                   # Service layer headers
 │       ├── volume_renderer.hpp     # GPU volume rendering with CPU fallback
 │       ├── transfer_function_manager.hpp  # Transfer function preset management
-│       └── mpr_renderer.hpp        # MPR (Multi-Planar Reconstruction) views
+│       ├── mpr_renderer.hpp        # MPR (Multi-Planar Reconstruction) views
+│       ├── pacs_config.hpp         # PACS server configuration
+│       └── dicom_echo_scu.hpp      # DICOM C-ECHO connectivity test
 ├── src/                            # Source Code
 │   ├── core/                       # Core Data Structures
 │   │   ├── dicom/                  # DICOM loading and series assembly
@@ -200,7 +203,8 @@ dicom_viewer/
 │   ├── services/                   # Service Layer
 │   │   ├── image/                  # Image processing services
 │   │   ├── render/                 # Volume/Surface/MPR rendering
-│   │   └── measurement/            # Measurement tools
+│   │   ├── measurement/            # Measurement tools
+│   │   └── pacs/                   # PACS connectivity (C-ECHO, C-FIND, etc.)
 │   ├── controller/                 # Controller Layer
 │   └── ui/                         # Qt UI Components
 ├── tests/                          # Unit and Integration Tests
