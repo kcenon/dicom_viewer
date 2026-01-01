@@ -181,16 +181,21 @@ dicom_viewer/
 │   ├── SRS.md                      # 소프트웨어 요구사항 명세서
 │   ├── SDS.md                      # 소프트웨어 설계 명세서
 │   └── reference/                  # 기술 참조 문서
-│       ├── 01-itk-overview.md      # ITK 아키텍처 및 API
-│       ├── 02-vtk-overview.md      # VTK 아키텍처 및 API
-│       ├── 03-itk-vtk-integration.md  # ITK-VTK 통합 가이드
-│       ├── 04-dicom-pipeline.md    # DICOM 처리 파이프라인
-│       └── 05-pacs-integration.md  # pacs_system 연동 가이드
-├── src/                            # 소스 코드 (예정)
+├── include/                        # 헤더 파일
+│   └── core/                       # 코어 모듈 헤더
+│       ├── dicom_loader.hpp        # DICOM 파일 로딩
+│       ├── series_builder.hpp      # 시리즈 조립 및 3D 볼륨
+│       ├── transfer_syntax_decoder.hpp  # 전송 구문 디코딩 지원
+│       └── image_converter.hpp     # 이미지 포맷 변환
+├── src/                            # 소스 코드
 │   ├── core/                       # 핵심 데이터 구조
-│   ├── service/                    # 서비스 레이어
+│   │   ├── dicom/                  # DICOM 로딩 및 시리즈 조립
+│   │   ├── image/                  # 이미지 처리 및 HU 변환
+│   │   └── data/                   # 환자 데이터 관리
+│   ├── services/                   # 서비스 레이어
 │   ├── controller/                 # 컨트롤러 레이어
 │   └── ui/                         # Qt UI 컴포넌트
+├── tests/                          # 유닛 및 통합 테스트
 ├── LICENSE
 └── README.md
 ```
