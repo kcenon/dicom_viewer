@@ -153,6 +153,10 @@ private:
 
     /// Calculate Z position from image position and orientation
     static double calculateSlicePosition(const SliceInfo& slice);
+
+    /// Calculate position along given normal direction
+    static double calculateSlicePosition(const SliceInfo& slice,
+                                         const std::array<double, 3>& normal);
 };
 
 } // namespace dicom_viewer::core
