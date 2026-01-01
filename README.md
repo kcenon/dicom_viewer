@@ -190,6 +190,7 @@ dicom_viewer/
 │   │   └── image_converter.hpp     # Image format conversion
 │   └── services/                   # Service layer headers
 │       ├── volume_renderer.hpp     # GPU volume rendering with CPU fallback
+│       ├── transfer_function_manager.hpp  # Transfer function preset management
 │       └── mpr_renderer.hpp        # MPR (Multi-Planar Reconstruction) views
 ├── src/                            # Source Code
 │   ├── core/                       # Core Data Structures

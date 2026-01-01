@@ -190,6 +190,7 @@ dicom_viewer/
 │   │   └── image_converter.hpp     # 이미지 포맷 변환
 │   └── services/                   # 서비스 레이어 헤더
 │       ├── volume_renderer.hpp     # GPU 볼륨 렌더링 (CPU 폴백 지원)
+│       ├── transfer_function_manager.hpp  # Transfer Function 프리셋 관리
 │       └── mpr_renderer.hpp        # MPR (다중 평면 재구성) 뷰
 ├── src/                            # 소스 코드
 │   ├── core/                       # 핵심 데이터 구조
