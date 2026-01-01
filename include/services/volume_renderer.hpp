@@ -99,6 +99,16 @@ public:
     bool isGPURenderingEnabled() const;
 
     /**
+     * @brief Validate GPU support with render window
+     * @param renderWindow VTK render window for GPU capability check
+     * @return True if GPU rendering is supported
+     *
+     * This method checks if the current GPU supports volume ray casting.
+     * If GPU is not supported, automatically falls back to CPU rendering.
+     */
+    bool validateGPUSupport(vtkSmartPointer<vtkRenderWindow> renderWindow);
+
+    /**
      * @brief Enable LOD (Level of Detail) during interaction
      * @param enable True to enable LOD
      */
