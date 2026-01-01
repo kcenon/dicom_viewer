@@ -182,11 +182,15 @@ dicom_viewer/
 │   ├── SDS.md                      # 소프트웨어 설계 명세서
 │   └── reference/                  # 기술 참조 문서
 ├── include/                        # 헤더 파일
-│   └── core/                       # 코어 모듈 헤더
-│       ├── dicom_loader.hpp        # DICOM 파일 로딩
-│       ├── series_builder.hpp      # 시리즈 조립 및 3D 볼륨
-│       ├── transfer_syntax_decoder.hpp  # 전송 구문 디코딩 지원
-│       └── image_converter.hpp     # 이미지 포맷 변환
+│   ├── core/                       # 코어 모듈 헤더
+│   │   ├── dicom_loader.hpp        # DICOM 파일 로딩
+│   │   ├── series_builder.hpp      # 시리즈 조립 및 3D 볼륨
+│   │   ├── transfer_syntax_decoder.hpp  # 전송 구문 디코딩 지원
+│   │   ├── hounsfield_converter.hpp  # CT 픽셀 to HU 변환
+│   │   └── image_converter.hpp     # 이미지 포맷 변환
+│   └── services/                   # 서비스 레이어 헤더
+│       ├── volume_renderer.hpp     # GPU 볼륨 렌더링 (CPU 폴백 지원)
+│       └── mpr_renderer.hpp        # MPR (다중 평면 재구성) 뷰
 ├── src/                            # 소스 코드
 │   ├── core/                       # 핵심 데이터 구조
 │   │   ├── dicom/                  # DICOM 로딩 및 시리즈 조립

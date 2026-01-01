@@ -5,6 +5,11 @@
 #include <vtkVolumeProperty.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkPiecewiseFunction.h>
+#include <vtkPlanes.h>
+#include <vtkPlane.h>
+#include <vtkPoints.h>
+#include <vtkDoubleArray.h>
+#include <vtkNew.h>
 
 namespace dicom_viewer::services {
 
@@ -17,9 +22,12 @@ public:
     vtkSmartPointer<vtkColorTransferFunction> colorTF;
     vtkSmartPointer<vtkPiecewiseFunction> opacityTF;
     vtkSmartPointer<vtkPiecewiseFunction> gradientOpacityTF;
+    vtkSmartPointer<vtkPlanes> clippingPlanes;
 
+    vtkSmartPointer<vtkImageData> inputData;
     bool useGPU = true;
     bool useLOD = true;
+    bool gpuValidated = false;
 
     Impl() {
         volume = vtkSmartPointer<vtkVolume>::New();
@@ -29,6 +37,7 @@ public:
         colorTF = vtkSmartPointer<vtkColorTransferFunction>::New();
         opacityTF = vtkSmartPointer<vtkPiecewiseFunction>::New();
         gradientOpacityTF = vtkSmartPointer<vtkPiecewiseFunction>::New();
+        clippingPlanes = vtkSmartPointer<vtkPlanes>::New();
 
         // Setup property
         property->SetInterpolationTypeToLinear();
@@ -38,7 +47,28 @@ public:
         property->SetSpecular(0.2);
         property->SetSpecularPower(10.0);
 
+        // Configure GPU mapper for optimal performance
+        gpuMapper->SetAutoAdjustSampleDistances(1);
+        gpuMapper->SetSampleDistance(0.5);
+
+        // Configure smart mapper as fallback
+        smartMapper->SetRequestedRenderModeToRayCast();
+
         volume->SetProperty(property);
+    }
+
+    void updateMapper() {
+        if (useGPU && gpuValidated) {
+            if (inputData) {
+                gpuMapper->SetInputData(inputData);
+            }
+            volume->SetMapper(gpuMapper);
+        } else {
+            if (inputData) {
+                smartMapper->SetInputData(inputData);
+            }
+            volume->SetMapper(smartMapper);
+        }
     }
 };
 
@@ -49,13 +79,8 @@ VolumeRenderer& VolumeRenderer::operator=(VolumeRenderer&&) noexcept = default;
 
 void VolumeRenderer::setInputData(vtkSmartPointer<vtkImageData> imageData)
 {
-    if (impl_->useGPU) {
-        impl_->gpuMapper->SetInputData(imageData);
-        impl_->volume->SetMapper(impl_->gpuMapper);
-    } else {
-        impl_->smartMapper->SetInputData(imageData);
-        impl_->volume->SetMapper(impl_->smartMapper);
-    }
+    impl_->inputData = imageData;
+    impl_->updateMapper();
 }
 
 vtkSmartPointer<vtkVolume> VolumeRenderer::getVolume() const
@@ -124,12 +149,30 @@ void VolumeRenderer::setBlendMode(BlendMode mode)
 bool VolumeRenderer::setGPURenderingEnabled(bool enable)
 {
     impl_->useGPU = enable;
-    return enable;
+    impl_->updateMapper();
+    return impl_->useGPU && impl_->gpuValidated;
 }
 
 bool VolumeRenderer::isGPURenderingEnabled() const
 {
-    return impl_->useGPU;
+    return impl_->useGPU && impl_->gpuValidated;
+}
+
+bool VolumeRenderer::validateGPUSupport(vtkSmartPointer<vtkRenderWindow> renderWindow)
+{
+    if (!renderWindow) {
+        impl_->gpuValidated = false;
+        impl_->updateMapper();
+        return false;
+    }
+
+    // Check if GPU volume ray casting is supported
+    bool gpuSupported = impl_->gpuMapper->IsRenderSupported(
+        renderWindow, impl_->property);
+
+    impl_->gpuValidated = gpuSupported;
+    impl_->updateMapper();
+    return impl_->gpuValidated;
 }
 
 void VolumeRenderer::setInteractiveLODEnabled(bool enable)
@@ -144,7 +187,47 @@ void VolumeRenderer::setInteractiveLODEnabled(bool enable)
 
 void VolumeRenderer::setClippingPlanes(const std::array<double, 6>& planes)
 {
-    // TODO: Implement clipping with vtkPlanes
+    // Create 6 clipping planes for a bounding box
+    // planes = [xmin, xmax, ymin, ymax, zmin, zmax]
+    auto clippingPlanes = vtkSmartPointer<vtkPlanes>::New();
+
+    // Define plane normals and points for box clipping
+    // Each plane is defined by a point on the plane and its normal
+    vtkNew<vtkPoints> points;
+    vtkNew<vtkDoubleArray> normals;
+    normals->SetNumberOfComponents(3);
+    normals->SetNumberOfTuples(6);
+
+    // X-min plane (normal pointing +X)
+    points->InsertNextPoint(planes[0], 0, 0);
+    normals->SetTuple3(0, 1, 0, 0);
+
+    // X-max plane (normal pointing -X)
+    points->InsertNextPoint(planes[1], 0, 0);
+    normals->SetTuple3(1, -1, 0, 0);
+
+    // Y-min plane (normal pointing +Y)
+    points->InsertNextPoint(0, planes[2], 0);
+    normals->SetTuple3(2, 0, 1, 0);
+
+    // Y-max plane (normal pointing -Y)
+    points->InsertNextPoint(0, planes[3], 0);
+    normals->SetTuple3(3, 0, -1, 0);
+
+    // Z-min plane (normal pointing +Z)
+    points->InsertNextPoint(0, 0, planes[4]);
+    normals->SetTuple3(4, 0, 0, 1);
+
+    // Z-max plane (normal pointing -Z)
+    points->InsertNextPoint(0, 0, planes[5]);
+    normals->SetTuple3(5, 0, 0, -1);
+
+    clippingPlanes->SetPoints(points);
+    clippingPlanes->SetNormals(normals);
+
+    impl_->clippingPlanes = clippingPlanes;
+    impl_->gpuMapper->SetClippingPlanes(clippingPlanes);
+    impl_->smartMapper->SetClippingPlanes(clippingPlanes);
 }
 
 void VolumeRenderer::clearClippingPlanes()
