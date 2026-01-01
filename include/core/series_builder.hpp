@@ -2,8 +2,12 @@
 
 #include "dicom_loader.hpp"
 
+#include <array>
+#include <expected>
+#include <filesystem>
 #include <functional>
 #include <future>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
