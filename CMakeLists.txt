@@ -145,6 +145,7 @@ add_library(pacs_service STATIC
     src/services/pacs/dicom_echo_scu.cpp
     src/services/pacs/dicom_find_scu.cpp
     src/services/pacs/dicom_move_scu.cpp
+    src/services/pacs/pacs_config_manager.cpp
 )
 
 target_include_directories(pacs_service PUBLIC
@@ -161,6 +162,7 @@ target_link_libraries(pacs_service PUBLIC
     ${DCMTK_LIBRARIES}
     spdlog::spdlog
     fmt::fmt
+    Qt6::Core
 )
 
 # Controller library
@@ -186,6 +188,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/panels/patient_browser.cpp
     src/ui/panels/tools_panel.cpp
     src/ui/dialogs/settings_dialog.cpp
+    src/ui/dialogs/pacs_config_dialog.cpp
 )
 
 target_link_libraries(dicom_viewer_ui PUBLIC
