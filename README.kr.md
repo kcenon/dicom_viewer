@@ -82,12 +82,13 @@
 
 | Component | Technology | Version |
 |-----------|------------|---------|
-| **언어** | C++ | C++20 |
+| **언어** | C++ | C++23 |
 | **빌드** | CMake | 3.20+ |
 | **GUI** | Qt | 6.5+ |
 | **영상 처리** | ITK | 5.4+ |
 | **시각화** | VTK | 9.3+ |
-| **DICOM** | pacs_system | Latest |
+| **DICOM 네트워크** | DCMTK | 3.6.8+ |
+| **DICOM I/O** | GDCM (via ITK) | Latest |
 
 ## 아키텍처
 
@@ -191,13 +192,19 @@ dicom_viewer/
 │   └── services/                   # 서비스 레이어 헤더
 │       ├── volume_renderer.hpp     # GPU 볼륨 렌더링 (CPU 폴백 지원)
 │       ├── transfer_function_manager.hpp  # Transfer Function 프리셋 관리
-│       └── mpr_renderer.hpp        # MPR (다중 평면 재구성) 뷰
+│       ├── mpr_renderer.hpp        # MPR (다중 평면 재구성) 뷰
+│       ├── pacs_config.hpp         # PACS 서버 설정
+│       └── dicom_echo_scu.hpp      # DICOM C-ECHO 연결 테스트
 ├── src/                            # 소스 코드
 │   ├── core/                       # 핵심 데이터 구조
 │   │   ├── dicom/                  # DICOM 로딩 및 시리즈 조립
 │   │   ├── image/                  # 이미지 처리 및 HU 변환
 │   │   └── data/                   # 환자 데이터 관리
 │   ├── services/                   # 서비스 레이어
+│   │   ├── image/                  # 이미지 처리 서비스
+│   │   ├── render/                 # Volume/Surface/MPR 렌더링
+│   │   ├── measurement/            # 측정 도구
+│   │   └── pacs/                   # PACS 연결 (C-ECHO, C-FIND 등)
 │   ├── controller/                 # 컨트롤러 레이어
 │   └── ui/                         # Qt UI 컴포넌트
 ├── tests/                          # 유닛 및 통합 테스트

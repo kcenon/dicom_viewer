@@ -69,8 +69,11 @@ find_package(ITK REQUIRED COMPONENTS
     ITKVtkGlue
 )
 
-# pacs_system - assuming it's available via vcpkg or as submodule
-# find_package(pacs_system REQUIRED)
+# DCMTK for DICOM network operations
+find_package(DCMTK REQUIRED)
+
+find_package(spdlog REQUIRED)
+find_package(fmt REQUIRED)
 
 # Include directories
 include_directories(
@@ -138,6 +141,21 @@ target_link_libraries(measurement_service PUBLIC
     ${ITK_LIBRARIES}
 )
 
+add_library(pacs_service STATIC
+    src/services/pacs/dicom_echo_scu.cpp
+)
+
+target_include_directories(pacs_service PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${DCMTK_INCLUDE_DIRS}
+)
+
+target_link_libraries(pacs_service PUBLIC
+    ${DCMTK_LIBRARIES}
+    spdlog::spdlog
+    fmt::fmt
+)
+
 # Controller library
 add_library(dicom_viewer_controller STATIC
     src/controller/viewer_controller.cpp
@@ -150,6 +168,7 @@ target_link_libraries(dicom_viewer_controller PUBLIC
     image_service
     render_service
     measurement_service
+    pacs_service
 )
 
 # UI library
