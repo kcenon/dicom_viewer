@@ -144,6 +144,7 @@ target_link_libraries(measurement_service PUBLIC
 
 add_library(segmentation_service STATIC
     src/services/segmentation/threshold_segmenter.cpp
+    src/services/segmentation/region_growing_segmenter.cpp
 )
 
 target_link_libraries(segmentation_service PUBLIC
