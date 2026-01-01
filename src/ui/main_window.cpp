@@ -4,9 +4,11 @@
 #include "ui/panels/tools_panel.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
 #include "services/pacs_config_manager.hpp"
+#include "services/dicom_store_scp.hpp"
 
 #include <QApplication>
 #include <QCloseEvent>
+#include <QDir>
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QMenuBar>
@@ -45,6 +47,10 @@ public:
 
     // PACS configuration manager
     services::PacsConfigManager* pacsConfigManager = nullptr;
+
+    // Storage SCP
+    std::unique_ptr<services::DicomStoreSCP> storageScp;
+    QAction* toggleStorageScpAction = nullptr;
 };
 
 MainWindow::MainWindow(QWidget* parent)
@@ -56,6 +62,9 @@ MainWindow::MainWindow(QWidget* parent)
 
     // Initialize PACS config manager
     impl_->pacsConfigManager = new services::PacsConfigManager(this);
+
+    // Initialize Storage SCP
+    impl_->storageScp = std::make_unique<services::DicomStoreSCP>();
 
     applyDarkTheme();
     setupUI();
@@ -98,6 +107,12 @@ void MainWindow::setupMenuBar()
     auto pacsAction = fileMenu->addAction(tr("Connect to &PACS..."));
     pacsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_P));
     connect(pacsAction, &QAction::triggered, this, &MainWindow::onConnectPACS);
+
+    impl_->toggleStorageScpAction = fileMenu->addAction(tr("Start &Storage SCP"));
+    impl_->toggleStorageScpAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
+    impl_->toggleStorageScpAction->setCheckable(true);
+    connect(impl_->toggleStorageScpAction, &QAction::triggered,
+            this, &MainWindow::onToggleStorageSCP);
 
     fileMenu->addSeparator();
 
@@ -481,6 +496,46 @@ void MainWindow::onConnectPACS()
 {
     PacsConfigDialog dialog(impl_->pacsConfigManager, this);
     dialog.exec();
+}
+
+void MainWindow::onToggleStorageSCP()
+{
+    if (impl_->storageScp->isRunning()) {
+        impl_->storageScp->stop();
+        impl_->toggleStorageScpAction->setText(tr("Start &Storage SCP"));
+        impl_->toggleStorageScpAction->setChecked(false);
+        statusBar()->showMessage(tr("Storage SCP stopped"), 3000);
+    } else {
+        services::StorageScpConfig config;
+        config.port = 11112;
+        config.aeTitle = "DICOM_VIEWER_SCP";
+        config.storageDirectory = QDir::homePath().toStdString() + "/DICOM_Incoming";
+
+        // Set up image received callback
+        impl_->storageScp->setImageReceivedCallback(
+            [this](const services::ReceivedImageInfo& info) {
+                // Queue UI update to main thread
+                QMetaObject::invokeMethod(this, [this, info]() {
+                    impl_->statusLabel->setText(
+                        tr("Received: %1").arg(
+                            QString::fromStdString(info.filePath.filename().string())));
+                    // TODO: Optionally auto-load received images
+                }, Qt::QueuedConnection);
+            });
+
+        auto result = impl_->storageScp->start(config);
+        if (result) {
+            impl_->toggleStorageScpAction->setText(tr("Stop &Storage SCP"));
+            impl_->toggleStorageScpAction->setChecked(true);
+            statusBar()->showMessage(
+                tr("Storage SCP started on port %1").arg(config.port), 3000);
+        } else {
+            impl_->toggleStorageScpAction->setChecked(false);
+            QMessageBox::warning(this, tr("Storage SCP Error"),
+                tr("Failed to start Storage SCP:\n%1")
+                    .arg(QString::fromStdString(result.error().toString())));
+        }
+    }
 }
 
 void MainWindow::onShowSettings()

@@ -34,6 +34,9 @@ public slots:
     /// Connect to PACS server
     void onConnectPACS();
 
+    /// Toggle Storage SCP server
+    void onToggleStorageSCP();
+
     /// Show settings dialog
     void onShowSettings();
 
