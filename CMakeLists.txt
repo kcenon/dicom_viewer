@@ -59,6 +59,8 @@ find_package(ITK REQUIRED COMPONENTS
     ITKCommon
     ITKIOImageBase
     ITKIOGDCM
+    ITKIONIFTI
+    ITKIONRRD
     ITKImageFilterBase
     ITKImageFunction
     ITKSmoothing
@@ -75,6 +77,7 @@ find_package(DCMTK REQUIRED)
 
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 # Include directories
 include_directories(
@@ -146,11 +149,13 @@ add_library(segmentation_service STATIC
     src/services/segmentation/threshold_segmenter.cpp
     src/services/segmentation/region_growing_segmenter.cpp
     src/services/segmentation/manual_segmentation_controller.cpp
+    src/services/segmentation/label_manager.cpp
 )
 
 target_link_libraries(segmentation_service PUBLIC
     dicom_viewer_core
     ${ITK_LIBRARIES}
+    nlohmann_json::nlohmann_json
 )
 
 add_library(pacs_service STATIC

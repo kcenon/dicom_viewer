@@ -259,3 +259,20 @@ target_include_directories(manual_segmentation_controller_test PRIVATE
 )
 
 gtest_discover_tests(manual_segmentation_controller_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Label Manager
+add_executable(label_manager_test
+    unit/label_manager_test.cpp
+)
+
+target_link_libraries(label_manager_test PRIVATE
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(label_manager_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(label_manager_test DISCOVERY_TIMEOUT 60)
