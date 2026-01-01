@@ -48,8 +48,30 @@ target_include_directories(hounsfield_converter_test PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
 
+# Unit tests for Volume Renderer
+add_executable(volume_renderer_test
+    unit/volume_renderer_test.cpp
+)
+
+target_link_libraries(volume_renderer_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(volume_renderer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+# VTK module autoinit for tests
+vtk_module_autoinit(
+    TARGETS volume_renderer_test
+    MODULES ${VTK_LIBRARIES}
+)
+
 # Register tests with CTest
 include(GoogleTest)
 gtest_discover_tests(series_assembly_test)
 gtest_discover_tests(transfer_syntax_decoder_test)
 gtest_discover_tests(hounsfield_converter_test)
+gtest_discover_tests(volume_renderer_test)
