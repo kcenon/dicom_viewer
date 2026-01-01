@@ -7,6 +7,7 @@
 #include <QLineEdit>
 #include <QLabel>
 #include <QMap>
+#include <QStyle>
 
 namespace dicom_viewer::ui {
 

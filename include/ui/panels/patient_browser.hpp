@@ -5,6 +5,8 @@
 #include <QString>
 #include <QStringList>
 
+class QTreeWidgetItem;
+
 namespace dicom_viewer::ui {
 
 /**
@@ -120,8 +122,8 @@ signals:
     void selectionChanged();
 
 private slots:
-    void onItemClicked(class QTreeWidgetItem* item, int column);
-    void onItemDoubleClicked(class QTreeWidgetItem* item, int column);
+    void onItemClicked(QTreeWidgetItem* item, int column);
+    void onItemDoubleClicked(QTreeWidgetItem* item, int column);
 
 private:
     void setupUI();

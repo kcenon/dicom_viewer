@@ -12,6 +12,7 @@
 #include <QPalette>
 #include <QSettings>
 #include <QStatusBar>
+#include <QStyle>
 #include <QToolBar>
 #include <QShortcut>
 #include <QActionGroup>
