@@ -33,7 +33,23 @@ target_include_directories(transfer_syntax_decoder_test PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
 
+# Unit tests for Hounsfield converter
+add_executable(hounsfield_converter_test
+    unit/hounsfield_converter_test.cpp
+)
+
+target_link_libraries(hounsfield_converter_test PRIVATE
+    dicom_viewer_core
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(hounsfield_converter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
 # Register tests with CTest
 include(GoogleTest)
 gtest_discover_tests(series_assembly_test)
 gtest_discover_tests(transfer_syntax_decoder_test)
+gtest_discover_tests(hounsfield_converter_test)
