@@ -2,6 +2,8 @@
 #include "ui/viewport_widget.hpp"
 #include "ui/panels/patient_browser.hpp"
 #include "ui/panels/tools_panel.hpp"
+#include "ui/dialogs/pacs_config_dialog.hpp"
+#include "services/pacs_config_manager.hpp"
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -40,6 +42,9 @@ public:
     // View menu actions for dock toggle
     QAction* togglePatientBrowserAction = nullptr;
     QAction* toggleToolsPanelAction = nullptr;
+
+    // PACS configuration manager
+    services::PacsConfigManager* pacsConfigManager = nullptr;
 };
 
 MainWindow::MainWindow(QWidget* parent)
@@ -48,6 +53,9 @@ MainWindow::MainWindow(QWidget* parent)
 {
     setWindowTitle("DICOM Viewer");
     setMinimumSize(1280, 720);
+
+    // Initialize PACS config manager
+    impl_->pacsConfigManager = new services::PacsConfigManager(this);
 
     applyDarkTheme();
     setupUI();
@@ -471,8 +479,8 @@ void MainWindow::onOpenFile()
 
 void MainWindow::onConnectPACS()
 {
-    QMessageBox::information(this, tr("PACS"),
-        tr("PACS connection will be implemented in a future version."));
+    PacsConfigDialog dialog(impl_->pacsConfigManager, this);
+    dialog.exec();
 }
 
 void MainWindow::onShowSettings()
