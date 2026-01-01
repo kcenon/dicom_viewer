@@ -182,12 +182,15 @@ dicom_viewer/
 │   ├── SDS.md                      # Software Design Specification
 │   └── reference/                  # Technical Reference Documentation
 ├── include/                        # Header Files
-│   └── core/                       # Core module headers
-│       ├── dicom_loader.hpp        # DICOM file loading
-│       ├── series_builder.hpp      # Series assembly and 3D volume
-│       ├── transfer_syntax_decoder.hpp  # Transfer syntax decoding support
-│       ├── hounsfield_converter.hpp  # CT pixel to HU conversion
-│       └── image_converter.hpp     # Image format conversion
+│   ├── core/                       # Core module headers
+│   │   ├── dicom_loader.hpp        # DICOM file loading
+│   │   ├── series_builder.hpp      # Series assembly and 3D volume
+│   │   ├── transfer_syntax_decoder.hpp  # Transfer syntax decoding support
+│   │   ├── hounsfield_converter.hpp  # CT pixel to HU conversion
+│   │   └── image_converter.hpp     # Image format conversion
+│   └── services/                   # Service layer headers
+│       ├── volume_renderer.hpp     # GPU volume rendering with CPU fallback
+│       └── mpr_renderer.hpp        # MPR (Multi-Planar Reconstruction) views
 ├── src/                            # Source Code
 │   ├── core/                       # Core Data Structures
 │   │   ├── dicom/                  # DICOM loading and series assembly
