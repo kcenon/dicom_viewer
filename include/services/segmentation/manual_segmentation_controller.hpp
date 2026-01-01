@@ -1,0 +1,297 @@
+#pragma once
+
+#include <cstdint>
+#include <expected>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include <itkImage.h>
+#include <itkSmartPointer.h>
+
+namespace dicom_viewer::services {
+
+// Forward declaration
+struct SegmentationError;
+
+/**
+ * @brief Available segmentation tools for manual drawing
+ */
+enum class SegmentationTool {
+    None,         ///< No tool selected
+    Brush,        ///< Draw with circular/square brush
+    Eraser,       ///< Remove segmentation region
+    Fill,         ///< Flood fill closed region
+    Freehand,     ///< Draw freehand curve
+    Polygon,      ///< Polygon ROI
+    SmartScissors ///< Edge tracking (LiveWire)
+};
+
+/**
+ * @brief Brush shape for drawing tools
+ */
+enum class BrushShape {
+    Circle, ///< Circular brush
+    Square  ///< Square brush
+};
+
+/**
+ * @brief 2D point for mouse interaction
+ */
+struct Point2D {
+    int x = 0;
+    int y = 0;
+
+    Point2D() = default;
+    Point2D(int px, int py) : x(px), y(py) {}
+
+    [[nodiscard]] bool operator==(const Point2D& other) const noexcept {
+        return x == other.x && y == other.y;
+    }
+
+    [[nodiscard]] bool operator!=(const Point2D& other) const noexcept {
+        return !(*this == other);
+    }
+};
+
+/**
+ * @brief Parameters for brush-based tools (Brush, Eraser)
+ */
+struct BrushParameters {
+    /// Brush size in pixels (1-50)
+    int size = 5;
+
+    /// Brush shape
+    BrushShape shape = BrushShape::Circle;
+
+    /**
+     * @brief Validate brush parameters
+     * @return true if parameters are valid
+     */
+    [[nodiscard]] bool isValid() const noexcept {
+        return size >= 1 && size <= 50;
+    }
+};
+
+/**
+ * @brief Parameters for fill tool
+ */
+struct FillParameters {
+    /// Use 8-connectivity (true) or 4-connectivity (false)
+    bool use8Connectivity = false;
+
+    /// Tolerance for similar pixel values
+    double tolerance = 0.0;
+};
+
+/**
+ * @brief Interactive controller for manual segmentation tools
+ *
+ * Provides drawing tools for manual segmentation on 2D slices including
+ * brush, eraser, fill, freehand, polygon, and smart scissors tools.
+ *
+ * The controller manages mouse interactions and applies drawing operations
+ * to a label map that stores the segmentation result.
+ *
+ * @example
+ * @code
+ * ManualSegmentationController controller;
+ *
+ * // Initialize with image dimensions
+ * controller.initializeLabelMap(512, 512, 100);
+ *
+ * // Configure brush tool
+ * controller.setActiveTool(SegmentationTool::Brush);
+ * controller.setBrushSize(10);
+ * controller.setBrushShape(BrushShape::Circle);
+ * controller.setActiveLabel(1);
+ *
+ * // Handle mouse events
+ * controller.onMousePress(Point2D{100, 100}, 50);
+ * controller.onMouseMove(Point2D{110, 110}, 50);
+ * controller.onMouseRelease(Point2D{120, 120}, 50);
+ * @endcode
+ *
+ * @trace SRS-FR-023
+ */
+class ManualSegmentationController {
+public:
+    /// Label map type (2D slice for interactive drawing)
+    using LabelMapType = itk::Image<uint8_t, 3>;
+
+    /// 2D slice type for drawing operations
+    using SliceType = itk::Image<uint8_t, 2>;
+
+    /// Callback when label map is modified
+    using ModificationCallback = std::function<void(int sliceIndex)>;
+
+    ManualSegmentationController();
+    ~ManualSegmentationController();
+
+    // Non-copyable but movable
+    ManualSegmentationController(const ManualSegmentationController&) = delete;
+    ManualSegmentationController& operator=(const ManualSegmentationController&) = delete;
+    ManualSegmentationController(ManualSegmentationController&&) noexcept;
+    ManualSegmentationController& operator=(ManualSegmentationController&&) noexcept;
+
+    /**
+     * @brief Initialize the label map with given dimensions
+     *
+     * @param width Image width in pixels
+     * @param height Image height in pixels
+     * @param depth Number of slices (Z dimension)
+     * @return Success or error
+     */
+    [[nodiscard]] std::expected<void, SegmentationError>
+    initializeLabelMap(int width, int height, int depth);
+
+    /**
+     * @brief Initialize with existing label map
+     *
+     * @param labelMap Existing label map to use
+     * @return Success or error
+     */
+    [[nodiscard]] std::expected<void, SegmentationError>
+    setLabelMap(LabelMapType::Pointer labelMap);
+
+    /**
+     * @brief Get the current label map
+     * @return Label map pointer or nullptr if not initialized
+     */
+    [[nodiscard]] LabelMapType::Pointer getLabelMap() const;
+
+    /**
+     * @brief Set the active segmentation tool
+     * @param tool Tool to activate
+     */
+    void setActiveTool(SegmentationTool tool);
+
+    /**
+     * @brief Get the currently active tool
+     * @return Current tool
+     */
+    [[nodiscard]] SegmentationTool getActiveTool() const noexcept;
+
+    /**
+     * @brief Set brush size for brush-based tools
+     * @param size Brush size in pixels (1-50)
+     * @return true if size was valid and set
+     */
+    bool setBrushSize(int size);
+
+    /**
+     * @brief Get current brush size
+     * @return Brush size in pixels
+     */
+    [[nodiscard]] int getBrushSize() const noexcept;
+
+    /**
+     * @brief Set brush shape for brush-based tools
+     * @param shape Brush shape (Circle or Square)
+     */
+    void setBrushShape(BrushShape shape);
+
+    /**
+     * @brief Get current brush shape
+     * @return Brush shape
+     */
+    [[nodiscard]] BrushShape getBrushShape() const noexcept;
+
+    /**
+     * @brief Set brush parameters
+     * @param params Brush parameters
+     * @return true if parameters were valid and set
+     */
+    bool setBrushParameters(const BrushParameters& params);
+
+    /**
+     * @brief Get current brush parameters
+     * @return Brush parameters
+     */
+    [[nodiscard]] BrushParameters getBrushParameters() const noexcept;
+
+    /**
+     * @brief Set fill parameters
+     * @param params Fill parameters
+     */
+    void setFillParameters(const FillParameters& params);
+
+    /**
+     * @brief Get current fill parameters
+     * @return Fill parameters
+     */
+    [[nodiscard]] FillParameters getFillParameters() const noexcept;
+
+    /**
+     * @brief Set the active label ID for drawing
+     * @param labelId Label value to draw (1-255, 0 reserved for background)
+     * @return true if label ID was valid and set
+     */
+    bool setActiveLabel(uint8_t labelId);
+
+    /**
+     * @brief Get current active label ID
+     * @return Active label ID
+     */
+    [[nodiscard]] uint8_t getActiveLabel() const noexcept;
+
+    /**
+     * @brief Handle mouse press event
+     *
+     * @param position Mouse position in image coordinates
+     * @param sliceIndex Current slice index (Z)
+     */
+    void onMousePress(const Point2D& position, int sliceIndex);
+
+    /**
+     * @brief Handle mouse move event (while pressed)
+     *
+     * @param position Mouse position in image coordinates
+     * @param sliceIndex Current slice index (Z)
+     */
+    void onMouseMove(const Point2D& position, int sliceIndex);
+
+    /**
+     * @brief Handle mouse release event
+     *
+     * @param position Mouse position in image coordinates
+     * @param sliceIndex Current slice index (Z)
+     */
+    void onMouseRelease(const Point2D& position, int sliceIndex);
+
+    /**
+     * @brief Cancel current drawing operation
+     */
+    void cancelOperation();
+
+    /**
+     * @brief Check if a drawing operation is in progress
+     * @return true if drawing is active
+     */
+    [[nodiscard]] bool isDrawing() const noexcept;
+
+    /**
+     * @brief Set callback for label map modifications
+     * @param callback Callback function
+     */
+    void setModificationCallback(ModificationCallback callback);
+
+    /**
+     * @brief Clear all labels from the label map
+     */
+    void clearAll();
+
+    /**
+     * @brief Clear specific label from the label map
+     * @param labelId Label to clear
+     */
+    void clearLabel(uint8_t labelId);
+
+private:
+    class Impl;
+    std::unique_ptr<Impl> pImpl_;
+};
+
+} // namespace dicom_viewer::services
