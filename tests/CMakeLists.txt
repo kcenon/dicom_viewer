@@ -225,3 +225,20 @@ target_include_directories(threshold_segmenter_test PRIVATE
 )
 
 gtest_discover_tests(threshold_segmenter_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Region Growing Segmenter
+add_executable(region_growing_segmenter_test
+    unit/region_growing_segmenter_test.cpp
+)
+
+target_link_libraries(region_growing_segmenter_test PRIVATE
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(region_growing_segmenter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(region_growing_segmenter_test DISCOVERY_TIMEOUT 60)
