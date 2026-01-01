@@ -204,6 +204,7 @@ dicom_viewer/
 │   │   ├── image/                  # Image processing services
 │   │   ├── render/                 # Volume/Surface/MPR rendering
 │   │   ├── measurement/            # Measurement tools
+│   │   ├── segmentation/           # Segmentation algorithms (Threshold, Region Growing)
 │   │   └── pacs/                   # PACS connectivity (C-ECHO, C-FIND, etc.)
 │   ├── controller/                 # Controller Layer
 │   └── ui/                         # Qt UI Components
