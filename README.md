@@ -186,6 +186,7 @@ dicom_viewer/
 │       ├── dicom_loader.hpp        # DICOM file loading
 │       ├── series_builder.hpp      # Series assembly and 3D volume
 │       ├── transfer_syntax_decoder.hpp  # Transfer syntax decoding support
+│       ├── hounsfield_converter.hpp  # CT pixel to HU conversion
 │       └── image_converter.hpp     # Image format conversion
 ├── src/                            # Source Code
 │   ├── core/                       # Core Data Structures
