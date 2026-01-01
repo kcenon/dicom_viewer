@@ -2,6 +2,7 @@
 
 #include <expected>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
