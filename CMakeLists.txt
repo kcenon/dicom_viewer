@@ -139,6 +139,7 @@ add_library(measurement_service STATIC
     src/services/measurement/distance_tool.cpp
     src/services/measurement/area_tool.cpp
     src/services/measurement/statistics.cpp
+    src/services/measurement/roi_statistics.cpp
 )
 
 target_link_libraries(measurement_service PUBLIC
@@ -211,6 +212,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/widgets/mpr_widget.cpp
     src/ui/panels/patient_browser.cpp
     src/ui/panels/tools_panel.cpp
+    src/ui/panels/statistics_panel.cpp
     src/ui/dialogs/settings_dialog.cpp
     src/ui/dialogs/pacs_config_dialog.cpp
 )
