@@ -433,3 +433,29 @@ target_include_directories(ellipse_roi_test PRIVATE
 )
 
 gtest_discover_tests(ellipse_roi_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Area Measurement Tool
+add_executable(area_measurement_tool_test
+    unit/area_measurement_tool_test.cpp
+)
+
+target_link_directories(area_measurement_tool_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(area_measurement_tool_test PRIVATE
+    measurement_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(area_measurement_tool_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS area_measurement_tool_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(area_measurement_tool_test DISCOVERY_TIMEOUT 60)

@@ -161,6 +161,20 @@ public:
     copyRoiToSlice(int measurementId, int targetSlice);
 
     /**
+     * @brief Copy ROI to a range of slices
+     *
+     * Copies the specified ROI to all slices in the given range (inclusive).
+     * Each copy is independent and maintains the original ROI type and shape.
+     *
+     * @param measurementId Source measurement ID
+     * @param startSlice Start of slice range (inclusive)
+     * @param endSlice End of slice range (inclusive)
+     * @return Vector of new measurement IDs or error
+     */
+    [[nodiscard]] std::expected<std::vector<int>, MeasurementError>
+    copyRoiToSliceRange(int measurementId, int startSlice, int endSlice);
+
+    /**
      * @brief Set display parameters
      * @param params Display parameters
      */
