@@ -51,7 +51,7 @@
 |--------|-------------|
 | **Automatic Segmentation** | Otsu thresholding, Region Growing, Confidence Connected |
 | **Semi-automatic Segmentation** | Level Set (Geodesic Active Contour), Watershed |
-| **Manual Segmentation** | Brush, Eraser, Fill, Polygon, Freehand curve tools |
+| **Manual Segmentation** | Brush, Eraser, Fill, Polygon, Freehand curve, Smart Scissors (LiveWire) |
 | **Post-processing** | Opening, Closing, Fill Holes, Island Removal |
 
 ### Region Measurement and Analysis (P1 - High)
@@ -154,10 +154,10 @@ DICOM Viewer adopts a **4-Layer Architecture** to maximize separation of concern
 
 ```bash
 # macOS (Homebrew)
-brew install itk vtk qt@6
+brew install itk vtk qt@6 fftw dcmtk spdlog fmt nlohmann-json
 
 # Using vcpkg
-vcpkg install itk[vtk] vtk[qt] qt6
+vcpkg install itk[vtk] vtk[qt] qt6 fftw3 dcmtk spdlog fmt nlohmann-json
 ```
 
 ### Build

@@ -51,7 +51,7 @@
 |-----------|------|
 | **자동 분할** | Otsu 임계값, Region Growing, Confidence Connected |
 | **반자동 분할** | Level Set (Geodesic Active Contour), Watershed |
-| **수동 분할** | 브러시, 지우개, 채우기, 다각형, 자유곡선 도구 |
+| **수동 분할** | 브러시, 지우개, 채우기, 다각형, 자유곡선, 스마트 시저 (LiveWire) |
 | **후처리** | Opening, Closing, Fill Holes, Island Removal |
 
 ### 영역 측정 및 분석 (P1 - High)
@@ -153,10 +153,10 @@ DICOM Viewer는 **4-Layer 아키텍처**를 채택하여 관심사 분리와 유
 
 ```bash
 # macOS (Homebrew)
-brew install itk vtk qt@6
+brew install itk vtk qt@6 fftw dcmtk spdlog fmt nlohmann-json
 
 # vcpkg 사용 시
-vcpkg install itk[vtk] vtk[qt] qt6
+vcpkg install itk[vtk] vtk[qt] qt6 fftw3 dcmtk spdlog fmt nlohmann-json
 ```
 
 ### 빌드
