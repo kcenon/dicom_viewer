@@ -1,4 +1,6 @@
 #include "services/mpr_renderer.hpp"
+#include "services/segmentation/mpr_coordinate_transformer.hpp"
+#include "services/segmentation/mpr_segmentation_renderer.hpp"
 
 #include <vtkImageReslice.h>
 #include <vtkImageActor.h>
@@ -72,7 +74,14 @@ public:
     SlicePositionCallback slicePositionCallback;
     CrosshairCallback crosshairCallback;
 
+    // Segmentation support
+    std::unique_ptr<MPRCoordinateTransformer> coordinateTransformer;
+    std::unique_ptr<MPRSegmentationRenderer> segmentationRenderer;
+
     Impl() {
+        // Initialize segmentation components
+        coordinateTransformer = std::make_unique<MPRCoordinateTransformer>();
+        segmentationRenderer = std::make_unique<MPRSegmentationRenderer>();
         // Initialize lookup table
         lookupTable = vtkSmartPointer<vtkLookupTable>::New();
         lookupTable->SetTableRange(0, 1);
@@ -337,6 +346,15 @@ void MPRRenderer::setInputData(vtkSmartPointer<vtkImageData> imageData) {
             impl_->reslicers[i]->SetInputData(imageData);
         }
 
+        // Initialize coordinate transformer
+        impl_->coordinateTransformer->setImageData(imageData);
+
+        // Setup segmentation renderer with renderers
+        impl_->segmentationRenderer->setRenderers(
+            impl_->renderers[0],
+            impl_->renderers[1],
+            impl_->renderers[2]);
+
         // Reset views to center of volume
         resetViews();
     }
@@ -361,6 +379,10 @@ void MPRRenderer::setSlicePosition(MPRPlane plane, double position) {
     for (int i = 0; i < 3; ++i) {
         impl_->updateCrosshair(i);
     }
+
+    // Update segmentation overlay slice
+    int sliceIndex = worldPositionToSliceIndex(plane, position);
+    impl_->segmentationRenderer->setSliceIndex(plane, sliceIndex);
 
     // Notify callback
     if (impl_->slicePositionCallback) {
@@ -472,10 +494,69 @@ void MPRRenderer::resetViews() {
         impl_->updateSlicePosition(i);
         impl_->setupCamera(i);
         impl_->updateCrosshair(i);
+
+        // Update segmentation overlay slices
+        auto plane = static_cast<MPRPlane>(i);
+        int sliceIndex = worldPositionToSliceIndex(plane, impl_->slicePositions[i]);
+        impl_->segmentationRenderer->setSliceIndex(plane, sliceIndex);
     }
 
     // Apply default window/level
     impl_->updateWindowLevel();
+}
+
+// ==================== Segmentation Support Implementation ====================
+
+void MPRRenderer::setLabelMap(LabelMapType::Pointer labelMap) {
+    impl_->segmentationRenderer->setLabelMap(labelMap);
+}
+
+MPRRenderer::LabelMapType::Pointer MPRRenderer::getLabelMap() const {
+    return impl_->segmentationRenderer->getLabelMap();
+}
+
+void MPRRenderer::setLabelManager(LabelManager* labelManager) {
+    impl_->segmentationRenderer->setLabelManager(labelManager);
+}
+
+void MPRRenderer::setSegmentationVisible(bool visible) {
+    impl_->segmentationRenderer->setVisible(visible);
+}
+
+bool MPRRenderer::isSegmentationVisible() const {
+    return impl_->segmentationRenderer->isVisible();
+}
+
+void MPRRenderer::setSegmentationOpacity(double opacity) {
+    impl_->segmentationRenderer->setOpacity(opacity);
+}
+
+double MPRRenderer::getSegmentationOpacity() const {
+    return impl_->segmentationRenderer->getOpacity();
+}
+
+void MPRRenderer::updateSegmentationOverlay() {
+    impl_->segmentationRenderer->update();
+}
+
+void MPRRenderer::updateSegmentationOverlay(MPRPlane plane) {
+    impl_->segmentationRenderer->updatePlane(plane);
+}
+
+MPRCoordinateTransformer* MPRRenderer::getCoordinateTransformer() const {
+    return impl_->coordinateTransformer.get();
+}
+
+MPRSegmentationRenderer* MPRRenderer::getSegmentationRenderer() const {
+    return impl_->segmentationRenderer.get();
+}
+
+int MPRRenderer::worldPositionToSliceIndex(MPRPlane plane, double worldPosition) const {
+    return impl_->coordinateTransformer->worldPositionToSliceIndex(plane, worldPosition);
+}
+
+double MPRRenderer::sliceIndexToWorldPosition(MPRPlane plane, int sliceIndex) const {
+    return impl_->coordinateTransformer->sliceIndexToWorldPosition(plane, sliceIndex);
 }
 
 } // namespace dicom_viewer::services

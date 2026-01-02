@@ -11,10 +11,9 @@
 #include <itkImage.h>
 #include <itkSmartPointer.h>
 
-namespace dicom_viewer::services {
+#include "services/segmentation/threshold_segmenter.hpp"
 
-// Forward declaration
-struct SegmentationError;
+namespace dicom_viewer::services {
 
 /**
  * @brief Available segmentation tools for manual drawing

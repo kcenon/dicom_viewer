@@ -5,6 +5,7 @@
 
 #include <vtkImageActor.h>
 #include <vtkImageMapToColors.h>
+#include <vtkImageMapper3D.h>
 #include <vtkLookupTable.h>
 #include <vtkImageReslice.h>
 #include <vtkMatrix4x4.h>
@@ -96,7 +97,8 @@ public:
         vtkLabelMap->DeepCopy(filter->GetOutput());
 
         // Update metadata
-        labelMap->GetSpacing(spacing.data());
+        auto itkSpacing = labelMap->GetSpacing();
+        spacing = {itkSpacing[0], itkSpacing[1], itkSpacing[2]};
         auto itkOrigin = labelMap->GetOrigin();
         origin = {itkOrigin[0], itkOrigin[1], itkOrigin[2]};
 

@@ -4,6 +4,7 @@
 #include <QWidget>
 
 #include "services/segmentation/manual_segmentation_controller.hpp"
+#include "services/segmentation/segmentation_label.hpp"
 
 namespace dicom_viewer::ui {
 

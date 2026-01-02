@@ -459,3 +459,30 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(area_measurement_tool_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for MPR Coordinate Transformer
+add_executable(mpr_coordinate_transformer_test
+    unit/mpr_coordinate_transformer_test.cpp
+)
+
+target_link_directories(mpr_coordinate_transformer_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(mpr_coordinate_transformer_test PRIVATE
+    segmentation_service
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(mpr_coordinate_transformer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS mpr_coordinate_transformer_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(mpr_coordinate_transformer_test DISCOVERY_TIMEOUT 60)

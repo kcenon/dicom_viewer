@@ -8,7 +8,14 @@
 #include <vtkImageData.h>
 #include <vtkRenderer.h>
 
+#include <itkImage.h>
+
 namespace dicom_viewer::services {
+
+// Forward declarations
+class MPRSegmentationRenderer;
+class MPRCoordinateTransformer;
+class LabelManager;
 
 /**
  * @brief MPR view plane orientation
@@ -158,6 +165,92 @@ public:
      * @brief Reset views to default positions (center of volume)
      */
     void resetViews();
+
+    // ==================== Segmentation Support ====================
+
+    /// Label map type for segmentation
+    using LabelMapType = itk::Image<uint8_t, 3>;
+
+    /**
+     * @brief Set the label map for segmentation overlay
+     * @param labelMap 3D label map
+     */
+    void setLabelMap(LabelMapType::Pointer labelMap);
+
+    /**
+     * @brief Get the current label map
+     * @return Label map pointer or nullptr
+     */
+    [[nodiscard]] LabelMapType::Pointer getLabelMap() const;
+
+    /**
+     * @brief Set the label manager for color/visibility
+     * @param labelManager Label manager instance
+     */
+    void setLabelManager(LabelManager* labelManager);
+
+    /**
+     * @brief Set segmentation overlay visibility
+     * @param visible True to show overlay
+     */
+    void setSegmentationVisible(bool visible);
+
+    /**
+     * @brief Check if segmentation overlay is visible
+     * @return True if visible
+     */
+    [[nodiscard]] bool isSegmentationVisible() const;
+
+    /**
+     * @brief Set segmentation overlay opacity
+     * @param opacity Opacity value (0.0-1.0)
+     */
+    void setSegmentationOpacity(double opacity);
+
+    /**
+     * @brief Get segmentation overlay opacity
+     * @return Opacity value
+     */
+    [[nodiscard]] double getSegmentationOpacity() const;
+
+    /**
+     * @brief Update segmentation overlay after label map modification
+     */
+    void updateSegmentationOverlay();
+
+    /**
+     * @brief Update segmentation overlay for a specific plane
+     * @param plane MPR plane to update
+     */
+    void updateSegmentationOverlay(MPRPlane plane);
+
+    /**
+     * @brief Get the coordinate transformer
+     * @return Pointer to coordinate transformer
+     */
+    [[nodiscard]] MPRCoordinateTransformer* getCoordinateTransformer() const;
+
+    /**
+     * @brief Get the segmentation renderer
+     * @return Pointer to segmentation renderer
+     */
+    [[nodiscard]] MPRSegmentationRenderer* getSegmentationRenderer() const;
+
+    /**
+     * @brief Get slice index from world position for a plane
+     * @param plane MPR plane
+     * @param worldPosition World position in mm
+     * @return Slice index
+     */
+    [[nodiscard]] int worldPositionToSliceIndex(MPRPlane plane, double worldPosition) const;
+
+    /**
+     * @brief Get world position from slice index for a plane
+     * @param plane MPR plane
+     * @param sliceIndex Slice index
+     * @return World position in mm
+     */
+    [[nodiscard]] double sliceIndexToWorldPosition(MPRPlane plane, int sliceIndex) const;
 
 private:
     class Impl;
