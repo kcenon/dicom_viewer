@@ -310,3 +310,29 @@ target_include_directories(roi_statistics_test PRIVATE
 )
 
 gtest_discover_tests(roi_statistics_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Volume Calculator
+add_executable(volume_calculator_test
+    unit/volume_calculator_test.cpp
+)
+
+target_link_directories(volume_calculator_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(volume_calculator_test PRIVATE
+    measurement_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(volume_calculator_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS volume_calculator_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(volume_calculator_test DISCOVERY_TIMEOUT 60)
