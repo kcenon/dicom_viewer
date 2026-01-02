@@ -98,6 +98,7 @@ DICOM Viewer adopts a **4-Layer Architecture** to maximize separation of concern
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Presentation Layer (Qt6)                                               │
 │  • MainWindow, ViewportWidget, ToolsPanel, PatientBrowser               │
+│  • SegmentationPanel, StatisticsPanel                                   │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  Controller Layer                                                       │
 │  • ViewerController → Loading, Rendering, Tool, Network Controllers     │
