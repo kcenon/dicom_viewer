@@ -330,7 +330,7 @@ public:
         // Calculate centroid
         m.centroid = calculateCentroid(m.points);
 
-        // For ellipse type, calculate semi-axes from bounding box
+        // For ellipse type, calculate semi-axes from bounding box and use π×a×b formula
         if (type == RoiType::Ellipse && !m.points.empty()) {
             double minX = m.points[0][0], maxX = m.points[0][0];
             double minY = m.points[0][1], maxY = m.points[0][1];
@@ -342,6 +342,13 @@ public:
             }
             m.semiAxisA = (maxX - minX) / 2.0;
             m.semiAxisB = (maxY - minY) / 2.0;
+
+            // Recalculate area using ellipse formula: π × a × b
+            m.areaMm2 = std::numbers::pi * m.semiAxisA * m.semiAxisB;
+            m.areaCm2 = m.areaMm2 / 100.0;
+
+            // Recalculate perimeter using Ramanujan approximation
+            m.perimeterMm = calculateEllipsePerimeter(m.semiAxisA, m.semiAxisB);
         }
 
         m.sliceIndex = currentSlice;
@@ -744,24 +751,25 @@ AreaMeasurementTool::copyRoiToSlice(int measurementId, int targetSlice) {
     }
 
     auto measurement = measurementOpt.value();
+    int originalSlice = measurement.sliceIndex;
     measurement.id = impl_->nextMeasurementId++;
     measurement.sliceIndex = targetSlice;
 
     // Adjust Z coordinates for new slice (simplified - assumes uniform spacing)
-    double zOffset = (targetSlice - measurement.sliceIndex) * impl_->spacingZ;
+    double zOffset = (targetSlice - originalSlice) * impl_->spacingZ;
     for (auto& p : measurement.points) {
         p[2] += zOffset;
     }
     measurement.centroid[2] += zOffset;
 
-    // Store as a contour widget (since we can't easily recreate border widgets programmatically)
-    if (measurement.type == RoiType::Rectangle && impl_->interactor && impl_->renderer) {
+    // Store as a contour widget for all ROI types
+    if (impl_->interactor && impl_->renderer) {
         auto widget = vtkSmartPointer<vtkContourWidget>::New();
         widget->SetInteractor(impl_->interactor);
 
         auto rep = vtkSmartPointer<vtkOrientedGlyphContourRepresentation>::New();
         widget->SetRepresentation(rep);
-        impl_->configureContourWidget(widget, RoiType::Polygon);
+        impl_->configureContourWidget(widget, measurement.type);
 
         // Initialize with points
         widget->Initialize();
