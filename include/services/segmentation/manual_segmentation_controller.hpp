@@ -87,6 +87,28 @@ struct FillParameters {
 };
 
 /**
+ * @brief Parameters for polygon ROI tool
+ */
+struct PolygonParameters {
+    /// Fill interior of completed polygon
+    bool fillInterior = true;
+
+    /// Draw polygon outline
+    bool drawOutline = true;
+
+    /// Minimum vertices required to complete polygon
+    int minimumVertices = 3;
+
+    /**
+     * @brief Validate polygon parameters
+     * @return true if parameters are valid
+     */
+    [[nodiscard]] bool isValid() const noexcept {
+        return minimumVertices >= 3;
+    }
+};
+
+/**
  * @brief Parameters for freehand drawing tool
  */
 struct FreehandParameters {
@@ -257,6 +279,55 @@ public:
      * @return Fill parameters
      */
     [[nodiscard]] FillParameters getFillParameters() const noexcept;
+
+    /**
+     * @brief Set polygon parameters
+     * @param params Polygon parameters
+     * @return true if parameters were valid and set
+     */
+    bool setPolygonParameters(const PolygonParameters& params);
+
+    /**
+     * @brief Get current polygon parameters
+     * @return Polygon parameters
+     */
+    [[nodiscard]] PolygonParameters getPolygonParameters() const noexcept;
+
+    /**
+     * @brief Get the current polygon vertices
+     *
+     * Returns the vertices collected during polygon creation.
+     *
+     * @return Vector of polygon vertices
+     */
+    [[nodiscard]] std::vector<Point2D> getPolygonVertices() const;
+
+    /**
+     * @brief Undo the last polygon vertex
+     *
+     * Removes the most recently added vertex from the polygon.
+     *
+     * @return true if a vertex was removed, false if polygon is empty
+     */
+    bool undoLastPolygonVertex();
+
+    /**
+     * @brief Complete the current polygon
+     *
+     * Finalizes the polygon by connecting the last vertex to the first
+     * and optionally filling the interior. Call this when the user
+     * double-clicks or explicitly requests completion.
+     *
+     * @param sliceIndex Current slice index (Z)
+     * @return true if polygon was completed, false if insufficient vertices
+     */
+    bool completePolygon(int sliceIndex);
+
+    /**
+     * @brief Check if polygon has enough vertices to complete
+     * @return true if polygon can be completed
+     */
+    [[nodiscard]] bool canCompletePolygon() const noexcept;
 
     /**
      * @brief Set freehand parameters

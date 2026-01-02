@@ -21,6 +21,7 @@ public:
     SegmentationTool activeTool_ = SegmentationTool::None;
     BrushParameters brushParams_;
     FillParameters fillParams_;
+    PolygonParameters polygonParams_;
     FreehandParameters freehandParams_;
     uint8_t activeLabel_ = 1;
     bool isDrawing_ = false;
@@ -30,6 +31,10 @@ public:
 
     // Freehand drawing state
     std::vector<Point2D> freehandPath_;
+
+    // Polygon drawing state
+    std::vector<Point2D> polygonVertices_;
+    int polygonSliceIndex_ = -1;
 
     /**
      * @brief Apply brush stroke at a position
@@ -433,6 +438,63 @@ public:
     }
 
     /**
+     * @brief Add vertex to polygon
+     */
+    void addPolygonVertex(const Point2D& position, int sliceIndex) {
+        // Initialize polygon if this is the first vertex
+        if (polygonVertices_.empty()) {
+            polygonSliceIndex_ = sliceIndex;
+        }
+
+        // Only add vertex on the same slice
+        if (sliceIndex != polygonSliceIndex_) {
+            return;
+        }
+
+        polygonVertices_.push_back(position);
+    }
+
+    /**
+     * @brief Draw polygon outline connecting all vertices
+     */
+    void drawPolygonOutline(int sliceIndex, uint8_t value) {
+        if (polygonVertices_.size() < 2 || !labelMap_) {
+            return;
+        }
+
+        // Draw lines between consecutive vertices
+        for (size_t i = 0; i < polygonVertices_.size() - 1; ++i) {
+            drawLine(polygonVertices_[i], polygonVertices_[i + 1], sliceIndex, value);
+        }
+
+        // Close the polygon by connecting last to first
+        drawLine(polygonVertices_.back(), polygonVertices_.front(), sliceIndex, value);
+    }
+
+    /**
+     * @brief Finalize polygon drawing
+     */
+    void finalizePolygon(int sliceIndex, uint8_t value) {
+        if (polygonVertices_.size() < static_cast<size_t>(polygonParams_.minimumVertices)) {
+            return;
+        }
+
+        // Draw outline if enabled
+        if (polygonParams_.drawOutline) {
+            drawPolygonOutline(sliceIndex, value);
+        }
+
+        // Fill interior if enabled
+        if (polygonParams_.fillInterior) {
+            fillPolygon(polygonVertices_, sliceIndex, value);
+        }
+
+        // Clear vertices for next polygon
+        polygonVertices_.clear();
+        polygonSliceIndex_ = -1;
+    }
+
+    /**
      * @brief Process freehand path with simplification and smoothing
      */
     std::vector<Point2D> processFreehandPath() {
@@ -606,6 +668,65 @@ FillParameters ManualSegmentationController::getFillParameters() const noexcept 
     return pImpl_->fillParams_;
 }
 
+bool ManualSegmentationController::setPolygonParameters(const PolygonParameters& params) {
+    if (!params.isValid()) {
+        return false;
+    }
+    pImpl_->polygonParams_ = params;
+    return true;
+}
+
+PolygonParameters ManualSegmentationController::getPolygonParameters() const noexcept {
+    return pImpl_->polygonParams_;
+}
+
+std::vector<Point2D> ManualSegmentationController::getPolygonVertices() const {
+    return pImpl_->polygonVertices_;
+}
+
+bool ManualSegmentationController::undoLastPolygonVertex() {
+    if (pImpl_->polygonVertices_.empty()) {
+        return false;
+    }
+
+    pImpl_->polygonVertices_.pop_back();
+
+    // Reset slice index if all vertices removed
+    if (pImpl_->polygonVertices_.empty()) {
+        pImpl_->polygonSliceIndex_ = -1;
+    }
+
+    // Notify callback of change
+    if (pImpl_->modificationCallback_ && pImpl_->polygonSliceIndex_ >= 0) {
+        pImpl_->modificationCallback_(pImpl_->polygonSliceIndex_);
+    }
+
+    return true;
+}
+
+bool ManualSegmentationController::completePolygon(int sliceIndex) {
+    if (!canCompletePolygon()) {
+        return false;
+    }
+
+    // Finalize and draw the polygon
+    pImpl_->finalizePolygon(sliceIndex, pImpl_->activeLabel_);
+
+    // End drawing state
+    pImpl_->isDrawing_ = false;
+
+    if (pImpl_->modificationCallback_) {
+        pImpl_->modificationCallback_(sliceIndex);
+    }
+
+    return true;
+}
+
+bool ManualSegmentationController::canCompletePolygon() const noexcept {
+    return pImpl_->polygonVertices_.size() >=
+           static_cast<size_t>(pImpl_->polygonParams_.minimumVertices);
+}
+
 bool ManualSegmentationController::setFreehandParameters(const FreehandParameters& params) {
     if (!params.isValid()) {
         return false;
@@ -663,8 +784,14 @@ void ManualSegmentationController::onMousePress(const Point2D& position, int sli
             pImpl_->freehandPath_.push_back(position);
             break;
 
+        case SegmentationTool::Polygon:
+            // Add vertex to polygon
+            pImpl_->addPolygonVertex(position, sliceIndex);
+            // Polygon remains in drawing state until completed
+            break;
+
         default:
-            // Other tools handled separately
+            // Other tools (SmartScissors) handled separately
             break;
     }
 
@@ -753,6 +880,8 @@ void ManualSegmentationController::onMouseRelease(const Point2D& position, int s
 void ManualSegmentationController::cancelOperation() {
     pImpl_->isDrawing_ = false;
     pImpl_->freehandPath_.clear();
+    pImpl_->polygonVertices_.clear();
+    pImpl_->polygonSliceIndex_ = -1;
 }
 
 bool ManualSegmentationController::isDrawing() const noexcept {

@@ -683,3 +683,230 @@ TEST_F(ManualSegmentationControllerTest, FreehandToolWithSimplification) {
     EXPECT_EQ(getPixelAt(labelMap, 10, 50, 0), 1);
     EXPECT_EQ(getPixelAt(labelMap, 90, 50, 0), 1);
 }
+
+// Polygon tool tests
+TEST_F(ManualSegmentationControllerTest, PolygonParametersDefault) {
+    auto params = controller_->getPolygonParameters();
+    EXPECT_TRUE(params.fillInterior);
+    EXPECT_TRUE(params.drawOutline);
+    EXPECT_EQ(params.minimumVertices, 3);
+}
+
+TEST_F(ManualSegmentationControllerTest, SetPolygonParametersValid) {
+    PolygonParameters params;
+    params.fillInterior = false;
+    params.drawOutline = true;
+    params.minimumVertices = 4;
+
+    EXPECT_TRUE(controller_->setPolygonParameters(params));
+
+    auto result = controller_->getPolygonParameters();
+    EXPECT_FALSE(result.fillInterior);
+    EXPECT_TRUE(result.drawOutline);
+    EXPECT_EQ(result.minimumVertices, 4);
+}
+
+TEST_F(ManualSegmentationControllerTest, SetPolygonParametersInvalid) {
+    PolygonParameters params;
+    params.minimumVertices = 2;  // Must be >= 3
+
+    EXPECT_FALSE(controller_->setPolygonParameters(params));
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonToolAddsVertices) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 1);
+
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 2);
+
+    controller_->onMousePress(Point2D{30, 50}, 0);
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 3);
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonToolUndoVertex) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    controller_->onMousePress(Point2D{30, 50}, 0);
+
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 3);
+
+    EXPECT_TRUE(controller_->undoLastPolygonVertex());
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 2);
+
+    EXPECT_TRUE(controller_->undoLastPolygonVertex());
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 1);
+
+    EXPECT_TRUE(controller_->undoLastPolygonVertex());
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 0);
+
+    // Undo on empty polygon returns false
+    EXPECT_FALSE(controller_->undoLastPolygonVertex());
+}
+
+TEST_F(ManualSegmentationControllerTest, CanCompletePolygon) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+
+    // Need at least 3 vertices by default
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    EXPECT_FALSE(controller_->canCompletePolygon());
+
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    EXPECT_FALSE(controller_->canCompletePolygon());
+
+    controller_->onMousePress(Point2D{30, 50}, 0);
+    EXPECT_TRUE(controller_->canCompletePolygon());
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonToolCompleteDrawsPolygon) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+    controller_->setActiveLabel(1);
+
+    // Draw a triangle
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    controller_->onMousePress(Point2D{30, 50}, 0);
+
+    EXPECT_TRUE(controller_->completePolygon(0));
+
+    auto labelMap = controller_->getLabelMap();
+
+    // Vertices should be labeled (outline)
+    EXPECT_EQ(getPixelAt(labelMap, 10, 10, 0), 1);
+    EXPECT_EQ(getPixelAt(labelMap, 50, 10, 0), 1);
+    EXPECT_EQ(getPixelAt(labelMap, 30, 50, 0), 1);
+
+    // Interior should be filled
+    EXPECT_EQ(getPixelAt(labelMap, 30, 25, 0), 1);
+
+    // Polygon vertices should be cleared after completion
+    EXPECT_TRUE(controller_->getPolygonVertices().empty());
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonToolCompleteOutlineOnly) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+    controller_->setActiveLabel(1);
+
+    PolygonParameters params;
+    params.fillInterior = false;
+    params.drawOutline = true;
+    controller_->setPolygonParameters(params);
+
+    // Draw a large triangle
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMousePress(Point2D{90, 10}, 0);
+    controller_->onMousePress(Point2D{50, 90}, 0);
+
+    EXPECT_TRUE(controller_->completePolygon(0));
+
+    auto labelMap = controller_->getLabelMap();
+
+    // Vertices should be labeled (outline)
+    EXPECT_EQ(getPixelAt(labelMap, 10, 10, 0), 1);
+    EXPECT_EQ(getPixelAt(labelMap, 90, 10, 0), 1);
+
+    // Interior should NOT be filled
+    EXPECT_EQ(getPixelAt(labelMap, 50, 30, 0), 0);
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonToolInsufficientVertices) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+    controller_->setActiveLabel(1);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMousePress(Point2D{50, 10}, 0);
+
+    // Only 2 vertices, minimum is 3
+    EXPECT_FALSE(controller_->completePolygon(0));
+
+    // Vertices should still be there
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 2);
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonToolCancelClearsVertices) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    controller_->onMousePress(Point2D{30, 50}, 0);
+
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 3);
+
+    controller_->cancelOperation();
+
+    EXPECT_TRUE(controller_->getPolygonVertices().empty());
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonToolSameSliceOnly) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 10).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+
+    // Start on slice 0
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 1);
+
+    // Try to add vertex on different slice - should be ignored
+    controller_->onMousePress(Point2D{50, 10}, 5);
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 1);
+
+    // Add vertex on same slice
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    EXPECT_EQ(controller_->getPolygonVertices().size(), 2);
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonToolModificationCallback) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+
+    int callbackCount = 0;
+    int lastSlice = -1;
+
+    controller_->setModificationCallback([&](int sliceIndex) {
+        ++callbackCount;
+        lastSlice = sliceIndex;
+    });
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    EXPECT_EQ(callbackCount, 1);
+    EXPECT_EQ(lastSlice, 0);
+
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    EXPECT_EQ(callbackCount, 2);
+
+    controller_->onMousePress(Point2D{30, 50}, 0);
+    EXPECT_EQ(callbackCount, 3);
+
+    controller_->completePolygon(0);
+    EXPECT_EQ(callbackCount, 4);
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonToolCustomMinimumVertices) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+
+    // Require 4 vertices minimum
+    PolygonParameters params;
+    params.minimumVertices = 4;
+    controller_->setPolygonParameters(params);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    controller_->onMousePress(Point2D{50, 50}, 0);
+
+    // Only 3 vertices, need 4
+    EXPECT_FALSE(controller_->canCompletePolygon());
+
+    controller_->onMousePress(Point2D{10, 50}, 0);
+    EXPECT_TRUE(controller_->canCompletePolygon());
+}
