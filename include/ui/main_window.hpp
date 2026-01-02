@@ -49,6 +49,9 @@ public slots:
     /// Toggle full screen mode
     void onToggleFullScreen();
 
+    /// Show ROI statistics for current measurements
+    void onShowRoiStatistics();
+
 protected:
     void closeEvent(QCloseEvent* event) override;
     void showEvent(QShowEvent* event) override;

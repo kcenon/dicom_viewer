@@ -1,6 +1,9 @@
 #pragma once
 
 #include <memory>
+#include <optional>
+#include <vector>
+
 #include <QWidget>
 #include <vtkSmartPointer.h>
 #include <vtkImageData.h>
@@ -117,6 +120,31 @@ public:
      * @brief Get current measurement mode
      */
     services::MeasurementMode getMeasurementMode() const;
+
+    /**
+     * @brief Get all area measurements
+     * @return Vector of area measurements
+     */
+    std::vector<services::AreaMeasurement> getAreaMeasurements() const;
+
+    /**
+     * @brief Get a specific area measurement by ID
+     * @param id Measurement ID
+     * @return Area measurement if found
+     */
+    std::optional<services::AreaMeasurement> getAreaMeasurement(int id) const;
+
+    /**
+     * @brief Get current slice index
+     * @return Current slice index
+     */
+    int getCurrentSlice() const;
+
+    /**
+     * @brief Get current image data
+     * @return VTK image data pointer
+     */
+    vtkSmartPointer<vtkImageData> getImageData() const;
 
 signals:
     /// Emitted when crosshair position changes (world coordinates)

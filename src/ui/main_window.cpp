@@ -2,9 +2,14 @@
 #include "ui/viewport_widget.hpp"
 #include "ui/panels/patient_browser.hpp"
 #include "ui/panels/tools_panel.hpp"
+#include "ui/panels/statistics_panel.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
 #include "services/pacs_config_manager.hpp"
 #include "services/dicom_store_scp.hpp"
+#include "services/measurement/roi_statistics.hpp"
+
+#include <itkImage.h>
+#include <itkVTKImageToImageFilter.h>
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -32,6 +37,8 @@ public:
 
     QDockWidget* patientBrowserDock = nullptr;
     QDockWidget* toolsPanelDock = nullptr;
+    QDockWidget* statisticsPanelDock = nullptr;
+    StatisticsPanel* statisticsPanel = nullptr;
 
     QToolBar* mainToolBar = nullptr;
     QActionGroup* toolActionGroup = nullptr;
@@ -44,6 +51,10 @@ public:
     // View menu actions for dock toggle
     QAction* togglePatientBrowserAction = nullptr;
     QAction* toggleToolsPanelAction = nullptr;
+    QAction* toggleStatisticsPanelAction = nullptr;
+
+    // Statistics action
+    QAction* showStatisticsAction = nullptr;
 
     // PACS configuration manager
     services::PacsConfigManager* pacsConfigManager = nullptr;
@@ -172,6 +183,11 @@ void MainWindow::setupMenuBar()
     impl_->toggleToolsPanelAction->setChecked(true);
     impl_->toggleToolsPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_2));
 
+    impl_->toggleStatisticsPanelAction = viewMenu->addAction(tr("&Statistics Panel"));
+    impl_->toggleStatisticsPanelAction->setCheckable(true);
+    impl_->toggleStatisticsPanelAction->setChecked(false);
+    impl_->toggleStatisticsPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_3));
+
     viewMenu->addSeparator();
 
     auto fullScreenAction = viewMenu->addAction(tr("&Full Screen"));
@@ -238,8 +254,14 @@ void MainWindow::setupMenuBar()
     clearMeasurementsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
     connect(clearMeasurementsAction, &QAction::triggered, this, [this]() {
         impl_->viewport->deleteAllMeasurements();
+        impl_->statisticsPanel->clearStatistics();
         statusBar()->showMessage(tr("All measurements cleared"), 3000);
     });
+
+    impl_->showStatisticsAction = toolsMenu->addAction(tr("&Show ROI Statistics"));
+    impl_->showStatisticsAction->setShortcut(QKeySequence(Qt::Key_S));
+    connect(impl_->showStatisticsAction, &QAction::triggered,
+            this, &MainWindow::onShowRoiStatistics);
 
     toolsMenu->addSeparator();
 
@@ -379,6 +401,16 @@ void MainWindow::setupDockWidgets()
     impl_->toolsPanelDock->setWidget(impl_->toolsPanel);
     impl_->toolsPanelDock->setMinimumWidth(200);
     addDockWidget(Qt::RightDockWidgetArea, impl_->toolsPanelDock);
+
+    // Statistics Panel (right, tabbed with Tools)
+    impl_->statisticsPanelDock = new QDockWidget(tr("Statistics"), this);
+    impl_->statisticsPanelDock->setObjectName("StatisticsPanelDock");
+    impl_->statisticsPanel = new StatisticsPanel();
+    impl_->statisticsPanelDock->setWidget(impl_->statisticsPanel);
+    impl_->statisticsPanelDock->setMinimumWidth(250);
+    addDockWidget(Qt::RightDockWidgetArea, impl_->statisticsPanelDock);
+    tabifyDockWidget(impl_->toolsPanelDock, impl_->statisticsPanelDock);
+    impl_->statisticsPanelDock->hide();  // Initially hidden
 }
 
 void MainWindow::setupStatusBar()
@@ -404,6 +436,11 @@ void MainWindow::setupConnections()
             impl_->toolsPanelDock, &QDockWidget::setVisible);
     connect(impl_->toolsPanelDock, &QDockWidget::visibilityChanged,
             impl_->toggleToolsPanelAction, &QAction::setChecked);
+
+    connect(impl_->toggleStatisticsPanelAction, &QAction::toggled,
+            impl_->statisticsPanelDock, &QDockWidget::setVisible);
+    connect(impl_->statisticsPanelDock, &QDockWidget::visibilityChanged,
+            impl_->toggleStatisticsPanelAction, &QAction::setChecked);
 
     // Patient browser -> Load series
     connect(impl_->patientBrowser, &PatientBrowser::seriesLoadRequested,
@@ -682,10 +719,14 @@ void MainWindow::onResetLayout()
 {
     impl_->patientBrowserDock->setFloating(false);
     impl_->toolsPanelDock->setFloating(false);
+    impl_->statisticsPanelDock->setFloating(false);
     addDockWidget(Qt::LeftDockWidgetArea, impl_->patientBrowserDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->toolsPanelDock);
+    addDockWidget(Qt::RightDockWidgetArea, impl_->statisticsPanelDock);
+    tabifyDockWidget(impl_->toolsPanelDock, impl_->statisticsPanelDock);
     impl_->patientBrowserDock->show();
     impl_->toolsPanelDock->show();
+    impl_->toolsPanelDock->raise();  // Show Tools tab
 }
 
 void MainWindow::onToggleFullScreen()
@@ -705,6 +746,63 @@ void MainWindow::uncheckAllMeasurementActions()
     impl_->ellipseRoiAction->setChecked(false);
     impl_->polygonRoiAction->setChecked(false);
     impl_->freehandRoiAction->setChecked(false);
+}
+
+void MainWindow::onShowRoiStatistics()
+{
+    auto measurements = impl_->viewport->getAreaMeasurements();
+    if (measurements.empty()) {
+        statusBar()->showMessage(tr("No ROI measurements to analyze"), 3000);
+        return;
+    }
+
+    auto vtkImage = impl_->viewport->getImageData();
+    if (!vtkImage) {
+        statusBar()->showMessage(tr("No image data available"), 3000);
+        return;
+    }
+
+    // Convert VTK image to ITK image
+    using ImageType = itk::Image<short, 3>;
+    using FilterType = itk::VTKImageToImageFilter<ImageType>;
+    auto filter = FilterType::New();
+    filter->SetInput(vtkImage);
+
+    try {
+        filter->Update();
+    } catch (const itk::ExceptionObject& e) {
+        statusBar()->showMessage(tr("Failed to convert image: %1").arg(e.what()), 3000);
+        return;
+    }
+
+    // Calculate statistics
+    services::RoiStatisticsCalculator calculator;
+    calculator.setImage(filter->GetOutput());
+
+    int sliceIndex = impl_->viewport->getCurrentSlice();
+    std::vector<services::RoiStatistics> stats;
+
+    for (const auto& roi : measurements) {
+        auto result = calculator.calculate(roi, sliceIndex);
+        if (result) {
+            stats.push_back(*result);
+        }
+    }
+
+    if (stats.empty()) {
+        statusBar()->showMessage(tr("Failed to calculate statistics"), 3000);
+        return;
+    }
+
+    // Update statistics panel
+    impl_->statisticsPanel->setMultipleStatistics(stats);
+
+    // Show statistics panel
+    impl_->statisticsPanelDock->show();
+    impl_->statisticsPanelDock->raise();
+    impl_->toggleStatisticsPanelAction->setChecked(true);
+
+    statusBar()->showMessage(tr("Calculated statistics for %1 ROI(s)").arg(stats.size()), 3000);
 }
 
 } // namespace dicom_viewer::ui
