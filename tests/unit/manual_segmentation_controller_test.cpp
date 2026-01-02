@@ -489,3 +489,197 @@ TEST_F(ManualSegmentationControllerTest, FillToolWith8Connectivity) {
     // but may leak through depending on boundary configuration
     EXPECT_EQ(getPixelAt(labelMap, 0, 5, 0), 3);
 }
+
+// Freehand tool tests
+TEST_F(ManualSegmentationControllerTest, FreehandParametersDefault) {
+    auto params = controller_->getFreehandParameters();
+    EXPECT_TRUE(params.enableSmoothing);
+    EXPECT_EQ(params.smoothingWindowSize, 5);
+    EXPECT_TRUE(params.enableSimplification);
+    EXPECT_DOUBLE_EQ(params.simplificationTolerance, 2.0);
+    EXPECT_FALSE(params.fillInterior);
+    EXPECT_DOUBLE_EQ(params.closeThreshold, 10.0);
+}
+
+TEST_F(ManualSegmentationControllerTest, SetFreehandParametersValid) {
+    FreehandParameters params;
+    params.enableSmoothing = false;
+    params.smoothingWindowSize = 7;
+    params.enableSimplification = false;
+    params.simplificationTolerance = 5.0;
+    params.fillInterior = true;
+    params.closeThreshold = 15.0;
+
+    EXPECT_TRUE(controller_->setFreehandParameters(params));
+
+    auto result = controller_->getFreehandParameters();
+    EXPECT_FALSE(result.enableSmoothing);
+    EXPECT_EQ(result.smoothingWindowSize, 7);
+    EXPECT_FALSE(result.enableSimplification);
+    EXPECT_DOUBLE_EQ(result.simplificationTolerance, 5.0);
+    EXPECT_TRUE(result.fillInterior);
+    EXPECT_DOUBLE_EQ(result.closeThreshold, 15.0);
+}
+
+TEST_F(ManualSegmentationControllerTest, SetFreehandParametersInvalidWindowSize) {
+    FreehandParameters params;
+    params.smoothingWindowSize = 2;  // Must be >= 3
+
+    EXPECT_FALSE(controller_->setFreehandParameters(params));
+
+    params.smoothingWindowSize = 4;  // Must be odd
+    EXPECT_FALSE(controller_->setFreehandParameters(params));
+
+    params.smoothingWindowSize = 12;  // Must be <= 11
+    EXPECT_FALSE(controller_->setFreehandParameters(params));
+}
+
+TEST_F(ManualSegmentationControllerTest, FreehandToolDrawsPath) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Freehand);
+    controller_->setActiveLabel(1);
+
+    // Disable smoothing and simplification for predictable results
+    FreehandParameters params;
+    params.enableSmoothing = false;
+    params.enableSimplification = false;
+    controller_->setFreehandParameters(params);
+
+    // Draw a simple line
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMouseMove(Point2D{20, 10}, 0);
+    controller_->onMouseMove(Point2D{30, 10}, 0);
+    controller_->onMouseRelease(Point2D{40, 10}, 0);
+
+    auto labelMap = controller_->getLabelMap();
+
+    // Check that path was drawn (at least endpoints should be labeled)
+    EXPECT_EQ(getPixelAt(labelMap, 10, 10, 0), 1);
+    EXPECT_EQ(getPixelAt(labelMap, 40, 10, 0), 1);
+
+    // Intermediate points should also be labeled
+    EXPECT_EQ(getPixelAt(labelMap, 25, 10, 0), 1);
+}
+
+TEST_F(ManualSegmentationControllerTest, FreehandPathCollectsPoints) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Freehand);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMouseMove(Point2D{20, 15}, 0);
+    controller_->onMouseMove(Point2D{30, 20}, 0);
+
+    auto path = controller_->getFreehandPath();
+    EXPECT_GE(path.size(), 3);
+
+    controller_->onMouseRelease(Point2D{40, 25}, 0);
+
+    // After release, path should be cleared
+    path = controller_->getFreehandPath();
+    EXPECT_TRUE(path.empty());
+}
+
+TEST_F(ManualSegmentationControllerTest, FreehandToolFillsClosedPath) {
+    ASSERT_TRUE(controller_->initializeLabelMap(50, 50, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Freehand);
+    controller_->setActiveLabel(1);
+
+    // Enable fill interior
+    FreehandParameters params;
+    params.enableSmoothing = false;
+    params.enableSimplification = false;
+    params.fillInterior = true;
+    params.closeThreshold = 15.0;
+    controller_->setFreehandParameters(params);
+
+    // Draw a closed rectangle (start and end points close together)
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMouseMove(Point2D{30, 10}, 0);
+    controller_->onMouseMove(Point2D{30, 30}, 0);
+    controller_->onMouseMove(Point2D{10, 30}, 0);
+    controller_->onMouseRelease(Point2D{10, 15}, 0);  // Close to start
+
+    auto labelMap = controller_->getLabelMap();
+
+    // Interior point should be filled
+    EXPECT_EQ(getPixelAt(labelMap, 20, 20, 0), 1);
+
+    // Points on the boundary should also be labeled
+    EXPECT_EQ(getPixelAt(labelMap, 10, 10, 0), 1);
+    EXPECT_EQ(getPixelAt(labelMap, 30, 10, 0), 1);
+}
+
+TEST_F(ManualSegmentationControllerTest, FreehandToolCancelClearsPath) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Freehand);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMouseMove(Point2D{20, 15}, 0);
+    controller_->onMouseMove(Point2D{30, 20}, 0);
+
+    EXPECT_TRUE(controller_->isDrawing());
+
+    controller_->cancelOperation();
+
+    EXPECT_FALSE(controller_->isDrawing());
+
+    auto path = controller_->getFreehandPath();
+    EXPECT_TRUE(path.empty());
+}
+
+TEST_F(ManualSegmentationControllerTest, FreehandToolWithSmoothing) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Freehand);
+    controller_->setActiveLabel(1);
+
+    // Enable smoothing, disable simplification
+    FreehandParameters params;
+    params.enableSmoothing = true;
+    params.smoothingWindowSize = 3;
+    params.enableSimplification = false;
+    params.fillInterior = false;
+    controller_->setFreehandParameters(params);
+
+    // Draw a zigzag path
+    controller_->onMousePress(Point2D{10, 20}, 0);
+    controller_->onMouseMove(Point2D{15, 10}, 0);
+    controller_->onMouseMove(Point2D{20, 30}, 0);
+    controller_->onMouseMove(Point2D{25, 10}, 0);
+    controller_->onMouseMove(Point2D{30, 30}, 0);
+    controller_->onMouseRelease(Point2D{35, 20}, 0);
+
+    auto labelMap = controller_->getLabelMap();
+
+    // Path should be drawn (smoothed)
+    int labeledPixels = countLabelPixels(labelMap, 1);
+    EXPECT_GT(labeledPixels, 0);
+}
+
+TEST_F(ManualSegmentationControllerTest, FreehandToolWithSimplification) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Freehand);
+    controller_->setActiveLabel(1);
+
+    // Enable simplification with high tolerance
+    FreehandParameters params;
+    params.enableSmoothing = false;
+    params.enableSimplification = true;
+    params.simplificationTolerance = 10.0;  // High tolerance
+    params.fillInterior = false;
+    controller_->setFreehandParameters(params);
+
+    // Draw many points in a roughly straight line
+    controller_->onMousePress(Point2D{10, 50}, 0);
+    for (int x = 11; x < 90; ++x) {
+        // Slight vertical variation
+        int y = 50 + (x % 3) - 1;
+        controller_->onMouseMove(Point2D{x, y}, 0);
+    }
+    controller_->onMouseRelease(Point2D{90, 50}, 0);
+
+    auto labelMap = controller_->getLabelMap();
+
+    // Simplified path should still connect start to end
+    EXPECT_EQ(getPixelAt(labelMap, 10, 50, 0), 1);
+    EXPECT_EQ(getPixelAt(labelMap, 90, 50, 0), 1);
+}

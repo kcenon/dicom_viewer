@@ -87,6 +87,40 @@ struct FillParameters {
 };
 
 /**
+ * @brief Parameters for freehand drawing tool
+ */
+struct FreehandParameters {
+    /// Enable path smoothing using Gaussian filter
+    bool enableSmoothing = true;
+
+    /// Smoothing window size (must be odd, 3-11)
+    int smoothingWindowSize = 5;
+
+    /// Enable path simplification using Douglas-Peucker algorithm
+    bool enableSimplification = true;
+
+    /// Simplification tolerance in pixels
+    double simplificationTolerance = 2.0;
+
+    /// Fill interior of closed path
+    bool fillInterior = false;
+
+    /// Distance threshold to auto-close path (pixels)
+    double closeThreshold = 10.0;
+
+    /**
+     * @brief Validate freehand parameters
+     * @return true if parameters are valid
+     */
+    [[nodiscard]] bool isValid() const noexcept {
+        return smoothingWindowSize >= 3 && smoothingWindowSize <= 11 &&
+               (smoothingWindowSize % 2 == 1) &&
+               simplificationTolerance >= 0.0 &&
+               closeThreshold >= 0.0;
+    }
+};
+
+/**
  * @brief Interactive controller for manual segmentation tools
  *
  * Provides drawing tools for manual segmentation on 2D slices including
@@ -223,6 +257,29 @@ public:
      * @return Fill parameters
      */
     [[nodiscard]] FillParameters getFillParameters() const noexcept;
+
+    /**
+     * @brief Set freehand parameters
+     * @param params Freehand parameters
+     * @return true if parameters were valid and set
+     */
+    bool setFreehandParameters(const FreehandParameters& params);
+
+    /**
+     * @brief Get current freehand parameters
+     * @return Freehand parameters
+     */
+    [[nodiscard]] FreehandParameters getFreehandParameters() const noexcept;
+
+    /**
+     * @brief Get the current freehand path points
+     *
+     * Returns the path collected during freehand drawing.
+     * The path may be simplified/smoothed based on parameters.
+     *
+     * @return Vector of path points
+     */
+    [[nodiscard]] std::vector<Point2D> getFreehandPath() const;
 
     /**
      * @brief Set the active label ID for drawing
