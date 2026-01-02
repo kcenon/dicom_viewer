@@ -149,6 +149,15 @@ target_link_libraries(measurement_service PUBLIC
     ${ITK_LIBRARIES}
 )
 
+add_library(preprocessing_service STATIC
+    src/services/preprocessing/gaussian_smoother.cpp
+)
+
+target_link_libraries(preprocessing_service PUBLIC
+    dicom_viewer_core
+    ${ITK_LIBRARIES}
+)
+
 add_library(segmentation_service STATIC
     src/services/segmentation/threshold_segmenter.cpp
     src/services/segmentation/region_growing_segmenter.cpp

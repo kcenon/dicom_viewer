@@ -336,3 +336,20 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(volume_calculator_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Gaussian Smoother
+add_executable(gaussian_smoother_test
+    unit/gaussian_smoother_test.cpp
+)
+
+target_link_libraries(gaussian_smoother_test PRIVATE
+    preprocessing_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(gaussian_smoother_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(gaussian_smoother_test DISCOVERY_TIMEOUT 60)
