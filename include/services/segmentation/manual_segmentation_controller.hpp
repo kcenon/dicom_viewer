@@ -143,6 +143,49 @@ struct FreehandParameters {
 };
 
 /**
+ * @brief Parameters for Smart Scissors (LiveWire) tool
+ *
+ * Smart Scissors uses Dijkstra's algorithm to find the minimum cost path
+ * along image edges between anchor points.
+ */
+struct SmartScissorsParameters {
+    /// Weight for gradient magnitude in edge cost (0.0-1.0)
+    double gradientWeight = 0.43;
+
+    /// Weight for gradient direction in edge cost (0.0-1.0)
+    double directionWeight = 0.43;
+
+    /// Weight for Laplacian zero-crossing in edge cost (0.0-1.0)
+    double laplacianWeight = 0.14;
+
+    /// Gaussian sigma for gradient smoothing (1.0-5.0)
+    double gaussianSigma = 1.5;
+
+    /// Enable path smoothing after calculation
+    bool enableSmoothing = true;
+
+    /// Distance threshold to auto-close path when near start (pixels)
+    double closeThreshold = 10.0;
+
+    /// Fill interior when path is closed
+    bool fillInterior = true;
+
+    /**
+     * @brief Validate Smart Scissors parameters
+     * @return true if parameters are valid
+     */
+    [[nodiscard]] bool isValid() const noexcept {
+        double totalWeight = gradientWeight + directionWeight + laplacianWeight;
+        return gradientWeight >= 0.0 && gradientWeight <= 1.0 &&
+               directionWeight >= 0.0 && directionWeight <= 1.0 &&
+               laplacianWeight >= 0.0 && laplacianWeight <= 1.0 &&
+               totalWeight > 0.0 && totalWeight <= 1.0 + 1e-6 &&
+               gaussianSigma >= 1.0 && gaussianSigma <= 5.0 &&
+               closeThreshold >= 0.0;
+    }
+};
+
+/**
  * @brief Interactive controller for manual segmentation tools
  *
  * Provides drawing tools for manual segmentation on 2D slices including
@@ -351,6 +394,76 @@ public:
      * @return Vector of path points
      */
     [[nodiscard]] std::vector<Point2D> getFreehandPath() const;
+
+    /**
+     * @brief Set Smart Scissors parameters
+     * @param params Smart Scissors parameters
+     * @return true if parameters were valid and set
+     */
+    bool setSmartScissorsParameters(const SmartScissorsParameters& params);
+
+    /**
+     * @brief Get current Smart Scissors parameters
+     * @return Smart Scissors parameters
+     */
+    [[nodiscard]] SmartScissorsParameters getSmartScissorsParameters() const noexcept;
+
+    /**
+     * @brief Set source image for Smart Scissors edge computation
+     *
+     * The source image is used to compute edge cost map based on
+     * gradient magnitude, direction, and Laplacian.
+     *
+     * @param image Source image (grayscale)
+     * @param sliceIndex Slice index for 3D images
+     * @return Success or error
+     */
+    [[nodiscard]] std::expected<void, SegmentationError>
+    setSmartScissorsSourceImage(itk::Image<float, 2>::Pointer image, int sliceIndex);
+
+    /**
+     * @brief Get the current Smart Scissors preview path
+     *
+     * Returns the calculated path from the last anchor to current mouse position.
+     *
+     * @return Vector of path points for preview
+     */
+    [[nodiscard]] std::vector<Point2D> getSmartScissorsPath() const;
+
+    /**
+     * @brief Get all anchor points for Smart Scissors
+     * @return Vector of anchor points
+     */
+    [[nodiscard]] std::vector<Point2D> getSmartScissorsAnchors() const;
+
+    /**
+     * @brief Get the confirmed path segments (between anchors)
+     * @return Vector of path points that have been confirmed
+     */
+    [[nodiscard]] std::vector<Point2D> getSmartScissorsConfirmedPath() const;
+
+    /**
+     * @brief Undo the last Smart Scissors anchor point
+     * @return true if an anchor was removed
+     */
+    bool undoLastSmartScissorsAnchor();
+
+    /**
+     * @brief Complete Smart Scissors path and apply to label map
+     *
+     * Closes the path if near the starting point and fills the interior
+     * based on parameters.
+     *
+     * @param sliceIndex Current slice index
+     * @return true if path was completed successfully
+     */
+    bool completeSmartScissors(int sliceIndex);
+
+    /**
+     * @brief Check if Smart Scissors path can be completed
+     * @return true if there are enough anchors to complete
+     */
+    [[nodiscard]] bool canCompleteSmartScissors() const noexcept;
 
     /**
      * @brief Set the active label ID for drawing
