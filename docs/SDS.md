@@ -2187,7 +2187,7 @@ sequenceDiagram
 | FR-006.7~12 | SRS-FR-027~032 | SDS-MOD-002 | ImageService | Planned |
 | FR-006.13~18 | SRS-FR-033~035 | SDS-MOD-002, SDS-DATA-003 | ImageService | Planned |
 | FR-006.19~25 | SRS-FR-034~035 | SDS-MOD-002 | ImageService | Planned |
-| FR-007.1~5 | SRS-FR-036~038 | SDS-MOD-004, SDS-SEQ-003 | MeasurementService | Planned |
+| FR-007.1~5 | SRS-FR-036~038 | SDS-MOD-004, SDS-SEQ-003 | MeasurementService | ✅ Implemented |
 | FR-007.6~10 | SRS-FR-039~041 | SDS-MOD-004, SDS-DATA-004 | MeasurementService | Planned |
 | FR-007.11~14 | SRS-FR-042~045 | SDS-MOD-004 | MeasurementService | Planned |
 | FR-007.15~20 | SRS-FR-046~047 | SDS-MOD-004 | MeasurementService | Planned |
