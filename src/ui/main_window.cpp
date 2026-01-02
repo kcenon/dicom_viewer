@@ -51,6 +51,10 @@ public:
     // Storage SCP
     std::unique_ptr<services::DicomStoreSCP> storageScp;
     QAction* toggleStorageScpAction = nullptr;
+
+    // Measurement actions
+    QAction* distanceAction = nullptr;
+    QAction* angleAction = nullptr;
 };
 
 MainWindow::MainWindow(QWidget* parent)
@@ -198,11 +202,40 @@ void MainWindow::setupMenuBar()
     // Tools menu
     auto toolsMenu = menuBar()->addMenu(tr("&Tools"));
 
-    auto distanceAction = toolsMenu->addAction(tr("&Distance"));
-    distanceAction->setShortcut(QKeySequence(Qt::Key_D));
+    impl_->distanceAction = toolsMenu->addAction(tr("&Distance"));
+    impl_->distanceAction->setShortcut(QKeySequence(Qt::Key_D));
+    impl_->distanceAction->setCheckable(true);
+    connect(impl_->distanceAction, &QAction::triggered, this, [this]() {
+        if (impl_->distanceAction->isChecked()) {
+            impl_->angleAction->setChecked(false);
+            impl_->viewport->startDistanceMeasurement();
+        } else {
+            impl_->viewport->cancelMeasurement();
+        }
+    });
 
-    auto angleAction = toolsMenu->addAction(tr("&Angle"));
-    angleAction->setShortcut(QKeySequence(Qt::Key_A));
+    impl_->angleAction = toolsMenu->addAction(tr("&Angle"));
+    impl_->angleAction->setShortcut(QKeySequence(Qt::Key_A));
+    impl_->angleAction->setCheckable(true);
+    connect(impl_->angleAction, &QAction::triggered, this, [this]() {
+        if (impl_->angleAction->isChecked()) {
+            impl_->distanceAction->setChecked(false);
+            impl_->viewport->startAngleMeasurement();
+        } else {
+            impl_->viewport->cancelMeasurement();
+        }
+    });
+
+    toolsMenu->addSeparator();
+
+    auto clearMeasurementsAction = toolsMenu->addAction(tr("&Clear All Measurements"));
+    clearMeasurementsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
+    connect(clearMeasurementsAction, &QAction::triggered, this, [this]() {
+        impl_->viewport->deleteAllMeasurements();
+        statusBar()->showMessage(tr("All measurements cleared"), 3000);
+    });
+
+    toolsMenu->addSeparator();
 
     auto roiAction = toolsMenu->addAction(tr("&ROI"));
     roiAction->setShortcut(QKeySequence(Qt::Key_R));
@@ -345,6 +378,21 @@ void MainWindow::setupConnections()
                         .arg(x, 0, 'f', 1).arg(y, 0, 'f', 1).arg(z, 0, 'f', 1));
                 impl_->valueLabel->setText(
                     QString("Value: %1 HU").arg(value, 0, 'f', 0));
+            });
+
+    // Measurement completed -> Status bar
+    connect(impl_->viewport, &ViewportWidget::distanceMeasurementCompleted,
+            this, [this](double distanceMm, int /*measurementId*/) {
+                impl_->statusLabel->setText(
+                    tr("Distance: %1 mm").arg(distanceMm, 0, 'f', 2));
+                impl_->distanceAction->setChecked(false);
+            });
+
+    connect(impl_->viewport, &ViewportWidget::angleMeasurementCompleted,
+            this, [this](double angleDegrees, int /*measurementId*/) {
+                impl_->statusLabel->setText(
+                    tr("Angle: %1°").arg(angleDegrees, 0, 'f', 1));
+                impl_->angleAction->setChecked(false);
             });
 }
 

@@ -5,6 +5,8 @@
 #include <vtkSmartPointer.h>
 #include <vtkImageData.h>
 
+#include "services/measurement/measurement_types.hpp"
+
 class QVTKOpenGLNativeWidget;
 
 namespace dicom_viewer::ui {
@@ -80,6 +82,31 @@ public:
      */
     bool captureScreenshot(const QString& filePath);
 
+    /**
+     * @brief Start distance measurement
+     */
+    void startDistanceMeasurement();
+
+    /**
+     * @brief Start angle measurement
+     */
+    void startAngleMeasurement();
+
+    /**
+     * @brief Cancel any active measurement
+     */
+    void cancelMeasurement();
+
+    /**
+     * @brief Delete all measurements
+     */
+    void deleteAllMeasurements();
+
+    /**
+     * @brief Get current measurement mode
+     */
+    services::MeasurementMode getMeasurementMode() const;
+
 signals:
     /// Emitted when crosshair position changes (world coordinates)
     void crosshairPositionChanged(double x, double y, double z);
@@ -89,6 +116,15 @@ signals:
 
     /// Emitted when mouse is over a voxel
     void voxelValueChanged(double value, double x, double y, double z);
+
+    /// Emitted when a distance measurement is completed
+    void distanceMeasurementCompleted(double distanceMm, int measurementId);
+
+    /// Emitted when an angle measurement is completed
+    void angleMeasurementCompleted(double angleDegrees, int measurementId);
+
+    /// Emitted when measurement mode changes
+    void measurementModeChanged(services::MeasurementMode mode);
 
 public slots:
     /// Set crosshair position from external source
