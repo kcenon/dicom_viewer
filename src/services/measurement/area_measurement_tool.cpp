@@ -1170,6 +1170,51 @@ AreaMeasurementTool::copyRoiToSlice(int measurementId, int targetSlice) {
     return measurement.id;
 }
 
+std::expected<std::vector<int>, MeasurementError>
+AreaMeasurementTool::copyRoiToSliceRange(int measurementId, int startSlice, int endSlice) {
+    // Validate range
+    if (startSlice > endSlice) {
+        return std::unexpected(MeasurementError{
+            MeasurementError::Code::InvalidParameters,
+            "Start slice (" + std::to_string(startSlice) +
+            ") must be less than or equal to end slice (" +
+            std::to_string(endSlice) + ")"
+        });
+    }
+
+    // Check if measurement exists
+    auto measurementOpt = getMeasurement(measurementId);
+    if (!measurementOpt) {
+        return std::unexpected(MeasurementError{
+            MeasurementError::Code::MeasurementNotFound,
+            "Measurement with ID " + std::to_string(measurementId) + " not found"
+        });
+    }
+
+    std::vector<int> newIds;
+    newIds.reserve(static_cast<size_t>(endSlice - startSlice + 1));
+
+    // Copy to each slice in range
+    for (int slice = startSlice; slice <= endSlice; ++slice) {
+        // Skip the original slice to avoid duplication
+        if (slice == measurementOpt->sliceIndex) {
+            continue;
+        }
+
+        auto result = copyRoiToSlice(measurementId, slice);
+        if (!result) {
+            // If one copy fails, delete all previously created copies and return error
+            for (int id : newIds) {
+                deleteMeasurement(id);
+            }
+            return std::unexpected(result.error());
+        }
+        newIds.push_back(result.value());
+    }
+
+    return newIds;
+}
+
 void AreaMeasurementTool::setDisplayParams(const MeasurementDisplayParams& params) {
     impl_->displayParams = params;
 
