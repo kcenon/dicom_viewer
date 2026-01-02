@@ -148,6 +148,10 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+# Find FFTW for ITK's FFT operations (required by N4 bias correction and other filters)
+find_library(FFTW3_LIBRARY fftw3 HINTS /opt/homebrew/lib)
+find_library(FFTW3_THREADS_LIBRARY fftw3_threads HINTS /opt/homebrew/lib)
+
 # Core library
 add_library(dicom_viewer_core STATIC
     src/core/dicom/dicom_loader.cpp
@@ -162,9 +166,15 @@ target_include_directories(dicom_viewer_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include/core
 )
 
+target_link_directories(dicom_viewer_core PUBLIC
+    /opt/homebrew/lib
+)
+
 target_link_libraries(dicom_viewer_core PUBLIC
     ${ITK_LIBRARIES}
     ${VTK_LIBRARIES}
+    ${FFTW3_LIBRARY}
+    ${FFTW3_THREADS_LIBRARY}
 )
 
 # Service libraries
@@ -214,15 +224,9 @@ add_library(preprocessing_service STATIC
     src/services/preprocessing/isotropic_resampler.cpp
 )
 
-# Find FFTW for N4 bias correction (uses ITK's FFTW dependency)
-find_library(FFTW3_LIBRARY fftw3 HINTS /opt/homebrew/lib)
-find_library(FFTW3_THREADS_LIBRARY fftw3_threads HINTS /opt/homebrew/lib)
-
 target_link_libraries(preprocessing_service PUBLIC
     dicom_viewer_core
     ${ITK_LIBRARIES}
-    ${FFTW3_LIBRARY}
-    ${FFTW3_THREADS_LIBRARY}
 )
 
 add_library(segmentation_service STATIC
