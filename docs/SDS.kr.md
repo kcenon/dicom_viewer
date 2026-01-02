@@ -2190,7 +2190,7 @@ sequenceDiagram
 | FR-007.1~5 | SRS-FR-036~038 | SDS-MOD-004, SDS-SEQ-003 | MeasurementService | ✅ Implemented |
 | FR-007.6~10 | SRS-FR-039~041 | SDS-MOD-004, SDS-DATA-004 | MeasurementService | ✅ Implemented |
 | FR-007.11~14 | SRS-FR-042~045 | SDS-MOD-004 | MeasurementService | Planned |
-| FR-007.15~20 | SRS-FR-046~047 | SDS-MOD-004 | MeasurementService | Planned |
+| FR-007.15~20 | SRS-FR-028 | SDS-MOD-004 | RoiStatisticsCalculator | ✅ Implemented |
 | FR-007.21~25 | SRS-FR-048 | SDS-MOD-004 | MeasurementService | Planned |
 | FR-010.1~5 | SRS-FR-050~054 | SDS-MOD-005 | NetworkService | Planned |
 | FR-011.1~6 | SRS-FR-055~060 | SDS-MOD-006 | UI | Planned |
