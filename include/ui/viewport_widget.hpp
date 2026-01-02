@@ -93,6 +93,12 @@ public:
     void startAngleMeasurement();
 
     /**
+     * @brief Start area measurement with specified ROI type
+     * @param type Type of ROI to draw
+     */
+    void startAreaMeasurement(services::RoiType type);
+
+    /**
      * @brief Cancel any active measurement
      */
     void cancelMeasurement();
@@ -101,6 +107,11 @@ public:
      * @brief Delete all measurements
      */
     void deleteAllMeasurements();
+
+    /**
+     * @brief Delete all area measurements
+     */
+    void deleteAllAreaMeasurements();
 
     /**
      * @brief Get current measurement mode
@@ -122,6 +133,9 @@ signals:
 
     /// Emitted when an angle measurement is completed
     void angleMeasurementCompleted(double angleDegrees, int measurementId);
+
+    /// Emitted when an area measurement is completed
+    void areaMeasurementCompleted(double areaMm2, double areaCm2, int measurementId);
 
     /// Emitted when measurement mode changes
     void measurementModeChanged(services::MeasurementMode mode);

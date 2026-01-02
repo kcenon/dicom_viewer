@@ -105,13 +105,74 @@ struct AngleMeasurement {
 };
 
 /**
+ * @brief ROI type for area measurements
+ */
+enum class RoiType {
+    Ellipse,    ///< Ellipse ROI (π × a × b)
+    Rectangle,  ///< Rectangle ROI (width × height)
+    Polygon,    ///< Polygon ROI (Shoelace formula)
+    Freehand    ///< Freehand ROI (polygon approximation)
+};
+
+/**
+ * @brief Area measurement data
+ */
+struct AreaMeasurement {
+    /// Unique identifier for this measurement
+    int id = 0;
+
+    /// ROI type
+    RoiType type = RoiType::Rectangle;
+
+    /// Points defining the ROI boundary in world coordinates (mm)
+    std::vector<Point3D> points;
+
+    /// Calculated area in square millimeters
+    double areaMm2 = 0.0;
+
+    /// Calculated area in square centimeters
+    double areaCm2 = 0.0;
+
+    /// Calculated perimeter in millimeters
+    double perimeterMm = 0.0;
+
+    /// Centroid position in world coordinates
+    Point3D centroid{0.0, 0.0, 0.0};
+
+    /// User-defined label for the measurement
+    std::string label;
+
+    /// Visibility state
+    bool visible = true;
+
+    /// Slice index where measurement was created (-1 for 3D)
+    int sliceIndex = -1;
+
+    /// For ellipse: semi-axis a (horizontal)
+    double semiAxisA = 0.0;
+
+    /// For ellipse: semi-axis b (vertical)
+    double semiAxisB = 0.0;
+
+    /// For rectangle: width
+    double width = 0.0;
+
+    /// For rectangle: height
+    double height = 0.0;
+};
+
+/**
  * @brief Measurement tool mode
  */
 enum class MeasurementMode {
     None,           ///< No measurement active
     Distance,       ///< Distance measurement mode
     Angle,          ///< Angle measurement mode
-    CobbAngle       ///< Cobb angle measurement mode (spine)
+    CobbAngle,      ///< Cobb angle measurement mode (spine)
+    AreaEllipse,    ///< Ellipse area measurement mode
+    AreaRectangle,  ///< Rectangle area measurement mode
+    AreaPolygon,    ///< Polygon area measurement mode
+    AreaFreehand    ///< Freehand area measurement mode
 };
 
 /**
@@ -133,11 +194,20 @@ struct MeasurementDisplayParams {
     /// Color for selected measurements (RGB, 0-1)
     std::array<double, 3> selectedColor{1.0, 0.5, 0.0};  // Orange
 
+    /// Color for area measurements (RGB, 0-1)
+    std::array<double, 3> areaColor{0.0, 1.0, 0.5};  // Green
+
+    /// Area fill opacity (0-1)
+    double areaFillOpacity = 0.2;
+
     /// Number of decimal places for distance display
     int distanceDecimals = 2;
 
     /// Number of decimal places for angle display
     int angleDecimals = 1;
+
+    /// Number of decimal places for area display
+    int areaDecimals = 2;
 };
 
 }  // namespace dicom_viewer::services
