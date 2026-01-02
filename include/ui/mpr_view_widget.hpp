@@ -197,6 +197,9 @@ protected:
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
+
+    // Allow MPRInteractorCallback to access Impl
+    friend class MPRInteractorCallback;
 };
 
 } // namespace dicom_viewer::ui

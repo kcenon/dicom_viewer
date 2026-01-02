@@ -15,16 +15,14 @@
 
 namespace dicom_viewer::ui {
 
-namespace {
-
-// Helper class for VTK interaction callbacks
+// Helper class for VTK interaction callbacks (uses void* to avoid circular dependency)
 class MPRInteractorCallback : public vtkCommand {
 public:
     static MPRInteractorCallback* New() {
         return new MPRInteractorCallback;
     }
 
-    void SetWidget(class MPRViewWidget::Impl* impl, services::MPRPlane plane) {
+    void SetWidget(void* impl, services::MPRPlane plane) {
         widgetImpl_ = impl;
         plane_ = plane;
     }
@@ -32,11 +30,9 @@ public:
     void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
 
 private:
-    class MPRViewWidget::Impl* widgetImpl_ = nullptr;
+    void* widgetImpl_ = nullptr;
     services::MPRPlane plane_ = services::MPRPlane::Axial;
 };
-
-} // namespace
 
 struct PlaneViewData {
     QVTKOpenGLNativeWidget* vtkWidget = nullptr;
@@ -112,11 +108,11 @@ public:
         // Setup callback for mouse events
         view.callback = vtkSmartPointer<MPRInteractorCallback>::New();
         view.callback->SetWidget(this, plane);
-        interactor->AddObserver(vtkCommand::LeftButtonPressEvent, view.callback);
-        interactor->AddObserver(vtkCommand::LeftButtonReleaseEvent, view.callback);
-        interactor->AddObserver(vtkCommand::MouseMoveEvent, view.callback);
-        interactor->AddObserver(vtkCommand::MouseWheelForwardEvent, view.callback);
-        interactor->AddObserver(vtkCommand::MouseWheelBackwardEvent, view.callback);
+        interactor->AddObserver(vtkCommand::LeftButtonPressEvent, view.callback.Get());
+        interactor->AddObserver(vtkCommand::LeftButtonReleaseEvent, view.callback.Get());
+        interactor->AddObserver(vtkCommand::MouseMoveEvent, view.callback.Get());
+        interactor->AddObserver(vtkCommand::MouseWheelForwardEvent, view.callback.Get());
+        interactor->AddObserver(vtkCommand::MouseWheelBackwardEvent, view.callback.Get());
     }
 
     services::ScreenCoordinate getScreenCoordinate(services::MPRPlane plane) {
@@ -268,27 +264,30 @@ public:
     }
 };
 
+// MPRInteractorCallback::Execute implementation (after Impl is defined)
 void MPRInteractorCallback::Execute(vtkObject* caller, unsigned long eventId,
                                      void* /*callData*/) {
     if (!widgetImpl_) {
         return;
     }
 
+    auto* impl = static_cast<MPRViewWidget::Impl*>(widgetImpl_);
+
     switch (eventId) {
         case vtkCommand::LeftButtonPressEvent:
-            widgetImpl_->handleMousePress(plane_);
+            impl->handleMousePress(plane_);
             break;
         case vtkCommand::LeftButtonReleaseEvent:
-            widgetImpl_->handleMouseRelease(plane_);
+            impl->handleMouseRelease(plane_);
             break;
         case vtkCommand::MouseMoveEvent:
-            widgetImpl_->handleMouseMove(plane_);
+            impl->handleMouseMove(plane_);
             break;
         case vtkCommand::MouseWheelForwardEvent:
-            widgetImpl_->handleMouseWheel(plane_, 1);
+            impl->handleMouseWheel(plane_, 1);
             break;
         case vtkCommand::MouseWheelBackwardEvent:
-            widgetImpl_->handleMouseWheel(plane_, -1);
+            impl->handleMouseWheel(plane_, -1);
             break;
     }
 }
