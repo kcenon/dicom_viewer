@@ -3,6 +3,7 @@
 #include "ui/panels/patient_browser.hpp"
 #include "ui/panels/tools_panel.hpp"
 #include "ui/panels/statistics_panel.hpp"
+#include "ui/panels/segmentation_panel.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
 #include "services/pacs_config_manager.hpp"
 #include "services/dicom_store_scp.hpp"
@@ -38,7 +39,9 @@ public:
     QDockWidget* patientBrowserDock = nullptr;
     QDockWidget* toolsPanelDock = nullptr;
     QDockWidget* statisticsPanelDock = nullptr;
+    QDockWidget* segmentationPanelDock = nullptr;
     StatisticsPanel* statisticsPanel = nullptr;
+    SegmentationPanel* segmentationPanel = nullptr;
 
     QToolBar* mainToolBar = nullptr;
     QActionGroup* toolActionGroup = nullptr;
@@ -52,6 +55,7 @@ public:
     QAction* togglePatientBrowserAction = nullptr;
     QAction* toggleToolsPanelAction = nullptr;
     QAction* toggleStatisticsPanelAction = nullptr;
+    QAction* toggleSegmentationPanelAction = nullptr;
 
     // Statistics action
     QAction* showStatisticsAction = nullptr;
@@ -187,6 +191,11 @@ void MainWindow::setupMenuBar()
     impl_->toggleStatisticsPanelAction->setCheckable(true);
     impl_->toggleStatisticsPanelAction->setChecked(false);
     impl_->toggleStatisticsPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_3));
+
+    impl_->toggleSegmentationPanelAction = viewMenu->addAction(tr("Se&gmentation Panel"));
+    impl_->toggleSegmentationPanelAction->setCheckable(true);
+    impl_->toggleSegmentationPanelAction->setChecked(false);
+    impl_->toggleSegmentationPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_4));
 
     viewMenu->addSeparator();
 
@@ -411,6 +420,16 @@ void MainWindow::setupDockWidgets()
     addDockWidget(Qt::RightDockWidgetArea, impl_->statisticsPanelDock);
     tabifyDockWidget(impl_->toolsPanelDock, impl_->statisticsPanelDock);
     impl_->statisticsPanelDock->hide();  // Initially hidden
+
+    // Segmentation Panel (right, tabbed with Tools and Statistics)
+    impl_->segmentationPanelDock = new QDockWidget(tr("Segmentation"), this);
+    impl_->segmentationPanelDock->setObjectName("SegmentationPanelDock");
+    impl_->segmentationPanel = new SegmentationPanel();
+    impl_->segmentationPanelDock->setWidget(impl_->segmentationPanel);
+    impl_->segmentationPanelDock->setMinimumWidth(220);
+    addDockWidget(Qt::RightDockWidgetArea, impl_->segmentationPanelDock);
+    tabifyDockWidget(impl_->statisticsPanelDock, impl_->segmentationPanelDock);
+    impl_->segmentationPanelDock->hide();  // Initially hidden
 }
 
 void MainWindow::setupStatusBar()
@@ -441,6 +460,11 @@ void MainWindow::setupConnections()
             impl_->statisticsPanelDock, &QDockWidget::setVisible);
     connect(impl_->statisticsPanelDock, &QDockWidget::visibilityChanged,
             impl_->toggleStatisticsPanelAction, &QAction::setChecked);
+
+    connect(impl_->toggleSegmentationPanelAction, &QAction::toggled,
+            impl_->segmentationPanelDock, &QDockWidget::setVisible);
+    connect(impl_->segmentationPanelDock, &QDockWidget::visibilityChanged,
+            impl_->toggleSegmentationPanelAction, &QAction::setChecked);
 
     // Patient browser -> Load series
     connect(impl_->patientBrowser, &PatientBrowser::seriesLoadRequested,
@@ -473,6 +497,28 @@ void MainWindow::setupConnections()
                         .arg(x, 0, 'f', 1).arg(y, 0, 'f', 1).arg(z, 0, 'f', 1));
                 impl_->valueLabel->setText(
                     QString("Value: %1 HU").arg(value, 0, 'f', 0));
+            });
+
+    // Segmentation panel -> Viewport
+    connect(impl_->segmentationPanel, &SegmentationPanel::toolChanged,
+            impl_->viewport, &ViewportWidget::setSegmentationTool);
+    connect(impl_->segmentationPanel, &SegmentationPanel::brushSizeChanged,
+            impl_->viewport, &ViewportWidget::setSegmentationBrushSize);
+    connect(impl_->segmentationPanel, &SegmentationPanel::brushShapeChanged,
+            impl_->viewport, &ViewportWidget::setSegmentationBrushShape);
+    connect(impl_->segmentationPanel, &SegmentationPanel::activeLabelChanged,
+            impl_->viewport, &ViewportWidget::setSegmentationActiveLabel);
+    connect(impl_->segmentationPanel, &SegmentationPanel::undoRequested,
+            impl_->viewport, &ViewportWidget::undoSegmentationOperation);
+    connect(impl_->segmentationPanel, &SegmentationPanel::completeRequested,
+            impl_->viewport, &ViewportWidget::completeSegmentationOperation);
+    connect(impl_->segmentationPanel, &SegmentationPanel::clearAllRequested,
+            impl_->viewport, &ViewportWidget::clearAllSegmentation);
+
+    // Segmentation status updates
+    connect(impl_->viewport, &ViewportWidget::segmentationModified,
+            this, [this](int /*sliceIndex*/) {
+                impl_->statusLabel->setText(tr("Segmentation modified"));
             });
 
     // Measurement completed -> Status bar
@@ -720,10 +766,13 @@ void MainWindow::onResetLayout()
     impl_->patientBrowserDock->setFloating(false);
     impl_->toolsPanelDock->setFloating(false);
     impl_->statisticsPanelDock->setFloating(false);
+    impl_->segmentationPanelDock->setFloating(false);
     addDockWidget(Qt::LeftDockWidgetArea, impl_->patientBrowserDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->toolsPanelDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->statisticsPanelDock);
+    addDockWidget(Qt::RightDockWidgetArea, impl_->segmentationPanelDock);
     tabifyDockWidget(impl_->toolsPanelDock, impl_->statisticsPanelDock);
+    tabifyDockWidget(impl_->statisticsPanelDock, impl_->segmentationPanelDock);
     impl_->patientBrowserDock->show();
     impl_->toolsPanelDock->show();
     impl_->toolsPanelDock->raise();  // Show Tools tab
