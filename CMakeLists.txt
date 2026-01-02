@@ -169,6 +169,7 @@ add_library(render_service STATIC
     src/services/render/volume_renderer.cpp
     src/services/render/surface_renderer.cpp
     src/services/render/mpr_renderer.cpp
+    src/services/render/mpr_coordinate_transformer.cpp
     src/services/render/transfer_function.cpp
 )
 
@@ -217,11 +218,13 @@ add_library(segmentation_service STATIC
     src/services/segmentation/manual_segmentation_controller.cpp
     src/services/segmentation/label_manager.cpp
     src/services/segmentation/morphological_processor.cpp
+    src/services/segmentation/label_map_overlay.cpp
 )
 
 target_link_libraries(segmentation_service PUBLIC
     dicom_viewer_core
     ${ITK_LIBRARIES}
+    ${VTK_LIBRARIES}
     nlohmann_json::nlohmann_json
 )
 
@@ -273,6 +276,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/main_window.cpp
     src/ui/widgets/viewport_widget.cpp
     src/ui/widgets/mpr_widget.cpp
+    src/ui/widgets/mpr_view_widget.cpp
     src/ui/panels/patient_browser.cpp
     src/ui/panels/tools_panel.cpp
     src/ui/panels/statistics_panel.cpp
