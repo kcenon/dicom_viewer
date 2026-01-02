@@ -1,5 +1,6 @@
 #include "ui/viewport_widget.hpp"
 #include "services/measurement/linear_measurement_tool.hpp"
+#include "services/measurement/area_measurement_tool.hpp"
 
 #include <QVBoxLayout>
 #include <QVTKOpenGLNativeWidget.h>
@@ -36,8 +37,9 @@ public:
     vtkSmartPointer<vtkPointPicker> pointPicker;
     vtkSmartPointer<vtkEventQtSlotConnect> connections;
 
-    // Measurement tool
+    // Measurement tools
     std::unique_ptr<services::LinearMeasurementTool> measurementTool;
+    std::unique_ptr<services::AreaMeasurementTool> areaMeasurementTool;
 
     ViewportMode mode = ViewportMode::SingleSlice;
     double windowWidth = 400.0;
@@ -68,9 +70,12 @@ public:
         imageSlice->SetMapper(sliceMapper);
         imageSlice->SetProperty(imageProperty);
 
-        // Setup measurement tool
+        // Setup measurement tools
         measurementTool = std::make_unique<services::LinearMeasurementTool>();
         measurementTool->setRenderer(renderer);
+
+        areaMeasurementTool = std::make_unique<services::AreaMeasurementTool>();
+        areaMeasurementTool->setRenderer(renderer);
     }
 
     void updateInteractorStyle() {
@@ -118,8 +123,9 @@ ViewportWidget::ViewportWidget(QWidget* parent)
     interactor->SetPicker(impl_->pointPicker);
     impl_->updateInteractorStyle();
 
-    // Set interactor for measurement tool
+    // Set interactor for measurement tools
     impl_->measurementTool->setInteractor(interactor);
+    impl_->areaMeasurementTool->setInteractor(interactor);
 
     // Setup measurement callbacks
     impl_->measurementTool->setDistanceCompletedCallback(
@@ -130,6 +136,11 @@ ViewportWidget::ViewportWidget(QWidget* parent)
     impl_->measurementTool->setAngleCompletedCallback(
         [this](const services::AngleMeasurement& m) {
             emit angleMeasurementCompleted(m.angleDegrees, m.id);
+        });
+
+    impl_->areaMeasurementTool->setMeasurementCompletedCallback(
+        [this](const services::AreaMeasurement& m) {
+            emit areaMeasurementCompleted(m.areaMm2, m.areaCm2, m.id);
         });
 
     setLayout(layout);
@@ -145,10 +156,12 @@ void ViewportWidget::setImageData(vtkSmartPointer<vtkImageData> imageData)
         int* dims = imageData->GetDimensions();
         impl_->currentSlice = dims[2] / 2;
 
-        // Update pixel spacing for measurement tool
+        // Update pixel spacing for measurement tools
         double* spacing = imageData->GetSpacing();
         impl_->measurementTool->setPixelSpacing(spacing[0], spacing[1], spacing[2]);
         impl_->measurementTool->setCurrentSlice(impl_->currentSlice);
+        impl_->areaMeasurementTool->setPixelSpacing(spacing[0], spacing[1], spacing[2]);
+        impl_->areaMeasurementTool->setCurrentSlice(impl_->currentSlice);
 
         if (impl_->mode == ViewportMode::SingleSlice ||
             impl_->mode == ViewportMode::MPR) {
@@ -278,15 +291,48 @@ void ViewportWidget::startAngleMeasurement()
     }
 }
 
+void ViewportWidget::startAreaMeasurement(services::RoiType type)
+{
+    // Cancel any existing linear measurement first
+    impl_->measurementTool->cancelMeasurement();
+
+    auto result = impl_->areaMeasurementTool->startRoiDrawing(type);
+    if (result) {
+        services::MeasurementMode mode = services::MeasurementMode::None;
+        switch (type) {
+            case services::RoiType::Ellipse:
+                mode = services::MeasurementMode::AreaEllipse;
+                break;
+            case services::RoiType::Rectangle:
+                mode = services::MeasurementMode::AreaRectangle;
+                break;
+            case services::RoiType::Polygon:
+                mode = services::MeasurementMode::AreaPolygon;
+                break;
+            case services::RoiType::Freehand:
+                mode = services::MeasurementMode::AreaFreehand;
+                break;
+        }
+        emit measurementModeChanged(mode);
+    }
+}
+
 void ViewportWidget::cancelMeasurement()
 {
     impl_->measurementTool->cancelMeasurement();
+    impl_->areaMeasurementTool->cancelCurrentRoi();
     emit measurementModeChanged(services::MeasurementMode::None);
 }
 
 void ViewportWidget::deleteAllMeasurements()
 {
     impl_->measurementTool->deleteAllMeasurements();
+    impl_->areaMeasurementTool->deleteAllMeasurements();
+}
+
+void ViewportWidget::deleteAllAreaMeasurements()
+{
+    impl_->areaMeasurementTool->deleteAllMeasurements();
 }
 
 services::MeasurementMode ViewportWidget::getMeasurementMode() const

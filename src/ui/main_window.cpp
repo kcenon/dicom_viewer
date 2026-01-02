@@ -55,6 +55,10 @@ public:
     // Measurement actions
     QAction* distanceAction = nullptr;
     QAction* angleAction = nullptr;
+    QAction* rectangleRoiAction = nullptr;
+    QAction* ellipseRoiAction = nullptr;
+    QAction* polygonRoiAction = nullptr;
+    QAction* freehandRoiAction = nullptr;
 };
 
 MainWindow::MainWindow(QWidget* parent)
@@ -207,7 +211,8 @@ void MainWindow::setupMenuBar()
     impl_->distanceAction->setCheckable(true);
     connect(impl_->distanceAction, &QAction::triggered, this, [this]() {
         if (impl_->distanceAction->isChecked()) {
-            impl_->angleAction->setChecked(false);
+            uncheckAllMeasurementActions();
+            impl_->distanceAction->setChecked(true);
             impl_->viewport->startDistanceMeasurement();
         } else {
             impl_->viewport->cancelMeasurement();
@@ -219,7 +224,8 @@ void MainWindow::setupMenuBar()
     impl_->angleAction->setCheckable(true);
     connect(impl_->angleAction, &QAction::triggered, this, [this]() {
         if (impl_->angleAction->isChecked()) {
-            impl_->distanceAction->setChecked(false);
+            uncheckAllMeasurementActions();
+            impl_->angleAction->setChecked(true);
             impl_->viewport->startAngleMeasurement();
         } else {
             impl_->viewport->cancelMeasurement();
@@ -237,8 +243,60 @@ void MainWindow::setupMenuBar()
 
     toolsMenu->addSeparator();
 
-    auto roiAction = toolsMenu->addAction(tr("&ROI"));
-    roiAction->setShortcut(QKeySequence(Qt::Key_R));
+    // ROI submenu for area measurements
+    auto roiMenu = toolsMenu->addMenu(tr("&ROI"));
+
+    impl_->rectangleRoiAction = roiMenu->addAction(tr("&Rectangle"));
+    impl_->rectangleRoiAction->setShortcut(QKeySequence(Qt::Key_R));
+    impl_->rectangleRoiAction->setCheckable(true);
+    connect(impl_->rectangleRoiAction, &QAction::triggered, this, [this]() {
+        if (impl_->rectangleRoiAction->isChecked()) {
+            uncheckAllMeasurementActions();
+            impl_->rectangleRoiAction->setChecked(true);
+            impl_->viewport->startAreaMeasurement(services::RoiType::Rectangle);
+        } else {
+            impl_->viewport->cancelMeasurement();
+        }
+    });
+
+    impl_->ellipseRoiAction = roiMenu->addAction(tr("&Ellipse"));
+    impl_->ellipseRoiAction->setShortcut(QKeySequence(Qt::Key_E));
+    impl_->ellipseRoiAction->setCheckable(true);
+    connect(impl_->ellipseRoiAction, &QAction::triggered, this, [this]() {
+        if (impl_->ellipseRoiAction->isChecked()) {
+            uncheckAllMeasurementActions();
+            impl_->ellipseRoiAction->setChecked(true);
+            impl_->viewport->startAreaMeasurement(services::RoiType::Ellipse);
+        } else {
+            impl_->viewport->cancelMeasurement();
+        }
+    });
+
+    impl_->polygonRoiAction = roiMenu->addAction(tr("&Polygon"));
+    impl_->polygonRoiAction->setShortcut(QKeySequence(Qt::Key_P));
+    impl_->polygonRoiAction->setCheckable(true);
+    connect(impl_->polygonRoiAction, &QAction::triggered, this, [this]() {
+        if (impl_->polygonRoiAction->isChecked()) {
+            uncheckAllMeasurementActions();
+            impl_->polygonRoiAction->setChecked(true);
+            impl_->viewport->startAreaMeasurement(services::RoiType::Polygon);
+        } else {
+            impl_->viewport->cancelMeasurement();
+        }
+    });
+
+    impl_->freehandRoiAction = roiMenu->addAction(tr("&Freehand"));
+    impl_->freehandRoiAction->setShortcut(QKeySequence(Qt::Key_F));
+    impl_->freehandRoiAction->setCheckable(true);
+    connect(impl_->freehandRoiAction, &QAction::triggered, this, [this]() {
+        if (impl_->freehandRoiAction->isChecked()) {
+            uncheckAllMeasurementActions();
+            impl_->freehandRoiAction->setChecked(true);
+            impl_->viewport->startAreaMeasurement(services::RoiType::Freehand);
+        } else {
+            impl_->viewport->cancelMeasurement();
+        }
+    });
 
     // Window menu
     auto windowMenu = menuBar()->addMenu(tr("&Window"));
@@ -393,6 +451,18 @@ void MainWindow::setupConnections()
                 impl_->statusLabel->setText(
                     tr("Angle: %1°").arg(angleDegrees, 0, 'f', 1));
                 impl_->angleAction->setChecked(false);
+            });
+
+    connect(impl_->viewport, &ViewportWidget::areaMeasurementCompleted,
+            this, [this](double areaMm2, double areaCm2, int /*measurementId*/) {
+                if (areaCm2 >= 0.01) {
+                    impl_->statusLabel->setText(
+                        tr("Area: %1 mm² (%2 cm²)").arg(areaMm2, 0, 'f', 2).arg(areaCm2, 0, 'f', 2));
+                } else {
+                    impl_->statusLabel->setText(
+                        tr("Area: %1 mm²").arg(areaMm2, 0, 'f', 2));
+                }
+                uncheckAllMeasurementActions();
             });
 }
 
@@ -625,6 +695,16 @@ void MainWindow::onToggleFullScreen()
     } else {
         showFullScreen();
     }
+}
+
+void MainWindow::uncheckAllMeasurementActions()
+{
+    impl_->distanceAction->setChecked(false);
+    impl_->angleAction->setChecked(false);
+    impl_->rectangleRoiAction->setChecked(false);
+    impl_->ellipseRoiAction->setChecked(false);
+    impl_->polygonRoiAction->setChecked(false);
+    impl_->freehandRoiAction->setChecked(false);
 }
 
 } // namespace dicom_viewer::ui

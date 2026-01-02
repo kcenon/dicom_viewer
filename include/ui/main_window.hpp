@@ -64,6 +64,7 @@ private:
     void saveLayout();
     void restoreLayout();
     void registerShortcuts();
+    void uncheckAllMeasurementActions();
 
     class Impl;
     std::unique_ptr<Impl> impl_;

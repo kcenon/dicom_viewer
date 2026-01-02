@@ -135,6 +135,7 @@ target_link_libraries(render_service PUBLIC
 
 add_library(measurement_service STATIC
     src/services/measurement/linear_measurement_tool.cpp
+    src/services/measurement/area_measurement_tool.cpp
     src/services/measurement/distance_tool.cpp
     src/services/measurement/area_tool.cpp
     src/services/measurement/statistics.cpp
