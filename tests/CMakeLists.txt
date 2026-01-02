@@ -353,3 +353,20 @@ target_include_directories(gaussian_smoother_test PRIVATE
 )
 
 gtest_discover_tests(gaussian_smoother_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Anisotropic Diffusion Filter
+add_executable(anisotropic_diffusion_filter_test
+    unit/anisotropic_diffusion_filter_test.cpp
+)
+
+target_link_libraries(anisotropic_diffusion_filter_test PRIVATE
+    preprocessing_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(anisotropic_diffusion_filter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(anisotropic_diffusion_filter_test DISCOVERY_TIMEOUT 60)

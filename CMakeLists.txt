@@ -151,6 +151,7 @@ target_link_libraries(measurement_service PUBLIC
 
 add_library(preprocessing_service STATIC
     src/services/preprocessing/gaussian_smoother.cpp
+    src/services/preprocessing/anisotropic_diffusion_filter.cpp
 )
 
 target_link_libraries(preprocessing_service PUBLIC
