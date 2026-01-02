@@ -910,3 +910,165 @@ TEST_F(ManualSegmentationControllerTest, PolygonToolCustomMinimumVertices) {
     controller_->onMousePress(Point2D{10, 50}, 0);
     EXPECT_TRUE(controller_->canCompletePolygon());
 }
+
+// Smart Scissors tool tests
+TEST_F(ManualSegmentationControllerTest, SmartScissorsParametersDefault) {
+    auto params = controller_->getSmartScissorsParameters();
+    EXPECT_DOUBLE_EQ(params.gradientWeight, 0.43);
+    EXPECT_DOUBLE_EQ(params.directionWeight, 0.43);
+    EXPECT_DOUBLE_EQ(params.laplacianWeight, 0.14);
+    EXPECT_DOUBLE_EQ(params.gaussianSigma, 1.5);
+    EXPECT_TRUE(params.enableSmoothing);
+    EXPECT_DOUBLE_EQ(params.closeThreshold, 10.0);
+    EXPECT_TRUE(params.fillInterior);
+}
+
+TEST_F(ManualSegmentationControllerTest, SetSmartScissorsParametersValid) {
+    SmartScissorsParameters params;
+    params.gradientWeight = 0.5;
+    params.directionWeight = 0.3;
+    params.laplacianWeight = 0.2;
+    params.gaussianSigma = 2.0;
+    params.enableSmoothing = false;
+    params.closeThreshold = 15.0;
+    params.fillInterior = false;
+
+    EXPECT_TRUE(controller_->setSmartScissorsParameters(params));
+
+    auto result = controller_->getSmartScissorsParameters();
+    EXPECT_DOUBLE_EQ(result.gradientWeight, 0.5);
+    EXPECT_DOUBLE_EQ(result.directionWeight, 0.3);
+    EXPECT_DOUBLE_EQ(result.laplacianWeight, 0.2);
+    EXPECT_DOUBLE_EQ(result.gaussianSigma, 2.0);
+    EXPECT_FALSE(result.enableSmoothing);
+    EXPECT_DOUBLE_EQ(result.closeThreshold, 15.0);
+    EXPECT_FALSE(result.fillInterior);
+}
+
+TEST_F(ManualSegmentationControllerTest, SetSmartScissorsParametersInvalidWeights) {
+    SmartScissorsParameters params;
+
+    // Weight exceeds 1.0
+    params.gradientWeight = 1.5;
+    EXPECT_FALSE(controller_->setSmartScissorsParameters(params));
+
+    // Negative weight
+    params.gradientWeight = -0.1;
+    EXPECT_FALSE(controller_->setSmartScissorsParameters(params));
+
+    // Total weight exceeds 1.0
+    params.gradientWeight = 0.5;
+    params.directionWeight = 0.5;
+    params.laplacianWeight = 0.5;
+    EXPECT_FALSE(controller_->setSmartScissorsParameters(params));
+}
+
+TEST_F(ManualSegmentationControllerTest, SetSmartScissorsParametersInvalidSigma) {
+    SmartScissorsParameters params;
+
+    // Sigma too low
+    params.gaussianSigma = 0.5;
+    EXPECT_FALSE(controller_->setSmartScissorsParameters(params));
+
+    // Sigma too high
+    params.gaussianSigma = 6.0;
+    EXPECT_FALSE(controller_->setSmartScissorsParameters(params));
+}
+
+TEST_F(ManualSegmentationControllerTest, SmartScissorsToolAddsAnchors) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::SmartScissors);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 1);
+
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 2);
+
+    controller_->onMousePress(Point2D{30, 50}, 0);
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 3);
+}
+
+TEST_F(ManualSegmentationControllerTest, SmartScissorsUndoAnchor) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::SmartScissors);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    controller_->onMousePress(Point2D{30, 50}, 0);
+
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 3);
+
+    EXPECT_TRUE(controller_->undoLastSmartScissorsAnchor());
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 2);
+
+    EXPECT_TRUE(controller_->undoLastSmartScissorsAnchor());
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 1);
+
+    EXPECT_TRUE(controller_->undoLastSmartScissorsAnchor());
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 0);
+
+    // Undo on empty returns false
+    EXPECT_FALSE(controller_->undoLastSmartScissorsAnchor());
+}
+
+TEST_F(ManualSegmentationControllerTest, CanCompleteSmartScissors) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::SmartScissors);
+
+    // Need at least 2 anchors
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    EXPECT_FALSE(controller_->canCompleteSmartScissors());
+
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    EXPECT_TRUE(controller_->canCompleteSmartScissors());
+}
+
+TEST_F(ManualSegmentationControllerTest, SmartScissorsSameSliceOnly) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 10).has_value());
+    controller_->setActiveTool(SegmentationTool::SmartScissors);
+
+    // Start on slice 0
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 1);
+
+    // Try to add anchor on different slice - should be ignored
+    controller_->onMousePress(Point2D{50, 10}, 5);
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 1);
+
+    // Add anchor on same slice
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 2);
+}
+
+TEST_F(ManualSegmentationControllerTest, SmartScissorsCancelClearsState) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::SmartScissors);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMousePress(Point2D{50, 10}, 0);
+    controller_->onMousePress(Point2D{30, 50}, 0);
+
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 3);
+
+    controller_->cancelOperation();
+
+    EXPECT_TRUE(controller_->getSmartScissorsAnchors().empty());
+    EXPECT_TRUE(controller_->getSmartScissorsPath().empty());
+}
+
+TEST_F(ManualSegmentationControllerTest, SmartScissorsToolSwitchClearsState) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::SmartScissors);
+
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMousePress(Point2D{50, 10}, 0);
+
+    EXPECT_EQ(controller_->getSmartScissorsAnchors().size(), 2);
+
+    // Switch to different tool
+    controller_->setActiveTool(SegmentationTool::Brush);
+
+    // State should be cleared
+    EXPECT_TRUE(controller_->getSmartScissorsAnchors().empty());
+}

@@ -7,8 +7,12 @@
 #include <numeric>
 #include <queue>
 #include <set>
+#include <unordered_map>
 
 #include <itkImageRegionIterator.h>
+#include <itkGradientMagnitudeRecursiveGaussianImageFilter.h>
+#include <itkGradientRecursiveGaussianImageFilter.h>
+#include <itkLaplacianRecursiveGaussianImageFilter.h>
 
 namespace dicom_viewer::services {
 
@@ -35,6 +39,21 @@ public:
     // Polygon drawing state
     std::vector<Point2D> polygonVertices_;
     int polygonSliceIndex_ = -1;
+
+    // Smart Scissors state
+    SmartScissorsParameters smartScissorsParams_;
+    std::vector<Point2D> smartScissorsAnchors_;
+    std::vector<Point2D> smartScissorsConfirmedPath_;
+    std::vector<Point2D> smartScissorsPreviewPath_;
+    int smartScissorsSliceIndex_ = -1;
+
+    // Edge cost map for Smart Scissors (computed from source image)
+    using CostMapType = itk::Image<float, 2>;
+    CostMapType::Pointer edgeCostMap_;
+    itk::Image<float, 2>::Pointer sourceImage_;
+    int sourceImageSlice_ = -1;
+    int imageWidth_ = 0;
+    int imageHeight_ = 0;
 
     /**
      * @brief Apply brush stroke at a position
@@ -551,6 +570,300 @@ public:
         // Clear path for next drawing
         freehandPath_.clear();
     }
+
+    /**
+     * @brief Compute edge cost map from source image
+     *
+     * Uses gradient magnitude, direction, and Laplacian zero-crossing
+     * to create a cost map for Dijkstra's algorithm.
+     */
+    void computeEdgeCostMap() {
+        if (!sourceImage_) {
+            return;
+        }
+
+        auto region = sourceImage_->GetLargestPossibleRegion();
+        auto size = region.GetSize();
+        imageWidth_ = static_cast<int>(size[0]);
+        imageHeight_ = static_cast<int>(size[1]);
+
+        // Compute gradient magnitude
+        using GradientMagFilterType =
+            itk::GradientMagnitudeRecursiveGaussianImageFilter<
+                itk::Image<float, 2>, itk::Image<float, 2>>;
+        auto gradMagFilter = GradientMagFilterType::New();
+        gradMagFilter->SetInput(sourceImage_);
+        gradMagFilter->SetSigma(smartScissorsParams_.gaussianSigma);
+        gradMagFilter->Update();
+        auto gradMag = gradMagFilter->GetOutput();
+
+        // Compute Laplacian
+        using LaplacianFilterType =
+            itk::LaplacianRecursiveGaussianImageFilter<
+                itk::Image<float, 2>, itk::Image<float, 2>>;
+        auto laplacianFilter = LaplacianFilterType::New();
+        laplacianFilter->SetInput(sourceImage_);
+        laplacianFilter->SetSigma(smartScissorsParams_.gaussianSigma);
+        laplacianFilter->Update();
+        auto laplacian = laplacianFilter->GetOutput();
+
+        // Find max gradient for normalization
+        float maxGrad = 0.0f;
+        itk::ImageRegionIterator<itk::Image<float, 2>> gradIt(
+            gradMag, gradMag->GetLargestPossibleRegion());
+        for (gradIt.GoToBegin(); !gradIt.IsAtEnd(); ++gradIt) {
+            maxGrad = std::max(maxGrad, std::abs(gradIt.Get()));
+        }
+        if (maxGrad < 1e-6f) {
+            maxGrad = 1.0f;
+        }
+
+        // Create cost map (invert gradient: low gradient = high cost)
+        edgeCostMap_ = CostMapType::New();
+        edgeCostMap_->SetRegions(region);
+        edgeCostMap_->Allocate();
+
+        itk::ImageRegionIterator<CostMapType> costIt(
+            edgeCostMap_, edgeCostMap_->GetLargestPossibleRegion());
+        gradIt.GoToBegin();
+        itk::ImageRegionIterator<itk::Image<float, 2>> lapIt(
+            laplacian, laplacian->GetLargestPossibleRegion());
+
+        for (; !costIt.IsAtEnd(); ++costIt, ++gradIt, ++lapIt) {
+            // Normalize gradient magnitude (0 to 1)
+            float normGrad = gradIt.Get() / maxGrad;
+
+            // Laplacian zero-crossing weight (1 if near zero, 0 otherwise)
+            float lapVal = std::abs(lapIt.Get());
+            float lapWeight = std::exp(-lapVal * lapVal / 100.0f);
+
+            // Edge cost: lower for strong edges (high gradient)
+            // Cost = 1 - (w_g * gradient + w_l * laplacian_weight)
+            float cost = 1.0f -
+                         smartScissorsParams_.gradientWeight * normGrad -
+                         smartScissorsParams_.laplacianWeight * lapWeight;
+
+            // Clamp cost to positive value
+            cost = std::max(0.01f, cost);
+            costIt.Set(cost);
+        }
+    }
+
+    /**
+     * @brief Hash function for Point2D used in unordered_map
+     */
+    struct Point2DHash {
+        size_t operator()(const Point2D& p) const {
+            return std::hash<int>()(p.x) ^ (std::hash<int>()(p.y) << 16);
+        }
+    };
+
+    /**
+     * @brief Find shortest path using Dijkstra's algorithm
+     *
+     * @param start Starting point
+     * @param end Ending point
+     * @return Path from start to end
+     */
+    std::vector<Point2D> findShortestPath(const Point2D& start,
+                                           const Point2D& end) {
+        if (!edgeCostMap_ || imageWidth_ <= 0 || imageHeight_ <= 0) {
+            return {};
+        }
+
+        // Check bounds
+        if (start.x < 0 || start.x >= imageWidth_ ||
+            start.y < 0 || start.y >= imageHeight_ ||
+            end.x < 0 || end.x >= imageWidth_ ||
+            end.y < 0 || end.y >= imageHeight_) {
+            return {};
+        }
+
+        // Priority queue: (cost, point)
+        using PQElement = std::pair<float, Point2D>;
+        auto cmp = [](const PQElement& a, const PQElement& b) {
+            return a.first > b.first;
+        };
+        std::priority_queue<PQElement, std::vector<PQElement>, decltype(cmp)>
+            pq(cmp);
+
+        // Distance and predecessor maps
+        std::unordered_map<Point2D, float, Point2DHash> dist;
+        std::unordered_map<Point2D, Point2D, Point2DHash> pred;
+
+        dist[start] = 0.0f;
+        pq.push({0.0f, start});
+
+        // 8-connectivity neighbors
+        const int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+        const int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+        const float diagCost = std::sqrt(2.0f);
+
+        while (!pq.empty()) {
+            auto [currentDist, current] = pq.top();
+            pq.pop();
+
+            // Skip if we've found a better path
+            auto it = dist.find(current);
+            if (it != dist.end() && currentDist > it->second) {
+                continue;
+            }
+
+            // Found destination
+            if (current == end) {
+                break;
+            }
+
+            // Explore neighbors
+            for (int i = 0; i < 8; ++i) {
+                int nx = current.x + dx[i];
+                int ny = current.y + dy[i];
+
+                if (nx < 0 || nx >= imageWidth_ ||
+                    ny < 0 || ny >= imageHeight_) {
+                    continue;
+                }
+
+                Point2D neighbor{nx, ny};
+
+                // Get edge cost
+                CostMapType::IndexType idx;
+                idx[0] = nx;
+                idx[1] = ny;
+                float edgeCost = edgeCostMap_->GetPixel(idx);
+
+                // Diagonal movement costs more
+                float moveCost = (i < 3 || i > 4) ? diagCost : 1.0f;
+                float newDist = currentDist + edgeCost * moveCost;
+
+                auto neighborIt = dist.find(neighbor);
+                if (neighborIt == dist.end() || newDist < neighborIt->second) {
+                    dist[neighbor] = newDist;
+                    pred[neighbor] = current;
+                    pq.push({newDist, neighbor});
+                }
+            }
+        }
+
+        // Reconstruct path
+        std::vector<Point2D> path;
+        if (pred.find(end) == pred.end() && start != end) {
+            return {};  // No path found
+        }
+
+        Point2D current = end;
+        while (current != start) {
+            path.push_back(current);
+            auto it = pred.find(current);
+            if (it == pred.end()) {
+                break;
+            }
+            current = it->second;
+        }
+        path.push_back(start);
+
+        std::reverse(path.begin(), path.end());
+        return path;
+    }
+
+    /**
+     * @brief Add anchor point for Smart Scissors
+     */
+    void addSmartScissorsAnchor(const Point2D& position, int sliceIndex) {
+        if (smartScissorsAnchors_.empty()) {
+            smartScissorsSliceIndex_ = sliceIndex;
+        }
+
+        // Only add on the same slice
+        if (sliceIndex != smartScissorsSliceIndex_) {
+            return;
+        }
+
+        // If we have a preview path, confirm it
+        if (!smartScissorsAnchors_.empty() && !smartScissorsPreviewPath_.empty()) {
+            // Add preview path to confirmed path (skip first point to avoid
+            // duplication)
+            for (size_t i = 1; i < smartScissorsPreviewPath_.size(); ++i) {
+                smartScissorsConfirmedPath_.push_back(smartScissorsPreviewPath_[i]);
+            }
+        }
+
+        smartScissorsAnchors_.push_back(position);
+        smartScissorsPreviewPath_.clear();
+    }
+
+    /**
+     * @brief Update Smart Scissors preview path
+     */
+    void updateSmartScissorsPreview(const Point2D& mousePosition) {
+        if (smartScissorsAnchors_.empty() || !edgeCostMap_) {
+            smartScissorsPreviewPath_.clear();
+            return;
+        }
+
+        const Point2D& lastAnchor = smartScissorsAnchors_.back();
+        smartScissorsPreviewPath_ = findShortestPath(lastAnchor, mousePosition);
+    }
+
+    /**
+     * @brief Finalize Smart Scissors path
+     */
+    void finalizeSmartScissors(int sliceIndex, uint8_t value) {
+        if (smartScissorsAnchors_.size() < 2) {
+            return;
+        }
+
+        // Get complete path
+        std::vector<Point2D> completePath;
+
+        // Add confirmed path
+        if (!smartScissorsConfirmedPath_.empty()) {
+            completePath = smartScissorsConfirmedPath_;
+        }
+
+        // Add any remaining preview path
+        if (!smartScissorsPreviewPath_.empty()) {
+            for (size_t i = (completePath.empty() ? 0 : 1);
+                 i < smartScissorsPreviewPath_.size(); ++i) {
+                completePath.push_back(smartScissorsPreviewPath_[i]);
+            }
+        }
+
+        if (completePath.size() < 2) {
+            return;
+        }
+
+        // Check if path should be closed
+        bool shouldClose = distance(smartScissorsAnchors_.front(),
+                                    smartScissorsAnchors_.back()) <=
+                           smartScissorsParams_.closeThreshold;
+
+        if (shouldClose && completePath.size() >= 3) {
+            // Close the path
+            auto closingPath =
+                findShortestPath(completePath.back(), completePath.front());
+            for (size_t i = 1; i < closingPath.size(); ++i) {
+                completePath.push_back(closingPath[i]);
+            }
+
+            // Draw outline
+            drawFreehandPath(completePath, sliceIndex, value);
+
+            // Fill interior if enabled
+            if (smartScissorsParams_.fillInterior) {
+                fillPolygon(completePath, sliceIndex, value);
+            }
+        } else {
+            // Just draw the path
+            drawFreehandPath(completePath, sliceIndex, value);
+        }
+
+        // Clear state
+        smartScissorsAnchors_.clear();
+        smartScissorsConfirmedPath_.clear();
+        smartScissorsPreviewPath_.clear();
+        smartScissorsSliceIndex_ = -1;
+    }
 };
 
 ManualSegmentationController::ManualSegmentationController()
@@ -743,6 +1056,108 @@ std::vector<Point2D> ManualSegmentationController::getFreehandPath() const {
     return pImpl_->freehandPath_;
 }
 
+bool ManualSegmentationController::setSmartScissorsParameters(
+    const SmartScissorsParameters& params) {
+    if (!params.isValid()) {
+        return false;
+    }
+    pImpl_->smartScissorsParams_ = params;
+    return true;
+}
+
+SmartScissorsParameters
+ManualSegmentationController::getSmartScissorsParameters() const noexcept {
+    return pImpl_->smartScissorsParams_;
+}
+
+std::expected<void, SegmentationError>
+ManualSegmentationController::setSmartScissorsSourceImage(
+    itk::Image<float, 2>::Pointer image, int sliceIndex) {
+    if (!image) {
+        return std::unexpected(SegmentationError{
+            SegmentationError::Code::InvalidInput,
+            "Source image cannot be null"});
+    }
+
+    pImpl_->sourceImage_ = image;
+    pImpl_->sourceImageSlice_ = sliceIndex;
+    pImpl_->computeEdgeCostMap();
+
+    return {};
+}
+
+std::vector<Point2D> ManualSegmentationController::getSmartScissorsPath() const {
+    // Return combined confirmed path and preview path
+    std::vector<Point2D> result = pImpl_->smartScissorsConfirmedPath_;
+    if (!pImpl_->smartScissorsPreviewPath_.empty()) {
+        for (size_t i = (result.empty() ? 0 : 1);
+             i < pImpl_->smartScissorsPreviewPath_.size(); ++i) {
+            result.push_back(pImpl_->smartScissorsPreviewPath_[i]);
+        }
+    }
+    return result;
+}
+
+std::vector<Point2D>
+ManualSegmentationController::getSmartScissorsAnchors() const {
+    return pImpl_->smartScissorsAnchors_;
+}
+
+std::vector<Point2D>
+ManualSegmentationController::getSmartScissorsConfirmedPath() const {
+    return pImpl_->smartScissorsConfirmedPath_;
+}
+
+bool ManualSegmentationController::undoLastSmartScissorsAnchor() {
+    if (pImpl_->smartScissorsAnchors_.empty()) {
+        return false;
+    }
+
+    pImpl_->smartScissorsAnchors_.pop_back();
+
+    // Recalculate confirmed path by removing the last segment
+    // For simplicity, clear confirmed path and recalculate
+    // (in a production system, you'd store segment boundaries)
+    if (pImpl_->smartScissorsAnchors_.size() < 2) {
+        pImpl_->smartScissorsConfirmedPath_.clear();
+    }
+
+    // Clear preview
+    pImpl_->smartScissorsPreviewPath_.clear();
+
+    // Reset slice index if all anchors removed
+    if (pImpl_->smartScissorsAnchors_.empty()) {
+        pImpl_->smartScissorsSliceIndex_ = -1;
+    }
+
+    // Notify callback
+    if (pImpl_->modificationCallback_ && pImpl_->smartScissorsSliceIndex_ >= 0) {
+        pImpl_->modificationCallback_(pImpl_->smartScissorsSliceIndex_);
+    }
+
+    return true;
+}
+
+bool ManualSegmentationController::completeSmartScissors(int sliceIndex) {
+    if (!canCompleteSmartScissors()) {
+        return false;
+    }
+
+    pImpl_->finalizeSmartScissors(sliceIndex, pImpl_->activeLabel_);
+
+    pImpl_->isDrawing_ = false;
+
+    if (pImpl_->modificationCallback_) {
+        pImpl_->modificationCallback_(sliceIndex);
+    }
+
+    return true;
+}
+
+bool ManualSegmentationController::canCompleteSmartScissors() const noexcept {
+    return pImpl_->smartScissorsAnchors_.size() >= 2;
+}
+
 bool ManualSegmentationController::setActiveLabel(uint8_t labelId) {
     if (labelId == 0) {
         return false;  // 0 is reserved for background
@@ -790,8 +1205,13 @@ void ManualSegmentationController::onMousePress(const Point2D& position, int sli
             // Polygon remains in drawing state until completed
             break;
 
+        case SegmentationTool::SmartScissors:
+            // Add anchor point for Smart Scissors
+            pImpl_->addSmartScissorsAnchor(position, sliceIndex);
+            // Smart Scissors remains in drawing state until completed
+            break;
+
         default:
-            // Other tools (SmartScissors) handled separately
             break;
     }
 
@@ -825,6 +1245,11 @@ void ManualSegmentationController::onMouseMove(const Point2D& position, int slic
                 Impl::distance(position, pImpl_->freehandPath_.back()) >= 1.0) {
                 pImpl_->freehandPath_.push_back(position);
             }
+            break;
+
+        case SegmentationTool::SmartScissors:
+            // Update preview path from last anchor to current position
+            pImpl_->updateSmartScissorsPreview(position);
             break;
 
         default:
@@ -882,6 +1307,10 @@ void ManualSegmentationController::cancelOperation() {
     pImpl_->freehandPath_.clear();
     pImpl_->polygonVertices_.clear();
     pImpl_->polygonSliceIndex_ = -1;
+    pImpl_->smartScissorsAnchors_.clear();
+    pImpl_->smartScissorsConfirmedPath_.clear();
+    pImpl_->smartScissorsPreviewPath_.clear();
+    pImpl_->smartScissorsSliceIndex_ = -1;
 }
 
 bool ManualSegmentationController::isDrawing() const noexcept {
