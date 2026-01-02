@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <numbers>
 #include <sstream>
 
 #include <vtkAngleRepresentation2D.h>
@@ -59,7 +60,7 @@ double calculateAngle(const Point3D& p1, const Point3D& vertex, const Point3D& p
     // Clamp to [-1, 1] to handle floating point errors
     cosAngle = std::max(-1.0, std::min(1.0, cosAngle));
 
-    return std::acos(cosAngle) * 180.0 / M_PI;  // Convert to degrees
+    return std::acos(cosAngle) * 180.0 / std::numbers::pi;  // Convert to degrees
 }
 
 }  // namespace
@@ -212,7 +213,7 @@ public:
             m.point1 = {p1[0], p1[1], p1[2]};
             m.vertex = {vertex[0], vertex[1], vertex[2]};
             m.point2 = {p2[0], p2[1], p2[2]};
-            m.angleDegrees = rep->GetAngle() * 180.0 / M_PI;
+            m.angleDegrees = rep->GetAngle() * 180.0 / std::numbers::pi;
             m.sliceIndex = currentSlice;
         }
         return m;
