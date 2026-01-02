@@ -2194,7 +2194,7 @@ sequenceDiagram
 | FR-007.21~25 | SRS-FR-048 | SDS-MOD-004 | MeasurementService | Planned |
 | FR-010.1~5 | SRS-FR-050~054 | SDS-MOD-005 | NetworkService | Planned |
 | FR-011.1~6 | SRS-FR-055~060 | SDS-MOD-006 | UI | Planned |
-| FR-012.1~8 | SRS-FR-049 | SDS-MOD-004 | MeasurementService | Planned |
+| FR-012.1~8 | SRS-FR-049 | SDS-MOD-004 | MeasurementService | 🟡 Partially Implemented (Ellipse ROI) |
 | FR-013.1~6 | SRS-FR-048 | SDS-MOD-004 | MeasurementService | Planned |
 
 ---

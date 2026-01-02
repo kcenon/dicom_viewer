@@ -412,3 +412,24 @@ target_include_directories(isotropic_resampler_test PRIVATE
 )
 
 gtest_discover_tests(isotropic_resampler_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Ellipse ROI
+add_executable(ellipse_roi_test
+    unit/ellipse_roi_test.cpp
+)
+
+target_link_directories(ellipse_roi_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(ellipse_roi_test PRIVATE
+    measurement_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(ellipse_roi_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(ellipse_roi_test DISCOVERY_TIMEOUT 60)
