@@ -154,6 +154,7 @@ add_library(preprocessing_service STATIC
     src/services/preprocessing/gaussian_smoother.cpp
     src/services/preprocessing/anisotropic_diffusion_filter.cpp
     src/services/preprocessing/n4_bias_corrector.cpp
+    src/services/preprocessing/isotropic_resampler.cpp
 )
 
 # Find FFTW for N4 bias correction (uses ITK's FFTW dependency)

@@ -391,3 +391,24 @@ target_include_directories(n4_bias_corrector_test PRIVATE
 )
 
 gtest_discover_tests(n4_bias_corrector_test DISCOVERY_TIMEOUT 120)
+
+# Unit tests for Isotropic Resampler
+add_executable(isotropic_resampler_test
+    unit/isotropic_resampler_test.cpp
+)
+
+target_link_directories(isotropic_resampler_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(isotropic_resampler_test PRIVATE
+    preprocessing_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(isotropic_resampler_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(isotropic_resampler_test DISCOVERY_TIMEOUT 60)
