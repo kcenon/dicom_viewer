@@ -219,6 +219,8 @@ add_library(segmentation_service STATIC
     src/services/segmentation/label_manager.cpp
     src/services/segmentation/morphological_processor.cpp
     src/services/segmentation/label_map_overlay.cpp
+    src/services/segmentation/mpr_coordinate_transformer.cpp
+    src/services/segmentation/mpr_segmentation_renderer.cpp
 )
 
 target_link_libraries(segmentation_service PUBLIC
