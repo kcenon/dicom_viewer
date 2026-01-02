@@ -1370,6 +1370,32 @@ struct MorphologyParams {
     int radius;
 };
 
+// Manual Segmentation Tools (SRS-FR-023)
+enum class SegmentationTool {
+    None, Brush, Eraser, Fill, Freehand, Polygon, SmartScissors
+};
+enum class BrushShape { Circle, Square };
+
+struct BrushParameters {
+    int size = 5;                // 1-50 pixels
+    BrushShape shape = BrushShape::Circle;
+};
+
+struct FillParameters {
+    bool use8Connectivity = false;
+    double tolerance = 0.0;
+};
+
+struct SmartScissorsParameters {
+    double gradientWeight = 0.43;      // Weight for gradient magnitude
+    double directionWeight = 0.43;     // Weight for gradient direction
+    double laplacianWeight = 0.14;     // Weight for Laplacian zero-crossing
+    double gaussianSigma = 1.5;        // Smoothing sigma (1.0-5.0)
+    bool enableSmoothing = true;
+    double closeThreshold = 10.0;      // Auto-close distance
+    bool fillInterior = true;
+};
+
 // Segmentation Result
 struct SegmentationResult {
     MaskPointer mask;
