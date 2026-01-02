@@ -3,7 +3,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <numeric>
 #include <queue>
+#include <set>
 
 #include <itkImageRegionIterator.h>
 
@@ -18,11 +21,15 @@ public:
     SegmentationTool activeTool_ = SegmentationTool::None;
     BrushParameters brushParams_;
     FillParameters fillParams_;
+    FreehandParameters freehandParams_;
     uint8_t activeLabel_ = 1;
     bool isDrawing_ = false;
     Point2D lastPosition_;
     int lastSliceIndex_ = -1;
     ModificationCallback modificationCallback_;
+
+    // Freehand drawing state
+    std::vector<Point2D> freehandPath_;
 
     /**
      * @brief Apply brush stroke at a position
@@ -185,6 +192,303 @@ public:
             }
         }
     }
+
+    /**
+     * @brief Calculate perpendicular distance from point to line segment
+     */
+    static double perpendicularDistance(const Point2D& point,
+                                        const Point2D& lineStart,
+                                        const Point2D& lineEnd) {
+        double dx = lineEnd.x - lineStart.x;
+        double dy = lineEnd.y - lineStart.y;
+
+        // If line is a point, return distance to that point
+        double lineLengthSq = dx * dx + dy * dy;
+        if (lineLengthSq == 0.0) {
+            double pdx = point.x - lineStart.x;
+            double pdy = point.y - lineStart.y;
+            return std::sqrt(pdx * pdx + pdy * pdy);
+        }
+
+        // Calculate perpendicular distance
+        double t = ((point.x - lineStart.x) * dx +
+                    (point.y - lineStart.y) * dy) / lineLengthSq;
+
+        t = std::max(0.0, std::min(1.0, t));
+
+        double projX = lineStart.x + t * dx;
+        double projY = lineStart.y + t * dy;
+
+        double distX = point.x - projX;
+        double distY = point.y - projY;
+
+        return std::sqrt(distX * distX + distY * distY);
+    }
+
+    /**
+     * @brief Douglas-Peucker path simplification algorithm
+     */
+    std::vector<Point2D> simplifyPath(const std::vector<Point2D>& path,
+                                      double tolerance) {
+        if (path.size() < 3) {
+            return path;
+        }
+
+        // Find the point with maximum distance
+        double maxDistance = 0.0;
+        size_t maxIndex = 0;
+
+        for (size_t i = 1; i < path.size() - 1; ++i) {
+            double distance = perpendicularDistance(
+                path[i], path.front(), path.back()
+            );
+            if (distance > maxDistance) {
+                maxDistance = distance;
+                maxIndex = i;
+            }
+        }
+
+        // If max distance is greater than tolerance, recursively simplify
+        if (maxDistance > tolerance) {
+            std::vector<Point2D> left(path.begin(), path.begin() + maxIndex + 1);
+            std::vector<Point2D> right(path.begin() + maxIndex, path.end());
+
+            auto simplifiedLeft = simplifyPath(left, tolerance);
+            auto simplifiedRight = simplifyPath(right, tolerance);
+
+            // Combine results (remove duplicate point at junction)
+            simplifiedLeft.pop_back();
+            simplifiedLeft.insert(simplifiedLeft.end(),
+                                  simplifiedRight.begin(),
+                                  simplifiedRight.end());
+            return simplifiedLeft;
+        }
+
+        // Return only endpoints
+        return {path.front(), path.back()};
+    }
+
+    /**
+     * @brief Apply Gaussian smoothing to path
+     */
+    std::vector<Point2D> smoothPath(const std::vector<Point2D>& path,
+                                    int windowSize) {
+        if (path.size() < 3 || windowSize < 3) {
+            return path;
+        }
+
+        std::vector<Point2D> smoothed;
+        smoothed.reserve(path.size());
+
+        int halfWindow = windowSize / 2;
+
+        // Generate Gaussian weights
+        std::vector<double> weights(windowSize);
+        double sigma = windowSize / 4.0;
+        double sum = 0.0;
+
+        for (int i = 0; i < windowSize; ++i) {
+            int offset = i - halfWindow;
+            weights[i] = std::exp(-0.5 * offset * offset / (sigma * sigma));
+            sum += weights[i];
+        }
+
+        // Normalize weights
+        for (auto& w : weights) {
+            w /= sum;
+        }
+
+        // Apply smoothing
+        for (size_t i = 0; i < path.size(); ++i) {
+            double sumX = 0.0;
+            double sumY = 0.0;
+            double weightSum = 0.0;
+
+            for (int j = -halfWindow; j <= halfWindow; ++j) {
+                int idx = static_cast<int>(i) + j;
+
+                // Clamp to path bounds
+                if (idx < 0) idx = 0;
+                if (idx >= static_cast<int>(path.size())) {
+                    idx = static_cast<int>(path.size()) - 1;
+                }
+
+                int weightIdx = j + halfWindow;
+                sumX += path[idx].x * weights[weightIdx];
+                sumY += path[idx].y * weights[weightIdx];
+                weightSum += weights[weightIdx];
+            }
+
+            smoothed.push_back(Point2D{
+                static_cast<int>(std::round(sumX / weightSum)),
+                static_cast<int>(std::round(sumY / weightSum))
+            });
+        }
+
+        return smoothed;
+    }
+
+    /**
+     * @brief Calculate distance between two points
+     */
+    static double distance(const Point2D& a, const Point2D& b) {
+        double dx = a.x - b.x;
+        double dy = a.y - b.y;
+        return std::sqrt(dx * dx + dy * dy);
+    }
+
+    /**
+     * @brief Check if path forms a closed loop
+     */
+    bool isPathClosed(const std::vector<Point2D>& path,
+                      double threshold) const {
+        if (path.size() < 3) {
+            return false;
+        }
+        return distance(path.front(), path.back()) <= threshold;
+    }
+
+    /**
+     * @brief Draw freehand path on label map
+     */
+    void drawFreehandPath(const std::vector<Point2D>& path,
+                          int sliceIndex,
+                          uint8_t value) {
+        if (path.size() < 2) {
+            return;
+        }
+
+        // Draw lines between consecutive points
+        for (size_t i = 0; i < path.size() - 1; ++i) {
+            drawLine(path[i], path[i + 1], sliceIndex, value);
+        }
+    }
+
+    /**
+     * @brief Fill interior of closed polygon using scanline algorithm
+     */
+    void fillPolygon(const std::vector<Point2D>& polygon,
+                     int sliceIndex,
+                     uint8_t value) {
+        if (polygon.size() < 3 || !labelMap_) {
+            return;
+        }
+
+        auto region = labelMap_->GetLargestPossibleRegion();
+        auto size = region.GetSize();
+
+        // Find bounding box
+        int minY = std::numeric_limits<int>::max();
+        int maxY = std::numeric_limits<int>::min();
+
+        for (const auto& pt : polygon) {
+            minY = std::min(minY, pt.y);
+            maxY = std::max(maxY, pt.y);
+        }
+
+        // Clamp to image bounds
+        minY = std::max(0, minY);
+        maxY = std::min(static_cast<int>(size[1]) - 1, maxY);
+
+        // Scanline fill
+        for (int y = minY; y <= maxY; ++y) {
+            std::vector<int> intersections;
+
+            // Find intersections with polygon edges
+            for (size_t i = 0; i < polygon.size(); ++i) {
+                size_t j = (i + 1) % polygon.size();
+
+                const auto& p1 = polygon[i];
+                const auto& p2 = polygon[j];
+
+                // Check if edge crosses scanline
+                if ((p1.y <= y && p2.y > y) || (p2.y <= y && p1.y > y)) {
+                    // Calculate x intersection
+                    double x = static_cast<double>(p1.x) +
+                               static_cast<double>(y - p1.y) /
+                               static_cast<double>(p2.y - p1.y) *
+                               static_cast<double>(p2.x - p1.x);
+                    intersections.push_back(static_cast<int>(std::round(x)));
+                }
+            }
+
+            // Sort intersections
+            std::sort(intersections.begin(), intersections.end());
+
+            // Fill between pairs of intersections
+            for (size_t i = 0; i + 1 < intersections.size(); i += 2) {
+                int x1 = std::max(0, intersections[i]);
+                int x2 = std::min(static_cast<int>(size[0]) - 1,
+                                  intersections[i + 1]);
+
+                for (int x = x1; x <= x2; ++x) {
+                    LabelMapType::IndexType idx;
+                    idx[0] = x;
+                    idx[1] = y;
+                    idx[2] = sliceIndex;
+                    labelMap_->SetPixel(idx, value);
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief Process freehand path with simplification and smoothing
+     */
+    std::vector<Point2D> processFreehandPath() {
+        if (freehandPath_.size() < 2) {
+            return freehandPath_;
+        }
+
+        std::vector<Point2D> result = freehandPath_;
+
+        // Apply smoothing first (before simplification)
+        if (freehandParams_.enableSmoothing) {
+            result = smoothPath(result, freehandParams_.smoothingWindowSize);
+        }
+
+        // Apply simplification
+        if (freehandParams_.enableSimplification) {
+            result = simplifyPath(result, freehandParams_.simplificationTolerance);
+        }
+
+        return result;
+    }
+
+    /**
+     * @brief Finalize freehand drawing
+     */
+    void finalizeFreehand(int sliceIndex, uint8_t value) {
+        auto processedPath = processFreehandPath();
+
+        if (processedPath.size() < 2) {
+            return;
+        }
+
+        // Check if path should be closed
+        bool shouldClose = freehandParams_.fillInterior &&
+                           isPathClosed(processedPath,
+                                        freehandParams_.closeThreshold);
+
+        if (shouldClose) {
+            // Close the path
+            if (processedPath.front() != processedPath.back()) {
+                processedPath.push_back(processedPath.front());
+            }
+
+            // Draw outline
+            drawFreehandPath(processedPath, sliceIndex, value);
+
+            // Fill interior
+            fillPolygon(processedPath, sliceIndex, value);
+        } else {
+            // Just draw the path
+            drawFreehandPath(processedPath, sliceIndex, value);
+        }
+
+        // Clear path for next drawing
+        freehandPath_.clear();
+    }
 };
 
 ManualSegmentationController::ManualSegmentationController()
@@ -302,6 +606,22 @@ FillParameters ManualSegmentationController::getFillParameters() const noexcept 
     return pImpl_->fillParams_;
 }
 
+bool ManualSegmentationController::setFreehandParameters(const FreehandParameters& params) {
+    if (!params.isValid()) {
+        return false;
+    }
+    pImpl_->freehandParams_ = params;
+    return true;
+}
+
+FreehandParameters ManualSegmentationController::getFreehandParameters() const noexcept {
+    return pImpl_->freehandParams_;
+}
+
+std::vector<Point2D> ManualSegmentationController::getFreehandPath() const {
+    return pImpl_->freehandPath_;
+}
+
 bool ManualSegmentationController::setActiveLabel(uint8_t labelId) {
     if (labelId == 0) {
         return false;  // 0 is reserved for background
@@ -337,6 +657,12 @@ void ManualSegmentationController::onMousePress(const Point2D& position, int sli
             pImpl_->isDrawing_ = false;  // Fill is instant
             break;
 
+        case SegmentationTool::Freehand:
+            // Start new freehand path
+            pImpl_->freehandPath_.clear();
+            pImpl_->freehandPath_.push_back(position);
+            break;
+
         default:
             // Other tools handled separately
             break;
@@ -364,6 +690,14 @@ void ManualSegmentationController::onMouseMove(const Point2D& position, int slic
 
         case SegmentationTool::Eraser:
             pImpl_->drawLine(pImpl_->lastPosition_, position, sliceIndex, 0);
+            break;
+
+        case SegmentationTool::Freehand:
+            // Add point to path (skip if too close to last point)
+            if (pImpl_->freehandPath_.empty() ||
+                Impl::distance(position, pImpl_->freehandPath_.back()) >= 1.0) {
+                pImpl_->freehandPath_.push_back(position);
+            }
             break;
 
         default:
@@ -394,9 +728,19 @@ void ManualSegmentationController::onMouseRelease(const Point2D& position, int s
                 pImpl_->drawLine(pImpl_->lastPosition_, position, sliceIndex, 0);
                 break;
 
+            case SegmentationTool::Freehand:
+                // Add final point
+                pImpl_->freehandPath_.push_back(position);
+                break;
+
             default:
                 break;
         }
+    }
+
+    // Finalize freehand drawing if applicable
+    if (pImpl_->activeTool_ == SegmentationTool::Freehand) {
+        pImpl_->finalizeFreehand(sliceIndex, pImpl_->activeLabel_);
     }
 
     pImpl_->isDrawing_ = false;
@@ -408,6 +752,7 @@ void ManualSegmentationController::onMouseRelease(const Point2D& position, int s
 
 void ManualSegmentationController::cancelOperation() {
     pImpl_->isDrawing_ = false;
+    pImpl_->freehandPath_.clear();
 }
 
 bool ManualSegmentationController::isDrawing() const noexcept {
