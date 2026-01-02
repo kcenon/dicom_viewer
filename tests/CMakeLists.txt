@@ -293,3 +293,20 @@ target_include_directories(morphological_processor_test PRIVATE
 )
 
 gtest_discover_tests(morphological_processor_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for ROI Statistics Calculator
+add_executable(roi_statistics_test
+    unit/roi_statistics_test.cpp
+)
+
+target_link_libraries(roi_statistics_test PRIVATE
+    measurement_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(roi_statistics_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(roi_statistics_test DISCOVERY_TIMEOUT 60)
