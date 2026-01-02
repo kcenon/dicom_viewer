@@ -69,6 +69,7 @@ find_package(ITK REQUIRED COMPONENTS
     ITKMathematicalMorphology
     ITKLabelMap
     ITKStatistics
+    ITKBiasCorrection
     ITKVtkGlue
 )
 
@@ -152,11 +153,18 @@ target_link_libraries(measurement_service PUBLIC
 add_library(preprocessing_service STATIC
     src/services/preprocessing/gaussian_smoother.cpp
     src/services/preprocessing/anisotropic_diffusion_filter.cpp
+    src/services/preprocessing/n4_bias_corrector.cpp
 )
+
+# Find FFTW for N4 bias correction (uses ITK's FFTW dependency)
+find_library(FFTW3_LIBRARY fftw3 HINTS /opt/homebrew/lib)
+find_library(FFTW3_THREADS_LIBRARY fftw3_threads HINTS /opt/homebrew/lib)
 
 target_link_libraries(preprocessing_service PUBLIC
     dicom_viewer_core
     ${ITK_LIBRARIES}
+    ${FFTW3_LIBRARY}
+    ${FFTW3_THREADS_LIBRARY}
 )
 
 add_library(segmentation_service STATIC
