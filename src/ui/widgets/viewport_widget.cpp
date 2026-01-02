@@ -1,4 +1,5 @@
 #include "ui/viewport_widget.hpp"
+#include "services/measurement/linear_measurement_tool.hpp"
 
 #include <QVBoxLayout>
 #include <QVTKOpenGLNativeWidget.h>
@@ -35,6 +36,9 @@ public:
     vtkSmartPointer<vtkPointPicker> pointPicker;
     vtkSmartPointer<vtkEventQtSlotConnect> connections;
 
+    // Measurement tool
+    std::unique_ptr<services::LinearMeasurementTool> measurementTool;
+
     ViewportMode mode = ViewportMode::SingleSlice;
     double windowWidth = 400.0;
     double windowCenter = 40.0;
@@ -63,6 +67,10 @@ public:
         // Setup image slice
         imageSlice->SetMapper(sliceMapper);
         imageSlice->SetProperty(imageProperty);
+
+        // Setup measurement tool
+        measurementTool = std::make_unique<services::LinearMeasurementTool>();
+        measurementTool->setRenderer(renderer);
     }
 
     void updateInteractorStyle() {
@@ -110,6 +118,20 @@ ViewportWidget::ViewportWidget(QWidget* parent)
     interactor->SetPicker(impl_->pointPicker);
     impl_->updateInteractorStyle();
 
+    // Set interactor for measurement tool
+    impl_->measurementTool->setInteractor(interactor);
+
+    // Setup measurement callbacks
+    impl_->measurementTool->setDistanceCompletedCallback(
+        [this](const services::DistanceMeasurement& m) {
+            emit distanceMeasurementCompleted(m.distanceMm, m.id);
+        });
+
+    impl_->measurementTool->setAngleCompletedCallback(
+        [this](const services::AngleMeasurement& m) {
+            emit angleMeasurementCompleted(m.angleDegrees, m.id);
+        });
+
     setLayout(layout);
 }
 
@@ -122,6 +144,11 @@ void ViewportWidget::setImageData(vtkSmartPointer<vtkImageData> imageData)
     if (imageData) {
         int* dims = imageData->GetDimensions();
         impl_->currentSlice = dims[2] / 2;
+
+        // Update pixel spacing for measurement tool
+        double* spacing = imageData->GetSpacing();
+        impl_->measurementTool->setPixelSpacing(spacing[0], spacing[1], spacing[2]);
+        impl_->measurementTool->setCurrentSlice(impl_->currentSlice);
 
         if (impl_->mode == ViewportMode::SingleSlice ||
             impl_->mode == ViewportMode::MPR) {
@@ -233,6 +260,38 @@ void ViewportWidget::resizeEvent(QResizeEvent* event)
     if (impl_->vtkWidget) {
         impl_->vtkWidget->renderWindow()->Render();
     }
+}
+
+void ViewportWidget::startDistanceMeasurement()
+{
+    auto result = impl_->measurementTool->startDistanceMeasurement();
+    if (result) {
+        emit measurementModeChanged(services::MeasurementMode::Distance);
+    }
+}
+
+void ViewportWidget::startAngleMeasurement()
+{
+    auto result = impl_->measurementTool->startAngleMeasurement();
+    if (result) {
+        emit measurementModeChanged(services::MeasurementMode::Angle);
+    }
+}
+
+void ViewportWidget::cancelMeasurement()
+{
+    impl_->measurementTool->cancelMeasurement();
+    emit measurementModeChanged(services::MeasurementMode::None);
+}
+
+void ViewportWidget::deleteAllMeasurements()
+{
+    impl_->measurementTool->deleteAllMeasurements();
+}
+
+services::MeasurementMode ViewportWidget::getMeasurementMode() const
+{
+    return impl_->measurementTool->getMode();
 }
 
 } // namespace dicom_viewer::ui
