@@ -340,4 +340,24 @@ services::MeasurementMode ViewportWidget::getMeasurementMode() const
     return impl_->measurementTool->getMode();
 }
 
+std::vector<services::AreaMeasurement> ViewportWidget::getAreaMeasurements() const
+{
+    return impl_->areaMeasurementTool->getMeasurements();
+}
+
+std::optional<services::AreaMeasurement> ViewportWidget::getAreaMeasurement(int id) const
+{
+    return impl_->areaMeasurementTool->getMeasurement(id);
+}
+
+int ViewportWidget::getCurrentSlice() const
+{
+    return impl_->currentSlice;
+}
+
+vtkSmartPointer<vtkImageData> ViewportWidget::getImageData() const
+{
+    return impl_->imageData;
+}
+
 } // namespace dicom_viewer::ui
