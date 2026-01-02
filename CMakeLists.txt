@@ -276,6 +276,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/panels/patient_browser.cpp
     src/ui/panels/tools_panel.cpp
     src/ui/panels/statistics_panel.cpp
+    src/ui/panels/segmentation_panel.cpp
     src/ui/dialogs/settings_dialog.cpp
     src/ui/dialogs/pacs_config_dialog.cpp
 )

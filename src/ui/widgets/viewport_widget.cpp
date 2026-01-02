@@ -1,8 +1,10 @@
 #include "ui/viewport_widget.hpp"
 #include "services/measurement/linear_measurement_tool.hpp"
 #include "services/measurement/area_measurement_tool.hpp"
+#include "services/segmentation/manual_segmentation_controller.hpp"
 
 #include <QVBoxLayout>
+#include <QMouseEvent>
 #include <QVTKOpenGLNativeWidget.h>
 
 #include <vtkGenericOpenGLRenderWindow.h>
@@ -41,6 +43,9 @@ public:
     std::unique_ptr<services::LinearMeasurementTool> measurementTool;
     std::unique_ptr<services::AreaMeasurementTool> areaMeasurementTool;
 
+    // Segmentation controller
+    std::unique_ptr<services::ManualSegmentationController> segmentationController;
+
     ViewportMode mode = ViewportMode::SingleSlice;
     double windowWidth = 400.0;
     double windowCenter = 40.0;
@@ -76,6 +81,9 @@ public:
 
         areaMeasurementTool = std::make_unique<services::AreaMeasurementTool>();
         areaMeasurementTool->setRenderer(renderer);
+
+        // Setup segmentation controller
+        segmentationController = std::make_unique<services::ManualSegmentationController>();
     }
 
     void updateInteractorStyle() {
@@ -358,6 +366,65 @@ int ViewportWidget::getCurrentSlice() const
 vtkSmartPointer<vtkImageData> ViewportWidget::getImageData() const
 {
     return impl_->imageData;
+}
+
+void ViewportWidget::setSegmentationTool(services::SegmentationTool tool)
+{
+    impl_->segmentationController->setActiveTool(tool);
+    emit segmentationToolChanged(tool);
+}
+
+services::SegmentationTool ViewportWidget::getSegmentationTool() const
+{
+    return impl_->segmentationController->getActiveTool();
+}
+
+void ViewportWidget::setSegmentationBrushSize(int size)
+{
+    impl_->segmentationController->setBrushSize(size);
+}
+
+void ViewportWidget::setSegmentationBrushShape(services::BrushShape shape)
+{
+    impl_->segmentationController->setBrushShape(shape);
+}
+
+void ViewportWidget::setSegmentationActiveLabel(uint8_t labelId)
+{
+    impl_->segmentationController->setActiveLabel(labelId);
+}
+
+void ViewportWidget::undoSegmentationOperation()
+{
+    auto tool = impl_->segmentationController->getActiveTool();
+    if (tool == services::SegmentationTool::Polygon) {
+        impl_->segmentationController->undoLastPolygonVertex();
+    } else if (tool == services::SegmentationTool::SmartScissors) {
+        impl_->segmentationController->undoLastSmartScissorsAnchor();
+    }
+}
+
+void ViewportWidget::completeSegmentationOperation()
+{
+    auto tool = impl_->segmentationController->getActiveTool();
+    if (tool == services::SegmentationTool::Polygon) {
+        impl_->segmentationController->completePolygon(impl_->currentSlice);
+        emit segmentationModified(impl_->currentSlice);
+    } else if (tool == services::SegmentationTool::SmartScissors) {
+        impl_->segmentationController->completeSmartScissors(impl_->currentSlice);
+        emit segmentationModified(impl_->currentSlice);
+    }
+}
+
+void ViewportWidget::clearAllSegmentation()
+{
+    impl_->segmentationController->clearAll();
+    emit segmentationModified(impl_->currentSlice);
+}
+
+bool ViewportWidget::isSegmentationModeActive() const
+{
+    return impl_->segmentationController->getActiveTool() != services::SegmentationTool::None;
 }
 
 } // namespace dicom_viewer::ui
