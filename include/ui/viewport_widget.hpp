@@ -9,6 +9,7 @@
 #include <vtkImageData.h>
 
 #include "services/measurement/measurement_types.hpp"
+#include "services/segmentation/manual_segmentation_controller.hpp"
 
 class QVTKOpenGLNativeWidget;
 
@@ -146,6 +147,59 @@ public:
      */
     vtkSmartPointer<vtkImageData> getImageData() const;
 
+    // Segmentation methods
+
+    /**
+     * @brief Set the active segmentation tool
+     * @param tool Segmentation tool to activate
+     */
+    void setSegmentationTool(services::SegmentationTool tool);
+
+    /**
+     * @brief Get current segmentation tool
+     * @return Current tool
+     */
+    services::SegmentationTool getSegmentationTool() const;
+
+    /**
+     * @brief Set brush size for segmentation
+     * @param size Brush size in pixels (1-50)
+     */
+    void setSegmentationBrushSize(int size);
+
+    /**
+     * @brief Set brush shape for segmentation
+     * @param shape Brush shape
+     */
+    void setSegmentationBrushShape(services::BrushShape shape);
+
+    /**
+     * @brief Set active label for segmentation
+     * @param labelId Label ID (1-255)
+     */
+    void setSegmentationActiveLabel(uint8_t labelId);
+
+    /**
+     * @brief Undo last segmentation operation (polygon vertex/smart scissors anchor)
+     */
+    void undoSegmentationOperation();
+
+    /**
+     * @brief Complete current segmentation operation (polygon/smart scissors)
+     */
+    void completeSegmentationOperation();
+
+    /**
+     * @brief Clear all segmentation data
+     */
+    void clearAllSegmentation();
+
+    /**
+     * @brief Check if segmentation mode is active
+     * @return true if a segmentation tool is selected
+     */
+    bool isSegmentationModeActive() const;
+
 signals:
     /// Emitted when crosshair position changes (world coordinates)
     void crosshairPositionChanged(double x, double y, double z);
@@ -167,6 +221,12 @@ signals:
 
     /// Emitted when measurement mode changes
     void measurementModeChanged(services::MeasurementMode mode);
+
+    /// Emitted when segmentation tool changes
+    void segmentationToolChanged(services::SegmentationTool tool);
+
+    /// Emitted when segmentation is modified
+    void segmentationModified(int sliceIndex);
 
 public slots:
     /// Set crosshair position from external source
