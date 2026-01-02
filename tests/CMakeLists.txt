@@ -370,3 +370,24 @@ target_include_directories(anisotropic_diffusion_filter_test PRIVATE
 )
 
 gtest_discover_tests(anisotropic_diffusion_filter_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for N4 Bias Corrector
+add_executable(n4_bias_corrector_test
+    unit/n4_bias_corrector_test.cpp
+)
+
+target_link_directories(n4_bias_corrector_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(n4_bias_corrector_test PRIVATE
+    preprocessing_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(n4_bias_corrector_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(n4_bias_corrector_test DISCOVERY_TIMEOUT 120)
