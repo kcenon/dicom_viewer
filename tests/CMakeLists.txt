@@ -511,3 +511,27 @@ target_include_directories(report_generator_test PRIVATE
 )
 
 gtest_discover_tests(report_generator_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Data Exporter
+add_executable(data_exporter_test
+    unit/data_exporter_test.cpp
+)
+
+target_link_directories(data_exporter_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(data_exporter_test PRIVATE
+    export_service
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Gui
+    Qt6::Test
+    GTest::gtest
+)
+
+target_include_directories(data_exporter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(data_exporter_test DISCOVERY_TIMEOUT 60)
