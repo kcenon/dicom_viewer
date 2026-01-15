@@ -486,3 +486,28 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(mpr_coordinate_transformer_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Report Generator
+add_executable(report_generator_test
+    unit/report_generator_test.cpp
+)
+
+target_link_directories(report_generator_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(report_generator_test PRIVATE
+    export_service
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Gui
+    Qt6::PrintSupport
+    Qt6::Test
+    GTest::gtest
+)
+
+target_include_directories(report_generator_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(report_generator_test DISCOVERY_TIMEOUT 60)

@@ -91,6 +91,7 @@ find_package(Qt6 REQUIRED COMPONENTS
     Gui
     OpenGL
     OpenGLWidgets
+    PrintSupport
     Test
 )
 
@@ -274,6 +275,22 @@ target_link_libraries(pacs_service PUBLIC
     Qt6::Core
 )
 
+add_library(export_service STATIC
+    src/services/export/report_generator.cpp
+)
+
+target_include_directories(export_service PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(export_service PUBLIC
+    measurement_service
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Gui
+    Qt6::PrintSupport
+)
+
 # Controller library
 add_library(dicom_viewer_controller STATIC
     src/controller/viewer_controller.cpp
@@ -288,6 +305,7 @@ target_link_libraries(dicom_viewer_controller PUBLIC
     measurement_service
     segmentation_service
     pacs_service
+    export_service
 )
 
 # UI library
