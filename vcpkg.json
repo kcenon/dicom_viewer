@@ -9,7 +9,7 @@
         {
             "name": "qt6",
             "default-features": false,
-            "features": ["widgets", "gui", "opengl"]
+            "features": ["widgets", "gui", "opengl", "printsupport"]
         },
         {
             "name": "vtk",
