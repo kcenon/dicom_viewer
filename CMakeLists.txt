@@ -277,6 +277,7 @@ target_link_libraries(pacs_service PUBLIC
 
 add_library(export_service STATIC
     src/services/export/report_generator.cpp
+    src/services/export/data_exporter.cpp
 )
 
 target_include_directories(export_service PUBLIC
