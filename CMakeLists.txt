@@ -356,12 +356,23 @@ add_library(dicom_viewer_ui STATIC
     src/ui/widgets/viewport_widget.cpp
     src/ui/widgets/mpr_widget.cpp
     src/ui/widgets/mpr_view_widget.cpp
+    src/ui/widgets/dr_viewer.cpp
     src/ui/panels/patient_browser.cpp
     src/ui/panels/tools_panel.cpp
     src/ui/panels/statistics_panel.cpp
     src/ui/panels/segmentation_panel.cpp
     src/ui/dialogs/settings_dialog.cpp
     src/ui/dialogs/pacs_config_dialog.cpp
+    # Headers with Q_OBJECT for AUTOMOC
+    include/ui/main_window.hpp
+    include/ui/viewport_widget.hpp
+    include/ui/mpr_view_widget.hpp
+    include/ui/dr_viewer.hpp
+    include/ui/panels/patient_browser.hpp
+    include/ui/panels/tools_panel.hpp
+    include/ui/panels/statistics_panel.hpp
+    include/ui/panels/segmentation_panel.hpp
+    include/ui/dialogs/pacs_config_dialog.hpp
 )
 
 target_link_libraries(dicom_viewer_ui PUBLIC

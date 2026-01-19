@@ -578,6 +578,7 @@ target_link_libraries(measurement_serializer_test PRIVATE
     Qt6::Gui
     Qt6::Test
     GTest::gtest
+    GTest::gtest_main
 )
 
 target_include_directories(measurement_serializer_test PRIVATE
@@ -733,3 +734,33 @@ target_include_directories(histogram_equalizer_test PRIVATE
 )
 
 gtest_discover_tests(histogram_equalizer_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for DR Viewer
+add_executable(dr_viewer_test
+    unit/dr_viewer_test.cpp
+)
+
+target_link_directories(dr_viewer_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(dr_viewer_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Gui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(dr_viewer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS dr_viewer_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(dr_viewer_test DISCOVERY_TIMEOUT 60)
