@@ -1,6 +1,6 @@
 #include "services/mpr_renderer.hpp"
 #include "core/logging.hpp"
-#include "services/segmentation/mpr_coordinate_transformer.hpp"
+#include "services/coordinate/mpr_coordinate_transformer.hpp"
 #include "services/segmentation/mpr_segmentation_renderer.hpp"
 
 #include <vtkImageReslice.h>
@@ -80,15 +80,15 @@ public:
     SlicePositionCallback slicePositionCallback;
     CrosshairCallback crosshairCallback;
 
-    // Segmentation support
-    std::unique_ptr<MPRCoordinateTransformer> coordinateTransformer;
+    // Segmentation support (using unified coordinate service)
+    std::unique_ptr<coordinate::MPRCoordinateTransformer> coordinateTransformer;
     std::unique_ptr<MPRSegmentationRenderer> segmentationRenderer;
 
     // Logger
     std::shared_ptr<spdlog::logger> logger;
 
     Impl() : logger(logging::LoggerFactory::create("MPRRenderer")) {
-        coordinateTransformer = std::make_unique<MPRCoordinateTransformer>();
+        coordinateTransformer = std::make_unique<coordinate::MPRCoordinateTransformer>();
         segmentationRenderer = std::make_unique<MPRSegmentationRenderer>();
         lookupTable = vtkSmartPointer<vtkLookupTable>::New();
         lookupTable->SetTableRange(0, 1);
@@ -631,7 +631,7 @@ void MPRRenderer::updateSegmentationOverlay(MPRPlane plane) {
     impl_->segmentationRenderer->updatePlane(plane);
 }
 
-MPRCoordinateTransformer* MPRRenderer::getCoordinateTransformer() const {
+coordinate::MPRCoordinateTransformer* MPRRenderer::getCoordinateTransformer() const {
     return impl_->coordinateTransformer.get();
 }
 
@@ -640,11 +640,11 @@ MPRSegmentationRenderer* MPRRenderer::getSegmentationRenderer() const {
 }
 
 int MPRRenderer::worldPositionToSliceIndex(MPRPlane plane, double worldPosition) const {
-    return impl_->coordinateTransformer->worldPositionToSliceIndex(plane, worldPosition);
+    return impl_->coordinateTransformer->getSliceIndex(plane, worldPosition);
 }
 
 double MPRRenderer::sliceIndexToWorldPosition(MPRPlane plane, int sliceIndex) const {
-    return impl_->coordinateTransformer->sliceIndexToWorldPosition(plane, sliceIndex);
+    return impl_->coordinateTransformer->getWorldPosition(plane, sliceIndex);
 }
 
 } // namespace dicom_viewer::services

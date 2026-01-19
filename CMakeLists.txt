@@ -213,7 +213,6 @@ add_library(render_service STATIC
     src/services/render/volume_renderer.cpp
     src/services/render/surface_renderer.cpp
     src/services/render/mpr_renderer.cpp
-    src/services/render/mpr_coordinate_transformer.cpp
     src/services/render/transfer_function.cpp
     src/services/render/oblique_reslice_renderer.cpp
 )
@@ -264,7 +263,6 @@ add_library(segmentation_service STATIC
     src/services/segmentation/label_manager.cpp
     src/services/segmentation/morphological_processor.cpp
     src/services/segmentation/label_map_overlay.cpp
-    src/services/segmentation/mpr_coordinate_transformer.cpp
     src/services/segmentation/mpr_segmentation_renderer.cpp
 )
 

@@ -14,8 +14,11 @@ namespace dicom_viewer::services {
 
 // Forward declarations
 class MPRSegmentationRenderer;
-class MPRCoordinateTransformer;
 class LabelManager;
+
+namespace coordinate {
+class MPRCoordinateTransformer;
+}  // namespace coordinate
 
 /**
  * @brief MPR view plane orientation
@@ -269,7 +272,7 @@ public:
      * @brief Get the coordinate transformer
      * @return Pointer to coordinate transformer
      */
-    [[nodiscard]] MPRCoordinateTransformer* getCoordinateTransformer() const;
+    [[nodiscard]] coordinate::MPRCoordinateTransformer* getCoordinateTransformer() const;
 
     /**
      * @brief Get the segmentation renderer
