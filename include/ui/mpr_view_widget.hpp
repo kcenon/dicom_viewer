@@ -1,7 +1,7 @@
 #pragma once
 
 #include "services/mpr_renderer.hpp"
-#include "services/mpr_coordinate_transformer.hpp"
+#include "services/coordinate/mpr_coordinate_transformer.hpp"
 #include "services/segmentation/manual_segmentation_controller.hpp"
 #include "services/segmentation/label_map_overlay.hpp"
 

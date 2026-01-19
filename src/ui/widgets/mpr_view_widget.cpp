@@ -51,8 +51,8 @@ public:
     // MPR renderer for synchronized views
     std::unique_ptr<services::MPRRenderer> mprRenderer;
 
-    // Coordinate transformer
-    std::unique_ptr<services::MPRCoordinateTransformer> transformer;
+    // Coordinate transformer (using unified coordinate service)
+    std::unique_ptr<services::coordinate::MPRCoordinateTransformer> transformer;
 
     // Segmentation controller
     std::unique_ptr<services::ManualSegmentationController> segmentationController;
@@ -71,7 +71,7 @@ public:
 
     Impl(MPRViewWidget* w) : widget(w) {
         mprRenderer = std::make_unique<services::MPRRenderer>();
-        transformer = std::make_unique<services::MPRCoordinateTransformer>();
+        transformer = std::make_unique<services::coordinate::MPRCoordinateTransformer>();
         segmentationController = std::make_unique<services::ManualSegmentationController>();
         labelMapOverlay = std::make_unique<services::LabelMapOverlay>();
 
@@ -115,7 +115,7 @@ public:
         interactor->AddObserver(vtkCommand::MouseWheelBackwardEvent, view.callback.Get());
     }
 
-    services::ScreenCoordinate getScreenCoordinate(services::MPRPlane plane) {
+    services::coordinate::ScreenCoordinate getScreenCoordinate(services::MPRPlane plane) {
         int index = static_cast<int>(plane);
         auto& view = planeViews[index];
 
@@ -130,7 +130,7 @@ public:
 
         double* worldPos = coordinate->GetComputedWorldValue(renderer);
 
-        return services::ScreenCoordinate(worldPos[0], worldPos[1]);
+        return services::coordinate::ScreenCoordinate(worldPos[0], worldPos[1]);
     }
 
     void handleMousePress(services::MPRPlane plane) {
@@ -146,12 +146,12 @@ public:
         auto screenCoord = getScreenCoordinate(plane);
         double slicePos = mprRenderer->getSlicePosition(plane);
 
-        auto volumeCoord = transformer->screenToVolume(screenCoord, plane, slicePos);
+        auto volumeCoord = transformer->screenToWorld(screenCoord, plane, slicePos);
         if (!volumeCoord) {
             return;
         }
 
-        auto voxel = transformer->volumeToVoxel(*volumeCoord);
+        auto voxel = transformer->worldToVoxel(*volumeCoord);
         int sliceIndex = transformer->getSliceIndex(plane, slicePos);
 
         // Map 2D position based on plane
@@ -173,12 +173,12 @@ public:
         auto screenCoord = getScreenCoordinate(plane);
         double slicePos = mprRenderer->getSlicePosition(plane);
 
-        auto volumeCoord = transformer->screenToVolume(screenCoord, plane, slicePos);
+        auto volumeCoord = transformer->screenToWorld(screenCoord, plane, slicePos);
         if (!volumeCoord) {
             return;
         }
 
-        auto voxel = transformer->volumeToVoxel(*volumeCoord);
+        auto voxel = transformer->worldToVoxel(*volumeCoord);
         int sliceIndex = transformer->getSliceIndex(plane, slicePos);
 
         services::Point2D pos2D = mapVoxelTo2D(voxel, plane);
@@ -206,12 +206,12 @@ public:
         auto screenCoord = getScreenCoordinate(plane);
         double slicePos = mprRenderer->getSlicePosition(plane);
 
-        auto volumeCoord = transformer->screenToVolume(screenCoord, plane, slicePos);
+        auto volumeCoord = transformer->screenToWorld(screenCoord, plane, slicePos);
         if (!volumeCoord) {
             return;
         }
 
-        auto voxel = transformer->volumeToVoxel(*volumeCoord);
+        auto voxel = transformer->worldToVoxel(*volumeCoord);
         int sliceIndex = transformer->getSliceIndex(plane, slicePos);
 
         services::Point2D pos2D = mapVoxelTo2D(voxel, plane);
@@ -231,7 +231,7 @@ public:
     }
 
     // Map 3D voxel index to 2D position based on plane orientation
-    services::Point2D mapVoxelTo2D(const services::VoxelIndex& voxel,
+    services::Point2D mapVoxelTo2D(const services::coordinate::VoxelIndex& voxel,
                                     services::MPRPlane plane) {
         switch (plane) {
             case services::MPRPlane::Axial:
