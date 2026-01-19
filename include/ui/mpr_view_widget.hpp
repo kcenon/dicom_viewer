@@ -171,6 +171,56 @@ public:
      */
     [[nodiscard]] services::MPRPlane getActivePlane() const;
 
+    // ==================== Thick Slab Rendering Interface ====================
+
+    /**
+     * @brief Set thick slab mode for all planes
+     * @param mode Slab rendering mode (None, MIP, MinIP, Average)
+     * @param thickness Slab thickness in mm (1-100mm)
+     */
+    void setSlabMode(services::SlabMode mode, double thickness = 1.0);
+
+    /**
+     * @brief Get current slab mode
+     * @return Current slab mode
+     */
+    [[nodiscard]] services::SlabMode getSlabMode() const;
+
+    /**
+     * @brief Get current slab thickness
+     * @return Slab thickness in mm
+     */
+    [[nodiscard]] double getSlabThickness() const;
+
+    /**
+     * @brief Set slab mode for a specific plane
+     * @param plane Target plane
+     * @param mode Slab mode
+     * @param thickness Slab thickness in mm
+     */
+    void setPlaneSlabMode(services::MPRPlane plane, services::SlabMode mode, double thickness = 1.0);
+
+    /**
+     * @brief Get slab mode for a specific plane
+     * @param plane Target plane
+     * @return Slab mode
+     */
+    [[nodiscard]] services::SlabMode getPlaneSlabMode(services::MPRPlane plane) const;
+
+    /**
+     * @brief Get slab thickness for a specific plane
+     * @param plane Target plane
+     * @return Slab thickness in mm
+     */
+    [[nodiscard]] double getPlaneSlabThickness(services::MPRPlane plane) const;
+
+    /**
+     * @brief Get effective slice count for a plane
+     * @param plane Target plane
+     * @return Number of slices in current slab
+     */
+    [[nodiscard]] int getEffectiveSliceCount(services::MPRPlane plane) const;
+
 signals:
     /// Emitted when crosshair position changes (world coordinates)
     void crosshairPositionChanged(double x, double y, double z);
@@ -186,6 +236,9 @@ signals:
 
     /// Emitted when slice position changes
     void slicePositionChanged(services::MPRPlane plane, double position);
+
+    /// Emitted when slab mode changes
+    void slabModeChanged(services::SlabMode mode, double thickness);
 
 public slots:
     /// Set crosshair position from external source

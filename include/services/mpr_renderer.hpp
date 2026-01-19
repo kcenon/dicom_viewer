@@ -142,9 +142,50 @@ public:
     /**
      * @brief Set thick slab mode
      * @param mode Slab rendering mode
-     * @param thickness Slab thickness in mm
+     * @param thickness Slab thickness in mm (1-100mm range)
      */
     void setSlabMode(SlabMode mode, double thickness = 1.0);
+
+    /**
+     * @brief Get current slab mode
+     * @return Current slab mode
+     */
+    [[nodiscard]] SlabMode getSlabMode() const;
+
+    /**
+     * @brief Get current slab thickness
+     * @return Slab thickness in mm
+     */
+    [[nodiscard]] double getSlabThickness() const;
+
+    /**
+     * @brief Set slab mode for a specific plane
+     * @param plane Target plane
+     * @param mode Slab mode
+     * @param thickness Slab thickness in mm
+     */
+    void setPlaneSlabMode(MPRPlane plane, SlabMode mode, double thickness = 1.0);
+
+    /**
+     * @brief Get slab mode for a specific plane
+     * @param plane Target plane
+     * @return Slab mode for the plane
+     */
+    [[nodiscard]] SlabMode getPlaneSlabMode(MPRPlane plane) const;
+
+    /**
+     * @brief Get slab thickness for a specific plane
+     * @param plane Target plane
+     * @return Slab thickness in mm
+     */
+    [[nodiscard]] double getPlaneSlabThickness(MPRPlane plane) const;
+
+    /**
+     * @brief Get effective slice count for current slab settings
+     * @param plane Target plane
+     * @return Number of slices used in slab
+     */
+    [[nodiscard]] int getEffectiveSliceCount(MPRPlane plane) const;
 
     /**
      * @brief Register callback for slice position changes
