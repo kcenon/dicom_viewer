@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 #include <QApplication>
 #include <QImage>
+#include <QStandardPaths>
+#include <QFile>
 #include <filesystem>
 #include <fstream>
 
