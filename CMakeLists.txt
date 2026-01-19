@@ -278,6 +278,7 @@ target_link_libraries(pacs_service PUBLIC
 add_library(export_service STATIC
     src/services/export/report_generator.cpp
     src/services/export/data_exporter.cpp
+    src/services/export/measurement_serializer.cpp
 )
 
 target_include_directories(export_service PUBLIC
@@ -286,10 +287,12 @@ target_include_directories(export_service PUBLIC
 
 target_link_libraries(export_service PUBLIC
     measurement_service
+    segmentation_service
     Qt6::Core
     Qt6::Widgets
     Qt6::Gui
     Qt6::PrintSupport
+    nlohmann_json::nlohmann_json
 )
 
 # Controller library
