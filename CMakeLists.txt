@@ -199,6 +199,16 @@ target_link_libraries(image_service PUBLIC
     ${ITK_LIBRARIES}
 )
 
+# Coordinate transformation service (unified MPR coordinate system)
+add_library(coordinate_service STATIC
+    src/services/coordinate/mpr_coordinate_transformer.cpp
+)
+
+target_link_libraries(coordinate_service PUBLIC
+    dicom_viewer_core
+    ${VTK_LIBRARIES}
+)
+
 add_library(render_service STATIC
     src/services/render/volume_renderer.cpp
     src/services/render/surface_renderer.cpp
@@ -210,6 +220,7 @@ add_library(render_service STATIC
 
 target_link_libraries(render_service PUBLIC
     dicom_viewer_core
+    coordinate_service
     ${VTK_LIBRARIES}
 )
 
@@ -257,6 +268,7 @@ add_library(segmentation_service STATIC
 
 target_link_libraries(segmentation_service PUBLIC
     dicom_viewer_core
+    coordinate_service
     ${ITK_LIBRARIES}
     ${VTK_LIBRARIES}
     nlohmann_json::nlohmann_json
