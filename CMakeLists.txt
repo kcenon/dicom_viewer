@@ -232,6 +232,7 @@ add_library(measurement_service STATIC
     src/services/measurement/statistics.cpp
     src/services/measurement/roi_statistics.cpp
     src/services/measurement/volume_calculator.cpp
+    src/services/measurement/shape_analyzer.cpp
 )
 
 target_link_libraries(measurement_service PUBLIC

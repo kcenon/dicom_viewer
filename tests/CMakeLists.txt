@@ -337,6 +337,32 @@ vtk_module_autoinit(
 
 gtest_discover_tests(volume_calculator_test DISCOVERY_TIMEOUT 60)
 
+# Unit tests for Shape Analyzer
+add_executable(shape_analyzer_test
+    unit/shape_analyzer_test.cpp
+)
+
+target_link_directories(shape_analyzer_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(shape_analyzer_test PRIVATE
+    measurement_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(shape_analyzer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS shape_analyzer_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(shape_analyzer_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for Gaussian Smoother
 add_executable(gaussian_smoother_test
     unit/gaussian_smoother_test.cpp
