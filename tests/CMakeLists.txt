@@ -585,3 +585,32 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(oblique_reslice_renderer_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Mesh Exporter
+add_executable(mesh_exporter_test
+    unit/mesh_exporter_test.cpp
+)
+
+target_link_directories(mesh_exporter_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(mesh_exporter_test PRIVATE
+    export_service
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Gui
+    Qt6::Test
+    GTest::gtest
+)
+
+target_include_directories(mesh_exporter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS mesh_exporter_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(mesh_exporter_test DISCOVERY_TIMEOUT 60)
