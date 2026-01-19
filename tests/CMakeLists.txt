@@ -614,3 +614,28 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(mesh_exporter_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for DICOM SR Writer
+add_executable(dicom_sr_writer_test
+    unit/dicom_sr_writer_test.cpp
+)
+
+target_link_directories(dicom_sr_writer_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(dicom_sr_writer_test PRIVATE
+    export_service
+    pacs_service
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Gui
+    Qt6::Test
+    GTest::gtest
+)
+
+target_include_directories(dicom_sr_writer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(dicom_sr_writer_test DISCOVERY_TIMEOUT 60)

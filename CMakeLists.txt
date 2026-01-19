@@ -287,22 +287,31 @@ add_library(export_service STATIC
     src/services/export/data_exporter.cpp
     src/services/export/measurement_serializer.cpp
     src/services/export/mesh_exporter.cpp
+    src/services/export/dicom_sr_writer.cpp
 )
 
 target_include_directories(export_service PUBLIC
     ${CMAKE_SOURCE_DIR}/include
+    ${DCMTK_INCLUDE_DIRS}
+)
+
+target_link_directories(export_service PUBLIC
+    ${DCMTK_LIBRARY_DIRS}
+    /opt/homebrew/lib
 )
 
 target_link_libraries(export_service PUBLIC
     dicom_viewer_core
     measurement_service
     segmentation_service
+    pacs_service
     Qt6::Core
     Qt6::Widgets
     Qt6::Gui
     Qt6::PrintSupport
     nlohmann_json::nlohmann_json
     ${VTK_LIBRARIES}
+    ${DCMTK_LIBRARIES}
 )
 
 # Controller library
