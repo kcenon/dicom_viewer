@@ -535,3 +535,27 @@ target_include_directories(data_exporter_test PRIVATE
 )
 
 gtest_discover_tests(data_exporter_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Measurement Serializer
+add_executable(measurement_serializer_test
+    unit/measurement_serializer_test.cpp
+)
+
+target_link_directories(measurement_serializer_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(measurement_serializer_test PRIVATE
+    export_service
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Gui
+    Qt6::Test
+    GTest::gtest
+)
+
+target_include_directories(measurement_serializer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(measurement_serializer_test DISCOVERY_TIMEOUT 60)
