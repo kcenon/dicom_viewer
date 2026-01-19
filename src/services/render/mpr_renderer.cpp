@@ -63,9 +63,14 @@ public:
     double windowWidth = 400.0;
     double windowCenter = 40.0;
 
-    // Slab mode settings
+    // Slab mode settings (global)
     SlabMode slabMode = SlabMode::None;
     double slabThickness = 1.0;
+
+    // Per-plane slab settings (index: 0=Axial, 1=Coronal, 2=Sagittal)
+    std::array<SlabMode, 3> planeSlabModes = {SlabMode::None, SlabMode::None, SlabMode::None};
+    std::array<double, 3> planeSlabThicknesses = {1.0, 1.0, 1.0};
+    std::array<bool, 3> usePlaneSpecificSlab = {false, false, false};
 
     // Crosshair visibility
     bool crosshairVisible = true;
@@ -295,29 +300,70 @@ public:
 
     void updateSlabMode() {
         for (int i = 0; i < 3; ++i) {
-            switch (slabMode) {
-                case SlabMode::None:
-                    reslicers[i]->SetSlabModeToMean();
-                    reslicers[i]->SetSlabNumberOfSlices(1);
-                    break;
-                case SlabMode::MIP:
-                    reslicers[i]->SetSlabModeToMax();
-                    reslicers[i]->SetSlabNumberOfSlices(
-                        static_cast<int>(slabThickness / spacing[i % 3]));
-                    break;
-                case SlabMode::MinIP:
-                    reslicers[i]->SetSlabModeToMin();
-                    reslicers[i]->SetSlabNumberOfSlices(
-                        static_cast<int>(slabThickness / spacing[i % 3]));
-                    break;
-                case SlabMode::Average:
-                    reslicers[i]->SetSlabModeToMean();
-                    reslicers[i]->SetSlabNumberOfSlices(
-                        static_cast<int>(slabThickness / spacing[i % 3]));
-                    break;
-            }
-            reslicers[i]->Modified();
+            updateSlabModeForPlane(i);
         }
+    }
+
+    void updateSlabModeForPlane(int planeIndex) {
+        // Determine which settings to use (plane-specific or global)
+        SlabMode mode = usePlaneSpecificSlab[planeIndex] ?
+                        planeSlabModes[planeIndex] : slabMode;
+        double thickness = usePlaneSpecificSlab[planeIndex] ?
+                           planeSlabThicknesses[planeIndex] : slabThickness;
+
+        // Determine the correct spacing for each plane
+        // Axial (i=0): slice along Z axis, use spacing[2]
+        // Coronal (i=1): slice along Y axis, use spacing[1]
+        // Sagittal (i=2): slice along X axis, use spacing[0]
+        double planeSpacing = 1.0;
+        switch (planeIndex) {
+            case 0: planeSpacing = spacing[2]; break;  // Axial - Z spacing
+            case 1: planeSpacing = spacing[1]; break;  // Coronal - Y spacing
+            case 2: planeSpacing = spacing[0]; break;  // Sagittal - X spacing
+        }
+
+        // Calculate number of slices, ensuring at least 1
+        int numSlices = std::max(1, static_cast<int>(thickness / planeSpacing));
+
+        switch (mode) {
+            case SlabMode::None:
+                reslicers[planeIndex]->SetSlabModeToMean();
+                reslicers[planeIndex]->SetSlabNumberOfSlices(1);
+                break;
+            case SlabMode::MIP:
+                reslicers[planeIndex]->SetSlabModeToMax();
+                reslicers[planeIndex]->SetSlabNumberOfSlices(numSlices);
+                break;
+            case SlabMode::MinIP:
+                reslicers[planeIndex]->SetSlabModeToMin();
+                reslicers[planeIndex]->SetSlabNumberOfSlices(numSlices);
+                break;
+            case SlabMode::Average:
+                reslicers[planeIndex]->SetSlabModeToMean();
+                reslicers[planeIndex]->SetSlabNumberOfSlices(numSlices);
+                break;
+        }
+        reslicers[planeIndex]->Modified();
+    }
+
+    int getEffectiveSliceCountForPlane(int planeIndex) const {
+        SlabMode mode = usePlaneSpecificSlab[planeIndex] ?
+                        planeSlabModes[planeIndex] : slabMode;
+        double thickness = usePlaneSpecificSlab[planeIndex] ?
+                           planeSlabThicknesses[planeIndex] : slabThickness;
+
+        if (mode == SlabMode::None) {
+            return 1;
+        }
+
+        double planeSpacing = 1.0;
+        switch (planeIndex) {
+            case 0: planeSpacing = spacing[2]; break;
+            case 1: planeSpacing = spacing[1]; break;
+            case 2: planeSpacing = spacing[0]; break;
+        }
+
+        return std::max(1, static_cast<int>(thickness / planeSpacing));
     }
 };
 
@@ -459,8 +505,48 @@ void MPRRenderer::setCrosshairVisible(bool visible) {
 
 void MPRRenderer::setSlabMode(SlabMode mode, double thickness) {
     impl_->slabMode = mode;
-    impl_->slabThickness = thickness;
+    impl_->slabThickness = std::clamp(thickness, 1.0, 100.0);
+    // Reset plane-specific settings when global mode is set
+    for (int i = 0; i < 3; ++i) {
+        impl_->usePlaneSpecificSlab[i] = false;
+    }
     impl_->updateSlabMode();
+}
+
+SlabMode MPRRenderer::getSlabMode() const {
+    return impl_->slabMode;
+}
+
+double MPRRenderer::getSlabThickness() const {
+    return impl_->slabThickness;
+}
+
+void MPRRenderer::setPlaneSlabMode(MPRPlane plane, SlabMode mode, double thickness) {
+    int index = static_cast<int>(plane);
+    impl_->planeSlabModes[index] = mode;
+    impl_->planeSlabThicknesses[index] = std::clamp(thickness, 1.0, 100.0);
+    impl_->usePlaneSpecificSlab[index] = true;
+    impl_->updateSlabModeForPlane(index);
+}
+
+SlabMode MPRRenderer::getPlaneSlabMode(MPRPlane plane) const {
+    int index = static_cast<int>(plane);
+    if (impl_->usePlaneSpecificSlab[index]) {
+        return impl_->planeSlabModes[index];
+    }
+    return impl_->slabMode;
+}
+
+double MPRRenderer::getPlaneSlabThickness(MPRPlane plane) const {
+    int index = static_cast<int>(plane);
+    if (impl_->usePlaneSpecificSlab[index]) {
+        return impl_->planeSlabThicknesses[index];
+    }
+    return impl_->slabThickness;
+}
+
+int MPRRenderer::getEffectiveSliceCount(MPRPlane plane) const {
+    return impl_->getEffectiveSliceCountForPlane(static_cast<int>(plane));
 }
 
 void MPRRenderer::setSlicePositionCallback(SlicePositionCallback callback) {

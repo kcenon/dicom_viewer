@@ -340,3 +340,191 @@ TEST_F(MPRRendererTest, AnisotropicSpacing) {
     auto [minX, maxX] = renderer->getSliceRange(MPRPlane::Sagittal);
     EXPECT_NEAR(maxX, 31.5, 0.1);
 }
+
+// ==================== Comprehensive Thick Slab Tests ====================
+
+// Test slab mode getter after setter
+TEST_F(MPRRendererTest, GetSlabModeReturnsSetValue) {
+    renderer->setSlabMode(SlabMode::MIP, 15.0);
+    EXPECT_EQ(renderer->getSlabMode(), SlabMode::MIP);
+
+    renderer->setSlabMode(SlabMode::MinIP, 20.0);
+    EXPECT_EQ(renderer->getSlabMode(), SlabMode::MinIP);
+
+    renderer->setSlabMode(SlabMode::Average, 10.0);
+    EXPECT_EQ(renderer->getSlabMode(), SlabMode::Average);
+
+    renderer->setSlabMode(SlabMode::None);
+    EXPECT_EQ(renderer->getSlabMode(), SlabMode::None);
+}
+
+// Test slab thickness getter
+TEST_F(MPRRendererTest, GetSlabThicknessReturnsSetValue) {
+    renderer->setSlabMode(SlabMode::MIP, 25.0);
+    EXPECT_DOUBLE_EQ(renderer->getSlabThickness(), 25.0);
+
+    renderer->setSlabMode(SlabMode::MinIP, 5.5);
+    EXPECT_DOUBLE_EQ(renderer->getSlabThickness(), 5.5);
+}
+
+// Test thickness clamping (min/max 1-100mm)
+TEST_F(MPRRendererTest, SlabThicknessClampedToRange) {
+    renderer->setSlabMode(SlabMode::MIP, 0.5);  // Below minimum
+    EXPECT_GE(renderer->getSlabThickness(), 1.0);
+
+    renderer->setSlabMode(SlabMode::MIP, 150.0);  // Above maximum
+    EXPECT_LE(renderer->getSlabThickness(), 100.0);
+}
+
+// Test plane-specific slab mode
+TEST_F(MPRRendererTest, SetPlaneSlabModeIndependent) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    // Set different modes for each plane
+    renderer->setPlaneSlabMode(MPRPlane::Axial, SlabMode::MIP, 10.0);
+    renderer->setPlaneSlabMode(MPRPlane::Coronal, SlabMode::MinIP, 15.0);
+    renderer->setPlaneSlabMode(MPRPlane::Sagittal, SlabMode::Average, 20.0);
+
+    EXPECT_EQ(renderer->getPlaneSlabMode(MPRPlane::Axial), SlabMode::MIP);
+    EXPECT_EQ(renderer->getPlaneSlabMode(MPRPlane::Coronal), SlabMode::MinIP);
+    EXPECT_EQ(renderer->getPlaneSlabMode(MPRPlane::Sagittal), SlabMode::Average);
+}
+
+// Test plane-specific thickness
+TEST_F(MPRRendererTest, GetPlaneSlabThicknessIndependent) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    renderer->setPlaneSlabMode(MPRPlane::Axial, SlabMode::MIP, 10.0);
+    renderer->setPlaneSlabMode(MPRPlane::Coronal, SlabMode::MIP, 15.0);
+    renderer->setPlaneSlabMode(MPRPlane::Sagittal, SlabMode::MIP, 20.0);
+
+    EXPECT_DOUBLE_EQ(renderer->getPlaneSlabThickness(MPRPlane::Axial), 10.0);
+    EXPECT_DOUBLE_EQ(renderer->getPlaneSlabThickness(MPRPlane::Coronal), 15.0);
+    EXPECT_DOUBLE_EQ(renderer->getPlaneSlabThickness(MPRPlane::Sagittal), 20.0);
+}
+
+// Test global mode overrides plane-specific
+TEST_F(MPRRendererTest, GlobalSlabModeResetsPlaneSpecific) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    // Set plane-specific first
+    renderer->setPlaneSlabMode(MPRPlane::Axial, SlabMode::MIP, 10.0);
+
+    // Then set global mode
+    renderer->setSlabMode(SlabMode::MinIP, 25.0);
+
+    // Plane should now use global mode
+    EXPECT_EQ(renderer->getPlaneSlabMode(MPRPlane::Axial), SlabMode::MinIP);
+    EXPECT_DOUBLE_EQ(renderer->getPlaneSlabThickness(MPRPlane::Axial), 25.0);
+}
+
+// Test effective slice count with uniform spacing
+TEST_F(MPRRendererTest, EffectiveSliceCountUniformSpacing) {
+    auto volume = createTestVolume(64);  // 1.0 spacing
+    renderer->setInputData(volume);
+
+    renderer->setSlabMode(SlabMode::MIP, 10.0);
+
+    // With 1.0mm spacing and 10.0mm thickness, expect 10 slices
+    EXPECT_EQ(renderer->getEffectiveSliceCount(MPRPlane::Axial), 10);
+    EXPECT_EQ(renderer->getEffectiveSliceCount(MPRPlane::Coronal), 10);
+    EXPECT_EQ(renderer->getEffectiveSliceCount(MPRPlane::Sagittal), 10);
+}
+
+// Test effective slice count with anisotropic spacing
+TEST_F(MPRRendererTest, EffectiveSliceCountAnisotropicSpacing) {
+    auto imageData = vtkSmartPointer<vtkImageData>::New();
+    imageData->SetDimensions(64, 64, 32);
+    imageData->SetSpacing(1.0, 1.0, 2.0);  // Z has 2.0mm spacing
+    imageData->SetOrigin(0.0, 0.0, 0.0);
+    imageData->AllocateScalars(VTK_SHORT, 1);
+
+    renderer->setInputData(imageData);
+    renderer->setSlabMode(SlabMode::MIP, 10.0);
+
+    // Axial (Z-axis): 10mm / 2.0mm = 5 slices
+    EXPECT_EQ(renderer->getEffectiveSliceCount(MPRPlane::Axial), 5);
+    // Coronal (Y-axis): 10mm / 1.0mm = 10 slices
+    EXPECT_EQ(renderer->getEffectiveSliceCount(MPRPlane::Coronal), 10);
+    // Sagittal (X-axis): 10mm / 1.0mm = 10 slices
+    EXPECT_EQ(renderer->getEffectiveSliceCount(MPRPlane::Sagittal), 10);
+}
+
+// Test effective slice count minimum is 1
+TEST_F(MPRRendererTest, EffectiveSliceCountMinimumIsOne) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    // With SlabMode::None, always 1 slice
+    renderer->setSlabMode(SlabMode::None);
+    EXPECT_EQ(renderer->getEffectiveSliceCount(MPRPlane::Axial), 1);
+
+    // Even with very small thickness, minimum is 1
+    renderer->setSlabMode(SlabMode::MIP, 0.1);  // Will be clamped to 1.0
+    EXPECT_GE(renderer->getEffectiveSliceCount(MPRPlane::Axial), 1);
+}
+
+// Test slab mode with different volume dimensions
+TEST_F(MPRRendererTest, SlabModeWithLargeVolume) {
+    // Simulate typical CT volume: 512x512x300
+    auto imageData = vtkSmartPointer<vtkImageData>::New();
+    imageData->SetDimensions(128, 128, 75);  // Reduced for test performance
+    imageData->SetSpacing(0.5, 0.5, 1.5);  // Typical CT spacing
+    imageData->SetOrigin(0.0, 0.0, 0.0);
+    imageData->AllocateScalars(VTK_SHORT, 1);
+
+    renderer->setInputData(imageData);
+
+    // Test MIP with 20mm thickness (common for CT angio)
+    renderer->setSlabMode(SlabMode::MIP, 20.0);
+    EXPECT_EQ(renderer->getSlabMode(), SlabMode::MIP);
+    EXPECT_DOUBLE_EQ(renderer->getSlabThickness(), 20.0);
+
+    // Axial: 20mm / 1.5mm ≈ 13 slices
+    EXPECT_EQ(renderer->getEffectiveSliceCount(MPRPlane::Axial), 13);
+    // Coronal/Sagittal: 20mm / 0.5mm = 40 slices
+    EXPECT_EQ(renderer->getEffectiveSliceCount(MPRPlane::Coronal), 40);
+}
+
+// Test update still works after slab mode changes
+TEST_F(MPRRendererTest, UpdateAfterSlabModeChange) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    renderer->setSlabMode(SlabMode::MIP, 10.0);
+    EXPECT_NO_THROW(renderer->update());
+
+    renderer->setSlabMode(SlabMode::MinIP, 5.0);
+    EXPECT_NO_THROW(renderer->update());
+
+    renderer->setSlabMode(SlabMode::Average, 15.0);
+    EXPECT_NO_THROW(renderer->update());
+
+    renderer->setSlabMode(SlabMode::None);
+    EXPECT_NO_THROW(renderer->update());
+}
+
+// Test default values
+TEST_F(MPRRendererTest, DefaultSlabModeIsNone) {
+    EXPECT_EQ(renderer->getSlabMode(), SlabMode::None);
+}
+
+TEST_F(MPRRendererTest, DefaultSlabThickness) {
+    EXPECT_DOUBLE_EQ(renderer->getSlabThickness(), 1.0);
+}
+
+// Test slab mode persistence across slice changes
+TEST_F(MPRRendererTest, SlabModePersistsAfterSliceChange) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    renderer->setSlabMode(SlabMode::MIP, 12.0);
+    renderer->setSlicePosition(MPRPlane::Axial, 32.0);
+    renderer->scrollSlice(MPRPlane::Axial, 5);
+
+    EXPECT_EQ(renderer->getSlabMode(), SlabMode::MIP);
+    EXPECT_DOUBLE_EQ(renderer->getSlabThickness(), 12.0);
+}

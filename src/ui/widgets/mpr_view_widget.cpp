@@ -472,6 +472,39 @@ services::MPRPlane MPRViewWidget::getActivePlane() const {
     return impl_->activePlane;
 }
 
+// ==================== Thick Slab Rendering Implementation ====================
+
+void MPRViewWidget::setSlabMode(services::SlabMode mode, double thickness) {
+    impl_->mprRenderer->setSlabMode(mode, thickness);
+    impl_->updateAllViews();
+    emit slabModeChanged(mode, thickness);
+}
+
+services::SlabMode MPRViewWidget::getSlabMode() const {
+    return impl_->mprRenderer->getSlabMode();
+}
+
+double MPRViewWidget::getSlabThickness() const {
+    return impl_->mprRenderer->getSlabThickness();
+}
+
+void MPRViewWidget::setPlaneSlabMode(services::MPRPlane plane, services::SlabMode mode, double thickness) {
+    impl_->mprRenderer->setPlaneSlabMode(plane, mode, thickness);
+    impl_->updateView(plane);
+}
+
+services::SlabMode MPRViewWidget::getPlaneSlabMode(services::MPRPlane plane) const {
+    return impl_->mprRenderer->getPlaneSlabMode(plane);
+}
+
+double MPRViewWidget::getPlaneSlabThickness(services::MPRPlane plane) const {
+    return impl_->mprRenderer->getPlaneSlabThickness(plane);
+}
+
+int MPRViewWidget::getEffectiveSliceCount(services::MPRPlane plane) const {
+    return impl_->mprRenderer->getEffectiveSliceCount(plane);
+}
+
 void MPRViewWidget::setCrosshairPosition(double x, double y, double z) {
     impl_->mprRenderer->setCrosshairPosition(x, y, z);
 
