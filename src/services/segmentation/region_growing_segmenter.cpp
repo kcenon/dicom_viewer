@@ -1,11 +1,19 @@
 #include "services/segmentation/region_growing_segmenter.hpp"
 #include "services/segmentation/threshold_segmenter.hpp"
+#include "core/logging.hpp"
 
 #include <itkConnectedThresholdImageFilter.h>
 #include <itkConfidenceConnectedImageFilter.h>
 #include <itkCommand.h>
 
 namespace dicom_viewer::services {
+
+namespace {
+auto& getLogger() {
+    static auto logger = logging::LoggerFactory::create("RegionGrowingSegmenter");
+    return logger;
+}
+}
 
 namespace {
 
@@ -64,16 +72,19 @@ RegionGrowingSegmenter::connectedThreshold(
     ImageType::Pointer input,
     const ConnectedThresholdParameters& params
 ) const {
-    // Validate input
+    getLogger()->info("Connected threshold: {} seeds, range [{:.1f}, {:.1f}]",
+        params.seeds.size(), params.lowerThreshold, params.upperThreshold);
+
     if (!input) {
+        getLogger()->error("Input image is null");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidInput,
             "Input image is null"
         });
     }
 
-    // Validate parameters
     if (!params.isValid()) {
+        getLogger()->error("Invalid parameters");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidParameters,
             "Invalid parameters: seeds empty or lower > upper threshold"

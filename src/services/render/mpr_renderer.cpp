@@ -1,4 +1,5 @@
 #include "services/mpr_renderer.hpp"
+#include "core/logging.hpp"
 #include "services/segmentation/mpr_coordinate_transformer.hpp"
 #include "services/segmentation/mpr_segmentation_renderer.hpp"
 
@@ -83,11 +84,12 @@ public:
     std::unique_ptr<MPRCoordinateTransformer> coordinateTransformer;
     std::unique_ptr<MPRSegmentationRenderer> segmentationRenderer;
 
-    Impl() {
-        // Initialize segmentation components
+    // Logger
+    std::shared_ptr<spdlog::logger> logger;
+
+    Impl() : logger(logging::LoggerFactory::create("MPRRenderer")) {
         coordinateTransformer = std::make_unique<MPRCoordinateTransformer>();
         segmentationRenderer = std::make_unique<MPRSegmentationRenderer>();
-        // Initialize lookup table
         lookupTable = vtkSmartPointer<vtkLookupTable>::New();
         lookupTable->SetTableRange(0, 1);
         lookupTable->SetSaturationRange(0, 0);
@@ -383,25 +385,25 @@ void MPRRenderer::setInputData(vtkSmartPointer<vtkImageData> imageData) {
     impl_->inputData = imageData;
 
     if (imageData) {
-        // Get bounds and spacing
         imageData->GetBounds(impl_->bounds.data());
         imageData->GetSpacing(impl_->spacing.data());
 
-        // Set input for all reslicers
+        int* dims = imageData->GetDimensions();
+        impl_->logger->info("MPR input data: {}x{}x{}, spacing: [{:.2f}, {:.2f}, {:.2f}]",
+            dims[0], dims[1], dims[2],
+            impl_->spacing[0], impl_->spacing[1], impl_->spacing[2]);
+
         for (int i = 0; i < 3; ++i) {
             impl_->reslicers[i]->SetInputData(imageData);
         }
 
-        // Initialize coordinate transformer
         impl_->coordinateTransformer->setImageData(imageData);
 
-        // Setup segmentation renderer with renderers
         impl_->segmentationRenderer->setRenderers(
             impl_->renderers[0],
             impl_->renderers[1],
             impl_->renderers[2]);
 
-        // Reset views to center of volume
         resetViews();
     }
 }

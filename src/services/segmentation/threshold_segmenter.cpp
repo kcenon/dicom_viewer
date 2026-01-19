@@ -1,4 +1,5 @@
 #include "services/segmentation/threshold_segmenter.hpp"
+#include "core/logging.hpp"
 
 #include <itkBinaryThresholdImageFilter.h>
 #include <itkOtsuThresholdImageFilter.h>
@@ -7,6 +8,13 @@
 #include <itkCommand.h>
 
 namespace dicom_viewer::services {
+
+namespace {
+auto& getLogger() {
+    static auto logger = logging::LoggerFactory::create("ThresholdSegmenter");
+    return logger;
+}
+}
 
 namespace {
 
@@ -63,16 +71,18 @@ ThresholdSegmenter::manualThreshold(
     ImageType::Pointer input,
     const ThresholdParameters& params
 ) const {
-    // Validate input
+    getLogger()->info("Manual threshold: [{:.1f}, {:.1f}]", params.lowerThreshold, params.upperThreshold);
+
     if (!input) {
+        getLogger()->error("Input image is null");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidInput,
             "Input image is null"
         });
     }
 
-    // Validate parameters
     if (!params.isValid()) {
+        getLogger()->error("Invalid parameters: lower > upper");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidParameters,
             "Lower threshold must be <= upper threshold"
