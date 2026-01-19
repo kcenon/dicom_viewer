@@ -639,3 +639,20 @@ target_include_directories(dicom_sr_writer_test PRIVATE
 )
 
 gtest_discover_tests(dicom_sr_writer_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Level Set Segmenter
+add_executable(level_set_segmenter_test
+    unit/level_set_segmenter_test.cpp
+)
+
+target_link_libraries(level_set_segmenter_test PRIVATE
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(level_set_segmenter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(level_set_segmenter_test DISCOVERY_TIMEOUT 120)

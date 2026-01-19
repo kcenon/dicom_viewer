@@ -131,6 +131,8 @@ find_package(ITK REQUIRED COMPONENTS
     ITKStatistics
     ITKBiasCorrection
     ITKVtkGlue
+    ITKLevelSets
+    ITKDistanceMap
 )
 
 # DCMTK for DICOM network operations
@@ -240,6 +242,7 @@ target_link_libraries(preprocessing_service PUBLIC
 add_library(segmentation_service STATIC
     src/services/segmentation/threshold_segmenter.cpp
     src/services/segmentation/region_growing_segmenter.cpp
+    src/services/segmentation/level_set_segmenter.cpp
     src/services/segmentation/manual_segmentation_controller.cpp
     src/services/segmentation/label_manager.cpp
     src/services/segmentation/morphological_processor.cpp
