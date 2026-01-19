@@ -656,3 +656,20 @@ target_include_directories(level_set_segmenter_test PRIVATE
 )
 
 gtest_discover_tests(level_set_segmenter_test DISCOVERY_TIMEOUT 120)
+
+# Unit tests for Slice Interpolator
+add_executable(slice_interpolator_test
+    unit/slice_interpolator_test.cpp
+)
+
+target_link_libraries(slice_interpolator_test PRIVATE
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(slice_interpolator_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(slice_interpolator_test DISCOVERY_TIMEOUT 120)
