@@ -690,3 +690,20 @@ target_include_directories(watershed_segmenter_test PRIVATE
 )
 
 gtest_discover_tests(watershed_segmenter_test DISCOVERY_TIMEOUT 120)
+
+# Unit tests for Histogram Equalizer
+add_executable(histogram_equalizer_test
+    unit/histogram_equalizer_test.cpp
+)
+
+target_link_libraries(histogram_equalizer_test PRIVATE
+    preprocessing_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(histogram_equalizer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(histogram_equalizer_test DISCOVERY_TIMEOUT 60)

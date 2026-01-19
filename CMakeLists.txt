@@ -245,6 +245,7 @@ add_library(preprocessing_service STATIC
     src/services/preprocessing/anisotropic_diffusion_filter.cpp
     src/services/preprocessing/n4_bias_corrector.cpp
     src/services/preprocessing/isotropic_resampler.cpp
+    src/services/preprocessing/histogram_equalizer.cpp
 )
 
 target_link_libraries(preprocessing_service PUBLIC
