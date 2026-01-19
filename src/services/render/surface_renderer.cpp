@@ -1,4 +1,5 @@
 #include "services/surface_renderer.hpp"
+#include "core/logging.hpp"
 
 #include <vtkMarchingCubes.h>
 #include <vtkWindowedSincPolyDataFilter.h>
@@ -32,6 +33,9 @@ public:
     vtkSmartPointer<vtkImageData> inputData;
     std::vector<SurfaceEntry> surfaces;
     SurfaceQuality quality = SurfaceQuality::Medium;
+    std::shared_ptr<spdlog::logger> logger;
+
+    Impl() : logger(logging::LoggerFactory::create("SurfaceRenderer")) {}
 
     SurfaceEntry createSurfaceEntry(const SurfaceConfig& config) {
         SurfaceEntry entry;
@@ -173,6 +177,10 @@ SurfaceRenderer& SurfaceRenderer::operator=(SurfaceRenderer&&) noexcept = defaul
 void SurfaceRenderer::setInputData(vtkSmartPointer<vtkImageData> imageData)
 {
     impl_->inputData = imageData;
+    if (imageData) {
+        int* dims = imageData->GetDimensions();
+        impl_->logger->info("Surface renderer input: {}x{}x{}", dims[0], dims[1], dims[2]);
+    }
     for (auto& entry : impl_->surfaces) {
         entry.needsUpdate = true;
     }
@@ -180,6 +188,7 @@ void SurfaceRenderer::setInputData(vtkSmartPointer<vtkImageData> imageData)
 
 size_t SurfaceRenderer::addSurface(const SurfaceConfig& config)
 {
+    impl_->logger->info("Adding surface '{}' with isovalue: {}", config.name, config.isovalue);
     auto entry = impl_->createSurfaceEntry(config);
     entry.needsUpdate = true;
     impl_->surfaces.push_back(std::move(entry));

@@ -1,4 +1,5 @@
 #include "core/series_builder.hpp"
+#include "core/logging.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -12,6 +13,9 @@ public:
     DicomLoader loader;
     ProgressCallback progressCallback;
     DicomMetadata lastMetadata;
+    std::shared_ptr<spdlog::logger> logger;
+
+    Impl() : logger(logging::LoggerFactory::create("SeriesBuilder")) {}
 
     void reportProgress(size_t current, size_t total, const std::string& message)
     {
@@ -39,10 +43,12 @@ void SeriesBuilder::setProgressCallback(ProgressCallback callback)
 std::expected<std::vector<SeriesInfo>, DicomErrorInfo>
 SeriesBuilder::scanForSeries(const std::filesystem::path& directoryPath)
 {
+    impl_->logger->info("Scanning for series in: {}", directoryPath.string());
     impl_->reportProgress(0, 100, "Scanning directory...");
 
     auto scanResult = impl_->loader.scanDirectory(directoryPath);
     if (!scanResult) {
+        impl_->logger->error("Failed to scan directory: {}", scanResult.error().message);
         return std::unexpected(scanResult.error());
     }
 
@@ -82,6 +88,7 @@ SeriesBuilder::scanForSeries(const std::filesystem::path& directoryPath)
         ++index;
     }
 
+    impl_->logger->info("Scan complete: found {} series", seriesInfoList.size());
     impl_->reportProgress(total, total, "Scan complete");
     return seriesInfoList;
 }
@@ -89,7 +96,10 @@ SeriesBuilder::scanForSeries(const std::filesystem::path& directoryPath)
 std::expected<CTImageType::Pointer, DicomErrorInfo>
 SeriesBuilder::buildCTVolume(const SeriesInfo& series)
 {
+    impl_->logger->info("Building CT volume for series: {}", series.seriesInstanceUid.substr(0, 20));
+
     if (series.slices.empty()) {
+        impl_->logger->error("No slices in series");
         return std::unexpected(DicomErrorInfo{
             DicomError::SeriesAssemblyFailed,
             "No slices in series"
@@ -98,8 +108,8 @@ SeriesBuilder::buildCTVolume(const SeriesInfo& series)
 
     impl_->reportProgress(0, 100, "Building CT volume...");
 
-    // Validate series consistency
     if (!validateSeriesConsistency(series.slices)) {
+        impl_->logger->warn("Inconsistent slice spacing detected in series");
         impl_->reportProgress(10, 100, "Warning: Inconsistent slice spacing detected");
     }
 
@@ -108,7 +118,10 @@ SeriesBuilder::buildCTVolume(const SeriesInfo& series)
     auto result = impl_->loader.loadCTSeries(series.slices);
     if (result) {
         impl_->lastMetadata = impl_->loader.getMetadata();
+        impl_->logger->info("CT volume built successfully");
         impl_->reportProgress(100, 100, "Volume built successfully");
+    } else {
+        impl_->logger->error("Failed to build CT volume: {}", result.error().message);
     }
 
     return result;
@@ -117,7 +130,10 @@ SeriesBuilder::buildCTVolume(const SeriesInfo& series)
 std::expected<MRImageType::Pointer, DicomErrorInfo>
 SeriesBuilder::buildMRVolume(const SeriesInfo& series)
 {
+    impl_->logger->info("Building MR volume for series: {}", series.seriesInstanceUid.substr(0, 20));
+
     if (series.slices.empty()) {
+        impl_->logger->error("No slices in series");
         return std::unexpected(DicomErrorInfo{
             DicomError::SeriesAssemblyFailed,
             "No slices in series"
@@ -127,6 +143,7 @@ SeriesBuilder::buildMRVolume(const SeriesInfo& series)
     impl_->reportProgress(0, 100, "Building MR volume...");
 
     if (!validateSeriesConsistency(series.slices)) {
+        impl_->logger->warn("Inconsistent slice spacing detected in series");
         impl_->reportProgress(10, 100, "Warning: Inconsistent slice spacing detected");
     }
 
@@ -135,7 +152,10 @@ SeriesBuilder::buildMRVolume(const SeriesInfo& series)
     auto result = impl_->loader.loadMRSeries(series.slices);
     if (result) {
         impl_->lastMetadata = impl_->loader.getMetadata();
+        impl_->logger->info("MR volume built successfully");
         impl_->reportProgress(100, 100, "Volume built successfully");
+    } else {
+        impl_->logger->error("Failed to build MR volume: {}", result.error().message);
     }
 
     return result;

@@ -1,4 +1,5 @@
 #include "services/volume_renderer.hpp"
+#include "core/logging.hpp"
 
 #include <vtkGPUVolumeRayCastMapper.h>
 #include <vtkSmartVolumeMapper.h>
@@ -23,13 +24,14 @@ public:
     vtkSmartPointer<vtkPiecewiseFunction> opacityTF;
     vtkSmartPointer<vtkPiecewiseFunction> gradientOpacityTF;
     vtkSmartPointer<vtkPlanes> clippingPlanes;
+    std::shared_ptr<spdlog::logger> logger;
 
     vtkSmartPointer<vtkImageData> inputData;
     bool useGPU = true;
     bool useLOD = true;
     bool gpuValidated = false;
 
-    Impl() {
+    Impl() : logger(logging::LoggerFactory::create("VolumeRenderer")) {
         volume = vtkSmartPointer<vtkVolume>::New();
         gpuMapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
         smartMapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
@@ -80,6 +82,10 @@ VolumeRenderer& VolumeRenderer::operator=(VolumeRenderer&&) noexcept = default;
 void VolumeRenderer::setInputData(vtkSmartPointer<vtkImageData> imageData)
 {
     impl_->inputData = imageData;
+    if (imageData) {
+        int* dims = imageData->GetDimensions();
+        impl_->logger->info("Volume data set: {}x{}x{}", dims[0], dims[1], dims[2]);
+    }
     impl_->updateMapper();
 }
 
@@ -90,6 +96,8 @@ vtkSmartPointer<vtkVolume> VolumeRenderer::getVolume() const
 
 void VolumeRenderer::applyPreset(const TransferFunctionPreset& preset)
 {
+    impl_->logger->info("Applying preset: {}", preset.name);
+
     impl_->colorTF->RemoveAllPoints();
     for (const auto& [value, r, g, b] : preset.colorPoints) {
         impl_->colorTF->AddRGBPoint(value, r, g, b);
@@ -161,16 +169,17 @@ bool VolumeRenderer::isGPURenderingEnabled() const
 bool VolumeRenderer::validateGPUSupport(vtkSmartPointer<vtkRenderWindow> renderWindow)
 {
     if (!renderWindow) {
+        impl_->logger->warn("No render window provided for GPU validation");
         impl_->gpuValidated = false;
         impl_->updateMapper();
         return false;
     }
 
-    // Check if GPU volume ray casting is supported
     bool gpuSupported = impl_->gpuMapper->IsRenderSupported(
         renderWindow, impl_->property);
 
     impl_->gpuValidated = gpuSupported;
+    impl_->logger->info("GPU rendering {}", gpuSupported ? "enabled" : "not supported, using CPU fallback");
     impl_->updateMapper();
     return impl_->gpuValidated;
 }
