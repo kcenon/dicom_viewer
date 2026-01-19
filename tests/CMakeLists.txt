@@ -673,3 +673,20 @@ target_include_directories(slice_interpolator_test PRIVATE
 )
 
 gtest_discover_tests(slice_interpolator_test DISCOVERY_TIMEOUT 120)
+
+# Unit tests for Watershed Segmenter
+add_executable(watershed_segmenter_test
+    unit/watershed_segmenter_test.cpp
+)
+
+target_link_libraries(watershed_segmenter_test PRIVATE
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(watershed_segmenter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(watershed_segmenter_test DISCOVERY_TIMEOUT 120)
