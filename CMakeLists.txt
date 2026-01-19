@@ -99,13 +99,16 @@ find_package(VTK REQUIRED COMPONENTS
     CommonCore
     CommonDataModel
     CommonExecutionModel
+    CommonTransforms
     FiltersCore
     FiltersGeneral
+    FiltersGeometry
     FiltersSources
     GUISupportQt
     ImagingCore
     InteractionStyle
     InteractionWidgets
+    IOGeometry
     IOImage
     RenderingCore
     RenderingOpenGL2
@@ -283,6 +286,7 @@ add_library(export_service STATIC
     src/services/export/report_generator.cpp
     src/services/export/data_exporter.cpp
     src/services/export/measurement_serializer.cpp
+    src/services/export/mesh_exporter.cpp
 )
 
 target_include_directories(export_service PUBLIC
@@ -290,6 +294,7 @@ target_include_directories(export_service PUBLIC
 )
 
 target_link_libraries(export_service PUBLIC
+    dicom_viewer_core
     measurement_service
     segmentation_service
     Qt6::Core
@@ -297,6 +302,7 @@ target_link_libraries(export_service PUBLIC
     Qt6::Gui
     Qt6::PrintSupport
     nlohmann_json::nlohmann_json
+    ${VTK_LIBRARIES}
 )
 
 # Controller library

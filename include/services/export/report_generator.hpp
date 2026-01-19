@@ -4,6 +4,7 @@
 #include "services/measurement/roi_statistics.hpp"
 #include "services/measurement/volume_calculator.hpp"
 
+#include <QImage>
 #include <QPageLayout>
 #include <QPageSize>
 #include <QString>

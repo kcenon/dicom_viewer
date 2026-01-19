@@ -13,6 +13,7 @@
 #include <QPageLayout>
 #include <QPainter>
 #include <QPdfWriter>
+#include <QPrinter>
 #include <QPrintPreviewDialog>
 #include <QStandardPaths>
 #include <QTextDocument>
