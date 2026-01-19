@@ -559,3 +559,29 @@ target_include_directories(measurement_serializer_test PRIVATE
 )
 
 gtest_discover_tests(measurement_serializer_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Oblique Reslice Renderer
+add_executable(oblique_reslice_renderer_test
+    unit/oblique_reslice_renderer_test.cpp
+)
+
+target_link_directories(oblique_reslice_renderer_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(oblique_reslice_renderer_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(oblique_reslice_renderer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS oblique_reslice_renderer_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(oblique_reslice_renderer_test DISCOVERY_TIMEOUT 60)

@@ -195,6 +195,7 @@ add_library(render_service STATIC
     src/services/render/mpr_renderer.cpp
     src/services/render/mpr_coordinate_transformer.cpp
     src/services/render/transfer_function.cpp
+    src/services/render/oblique_reslice_renderer.cpp
 )
 
 target_link_libraries(render_service PUBLIC
