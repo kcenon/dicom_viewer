@@ -156,6 +156,24 @@ if(USE_PACS_SYSTEM)
         set(PACS_SYSTEM_BUILD_DIR "${PACS_SYSTEM_ROOT}/build" CACHE PATH "Path to pacs_system build directory")
     endif()
 
+    # common_system is a dependency of pacs_system
+    if(NOT COMMON_SYSTEM_ROOT)
+        set(COMMON_SYSTEM_ROOT "${CMAKE_SOURCE_DIR}/../common_system" CACHE PATH "Path to common_system source")
+    endif()
+    if(EXISTS "${COMMON_SYSTEM_ROOT}/include")
+        set(COMMON_SYSTEM_INCLUDE_DIR "${COMMON_SYSTEM_ROOT}/include")
+        message(STATUS "Found common_system at: ${COMMON_SYSTEM_ROOT}")
+    endif()
+
+    # thread_system is a dependency of pacs_system
+    if(NOT THREAD_SYSTEM_ROOT)
+        set(THREAD_SYSTEM_ROOT "${CMAKE_SOURCE_DIR}/../thread_system" CACHE PATH "Path to thread_system source")
+    endif()
+    if(EXISTS "${THREAD_SYSTEM_ROOT}/include")
+        set(THREAD_SYSTEM_INCLUDE_DIR "${THREAD_SYSTEM_ROOT}/include")
+        message(STATUS "Found thread_system at: ${THREAD_SYSTEM_ROOT}")
+    endif()
+
     if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
         message(STATUS "Found pacs_system at: ${PACS_SYSTEM_ROOT}")
         message(STATUS "pacs_system build directory: ${PACS_SYSTEM_BUILD_DIR}")
@@ -185,30 +203,39 @@ if(USE_PACS_SYSTEM)
             message(STATUS "  - pacs_network: ${PACS_NETWORK_LIB}")
             message(STATUS "  - pacs_services: ${PACS_SERVICES_LIB}")
 
+            # Build include directories list for pacs_system
+            set(PACS_INCLUDE_DIRS "${PACS_SYSTEM_INCLUDE_DIR}")
+            if(COMMON_SYSTEM_INCLUDE_DIR)
+                list(APPEND PACS_INCLUDE_DIRS "${COMMON_SYSTEM_INCLUDE_DIR}")
+            endif()
+            if(THREAD_SYSTEM_INCLUDE_DIR)
+                list(APPEND PACS_INCLUDE_DIRS "${THREAD_SYSTEM_INCLUDE_DIR}")
+            endif()
+
             # Create imported target for pacs_system
             add_library(pacs::core STATIC IMPORTED)
             set_target_properties(pacs::core PROPERTIES
                 IMPORTED_LOCATION "${PACS_CORE_LIB}"
-                INTERFACE_INCLUDE_DIRECTORIES "${PACS_SYSTEM_INCLUDE_DIR}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
             )
 
             add_library(pacs::network STATIC IMPORTED)
             set_target_properties(pacs::network PROPERTIES
                 IMPORTED_LOCATION "${PACS_NETWORK_LIB}"
-                INTERFACE_INCLUDE_DIRECTORIES "${PACS_SYSTEM_INCLUDE_DIR}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
             )
 
             add_library(pacs::services STATIC IMPORTED)
             set_target_properties(pacs::services PROPERTIES
                 IMPORTED_LOCATION "${PACS_SERVICES_LIB}"
-                INTERFACE_INCLUDE_DIRECTORIES "${PACS_SYSTEM_INCLUDE_DIR}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
             )
 
             if(PACS_ENCODING_LIB)
                 add_library(pacs::encoding STATIC IMPORTED)
                 set_target_properties(pacs::encoding PROPERTIES
                     IMPORTED_LOCATION "${PACS_ENCODING_LIB}"
-                    INTERFACE_INCLUDE_DIRECTORIES "${PACS_SYSTEM_INCLUDE_DIR}"
+                    INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
                 )
             endif()
 
@@ -216,7 +243,7 @@ if(USE_PACS_SYSTEM)
                 add_library(pacs::integration STATIC IMPORTED)
                 set_target_properties(pacs::integration PROPERTIES
                     IMPORTED_LOCATION "${PACS_INTEGRATION_LIB}"
-                    INTERFACE_INCLUDE_DIRECTORIES "${PACS_SYSTEM_INCLUDE_DIR}"
+                    INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
                 )
             endif()
 
