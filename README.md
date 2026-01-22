@@ -87,8 +87,10 @@
 | **GUI** | Qt | 6.5+ |
 | **Image Processing** | ITK | 5.4+ |
 | **Visualization** | VTK | 9.3+ |
-| **DICOM Network** | DCMTK | 3.6.8+ |
+| **DICOM Network** | DCMTK / pacs_system | 3.6.8+ / Latest |
 | **DICOM I/O** | GDCM (via ITK) | Latest |
+
+> **Note**: DICOM network operations are being migrated from DCMTK to [pacs_system](https://github.com/kcenon/pacs_system). See [Build Options](#build-options) for configuration.
 
 ## Architecture
 
@@ -167,6 +169,44 @@ mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . --parallel
 ```
+
+### Build Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `BUILD_TESTS` | ON | Build unit tests |
+| `BUILD_DOCS` | OFF | Build documentation |
+| `USE_PACS_SYSTEM` | OFF | Enable pacs_system library integration (migration in progress) |
+
+### pacs_system Integration (Optional)
+
+The project supports optional integration with [pacs_system](https://github.com/kcenon/pacs_system) library for DICOM network operations. This is part of an ongoing migration from DCMTK.
+
+To enable pacs_system integration:
+
+```bash
+# Build pacs_system first (sibling directory)
+cd ../pacs_system
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --parallel
+
+# Build dicom_viewer with pacs_system
+cd ../../dicom_viewer
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_PACS_SYSTEM=ON
+cmake --build . --parallel
+```
+
+Custom pacs_system location:
+
+```bash
+cmake .. -DUSE_PACS_SYSTEM=ON \
+  -DPACS_SYSTEM_ROOT=/path/to/pacs_system \
+  -DPACS_SYSTEM_BUILD_DIR=/path/to/pacs_system/build
+```
+
+> **Note**: When `USE_PACS_SYSTEM=ON`, both DCMTK and pacs_system are linked to allow gradual migration. The `DICOM_VIEWER_USE_PACS_SYSTEM` preprocessor macro is defined when pacs_system is enabled.
 
 ### Run
 
