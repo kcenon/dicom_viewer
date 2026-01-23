@@ -87,10 +87,10 @@
 | **GUI** | Qt | 6.5+ |
 | **Image Processing** | ITK | 5.4+ |
 | **Visualization** | VTK | 9.3+ |
-| **DICOM Network** | DCMTK / pacs_system | 3.6.8+ / Latest |
+| **DICOM Network** | pacs_system | Latest |
 | **DICOM I/O** | GDCM (via ITK) | Latest |
 
-> **Note**: DICOM network operations are being migrated from DCMTK to [pacs_system](https://github.com/kcenon/pacs_system). See [Build Options](#build-options) for configuration.
+> **Note**: DICOM network operations use [pacs_system](https://github.com/kcenon/pacs_system), a pure C++20 PACS implementation from the kcenon ecosystem.
 
 ## Architecture
 
@@ -156,10 +156,10 @@ DICOM Viewer adopts a **4-Layer Architecture** to maximize separation of concern
 
 ```bash
 # macOS (Homebrew)
-brew install itk vtk qt@6 fftw dcmtk spdlog fmt nlohmann-json
+brew install itk vtk qt@6 fftw spdlog fmt nlohmann-json
 
 # Using vcpkg
-vcpkg install itk[vtk] vtk[qt] qt6 fftw3 dcmtk spdlog fmt nlohmann-json
+vcpkg install itk[vtk] vtk[qt] qt6 fftw3 spdlog fmt nlohmann-json
 ```
 
 ### Build
@@ -176,13 +176,10 @@ cmake --build . --parallel
 |--------|---------|-------------|
 | `BUILD_TESTS` | ON | Build unit tests |
 | `BUILD_DOCS` | OFF | Build documentation |
-| `USE_PACS_SYSTEM` | OFF | Enable pacs_system library integration (migration in progress) |
 
-### pacs_system Integration (Optional)
+### pacs_system Integration (Required)
 
-The project supports optional integration with [pacs_system](https://github.com/kcenon/pacs_system) library for DICOM network operations. This is part of an ongoing migration from DCMTK.
-
-To enable pacs_system integration:
+The project requires [pacs_system](https://github.com/kcenon/pacs_system) library for DICOM network operations. This is a pure C++20 implementation from the kcenon ecosystem.
 
 ```bash
 # Build pacs_system first (sibling directory)
@@ -191,22 +188,20 @@ mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . --parallel
 
-# Build dicom_viewer with pacs_system
+# Build dicom_viewer
 cd ../../dicom_viewer
 mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_PACS_SYSTEM=ON
+cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . --parallel
 ```
 
 Custom pacs_system location:
 
 ```bash
-cmake .. -DUSE_PACS_SYSTEM=ON \
+cmake .. \
   -DPACS_SYSTEM_ROOT=/path/to/pacs_system \
   -DPACS_SYSTEM_BUILD_DIR=/path/to/pacs_system/build
 ```
-
-> **Note**: When `USE_PACS_SYSTEM=ON`, both DCMTK and pacs_system are linked to allow gradual migration. The `DICOM_VIEWER_USE_PACS_SYSTEM` preprocessor macro is defined when pacs_system is enabled.
 
 ### Run
 
