@@ -137,147 +137,151 @@ find_package(ITK REQUIRED COMPONENTS
     ITKConnectedComponents
 )
 
-# DCMTK for DICOM network operations (legacy, being migrated to pacs_system)
-find_package(DCMTK REQUIRED)
+# pacs_system for DICOM network operations (required)
+# DCMTK migration completed - now using pacs_system exclusively
 
-# pacs_system for DICOM network operations (migration in progress)
-# Option to enable pacs_system integration
-option(USE_PACS_SYSTEM "Use pacs_system library for DICOM network operations" OFF)
+# pacs_system local path configuration
+# Set PACS_SYSTEM_ROOT to the pacs_system source directory
+if(NOT PACS_SYSTEM_ROOT)
+    # Default to sibling directory
+    set(PACS_SYSTEM_ROOT "${CMAKE_SOURCE_DIR}/../pacs_system" CACHE PATH "Path to pacs_system source")
+endif()
 
-if(USE_PACS_SYSTEM)
-    # pacs_system local path configuration
-    # Set PACS_SYSTEM_ROOT to the pacs_system source directory
-    if(NOT PACS_SYSTEM_ROOT)
-        # Default to sibling directory
-        set(PACS_SYSTEM_ROOT "${CMAKE_SOURCE_DIR}/../pacs_system" CACHE PATH "Path to pacs_system source")
-    endif()
+if(NOT PACS_SYSTEM_BUILD_DIR)
+    set(PACS_SYSTEM_BUILD_DIR "${PACS_SYSTEM_ROOT}/build" CACHE PATH "Path to pacs_system build directory")
+endif()
 
-    if(NOT PACS_SYSTEM_BUILD_DIR)
-        set(PACS_SYSTEM_BUILD_DIR "${PACS_SYSTEM_ROOT}/build" CACHE PATH "Path to pacs_system build directory")
-    endif()
+# common_system is a dependency of pacs_system
+if(NOT COMMON_SYSTEM_ROOT)
+    set(COMMON_SYSTEM_ROOT "${CMAKE_SOURCE_DIR}/../common_system" CACHE PATH "Path to common_system source")
+endif()
+if(EXISTS "${COMMON_SYSTEM_ROOT}/include")
+    set(COMMON_SYSTEM_INCLUDE_DIR "${COMMON_SYSTEM_ROOT}/include")
+    message(STATUS "Found common_system at: ${COMMON_SYSTEM_ROOT}")
+endif()
 
-    # common_system is a dependency of pacs_system
-    if(NOT COMMON_SYSTEM_ROOT)
-        set(COMMON_SYSTEM_ROOT "${CMAKE_SOURCE_DIR}/../common_system" CACHE PATH "Path to common_system source")
-    endif()
-    if(EXISTS "${COMMON_SYSTEM_ROOT}/include")
-        set(COMMON_SYSTEM_INCLUDE_DIR "${COMMON_SYSTEM_ROOT}/include")
-        message(STATUS "Found common_system at: ${COMMON_SYSTEM_ROOT}")
-    endif()
+# thread_system is a dependency of pacs_system
+if(NOT THREAD_SYSTEM_ROOT)
+    set(THREAD_SYSTEM_ROOT "${CMAKE_SOURCE_DIR}/../thread_system" CACHE PATH "Path to thread_system source")
+endif()
+if(EXISTS "${THREAD_SYSTEM_ROOT}/include")
+    set(THREAD_SYSTEM_INCLUDE_DIR "${THREAD_SYSTEM_ROOT}/include")
+    message(STATUS "Found thread_system at: ${THREAD_SYSTEM_ROOT}")
+endif()
 
-    # thread_system is a dependency of pacs_system
-    if(NOT THREAD_SYSTEM_ROOT)
-        set(THREAD_SYSTEM_ROOT "${CMAKE_SOURCE_DIR}/../thread_system" CACHE PATH "Path to thread_system source")
-    endif()
-    if(EXISTS "${THREAD_SYSTEM_ROOT}/include")
-        set(THREAD_SYSTEM_INCLUDE_DIR "${THREAD_SYSTEM_ROOT}/include")
-        message(STATUS "Found thread_system at: ${THREAD_SYSTEM_ROOT}")
-    endif()
+if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
+    message(STATUS "Found pacs_system at: ${PACS_SYSTEM_ROOT}")
+    message(STATUS "pacs_system build directory: ${PACS_SYSTEM_BUILD_DIR}")
 
-    if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
-        message(STATUS "Found pacs_system at: ${PACS_SYSTEM_ROOT}")
-        message(STATUS "pacs_system build directory: ${PACS_SYSTEM_BUILD_DIR}")
+    # pacs_system include directory
+    set(PACS_SYSTEM_INCLUDE_DIR "${PACS_SYSTEM_ROOT}/include")
 
-        # pacs_system include directory
-        set(PACS_SYSTEM_INCLUDE_DIR "${PACS_SYSTEM_ROOT}/include")
+    # pacs_system library directory
+    set(PACS_SYSTEM_LIB_DIR "${PACS_SYSTEM_BUILD_DIR}/lib")
 
-        # pacs_system library directory
-        set(PACS_SYSTEM_LIB_DIR "${PACS_SYSTEM_BUILD_DIR}/lib")
+    # Find required pacs_system libraries
+    find_library(PACS_CORE_LIB pacs_core HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(PACS_NETWORK_LIB pacs_network HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(PACS_SERVICES_LIB pacs_services HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(PACS_ENCODING_LIB pacs_encoding HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(PACS_INTEGRATION_LIB pacs_integration HINTS ${PACS_SYSTEM_LIB_DIR})
 
-        # Find required pacs_system libraries
-        find_library(PACS_CORE_LIB pacs_core HINTS ${PACS_SYSTEM_LIB_DIR})
-        find_library(PACS_NETWORK_LIB pacs_network HINTS ${PACS_SYSTEM_LIB_DIR})
-        find_library(PACS_SERVICES_LIB pacs_services HINTS ${PACS_SYSTEM_LIB_DIR})
-        find_library(PACS_ENCODING_LIB pacs_encoding HINTS ${PACS_SYSTEM_LIB_DIR})
-        find_library(PACS_INTEGRATION_LIB pacs_integration HINTS ${PACS_SYSTEM_LIB_DIR})
+    # Find dependency libraries from pacs_system
+    find_library(CONTAINER_SYSTEM_LIB container_system HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(NETWORK_SYSTEM_LIB NetworkSystem HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(LOGGER_SYSTEM_LIB LoggerSystem HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(THREAD_BASE_LIB thread_base HINTS ${PACS_SYSTEM_LIB_DIR})
 
-        # Find dependency libraries from pacs_system
-        find_library(CONTAINER_SYSTEM_LIB container_system HINTS ${PACS_SYSTEM_LIB_DIR})
-        find_library(NETWORK_SYSTEM_LIB NetworkSystem HINTS ${PACS_SYSTEM_LIB_DIR})
-        find_library(LOGGER_SYSTEM_LIB LoggerSystem HINTS ${PACS_SYSTEM_LIB_DIR})
+    if(PACS_CORE_LIB AND PACS_NETWORK_LIB AND PACS_SERVICES_LIB)
+        set(PACS_SYSTEM_FOUND TRUE)
+        message(STATUS "pacs_system libraries found:")
+        message(STATUS "  - pacs_core: ${PACS_CORE_LIB}")
+        message(STATUS "  - pacs_network: ${PACS_NETWORK_LIB}")
+        message(STATUS "  - pacs_services: ${PACS_SERVICES_LIB}")
 
-        if(PACS_CORE_LIB AND PACS_NETWORK_LIB AND PACS_SERVICES_LIB)
-            set(PACS_SYSTEM_FOUND TRUE)
-            message(STATUS "pacs_system libraries found:")
-            message(STATUS "  - pacs_core: ${PACS_CORE_LIB}")
-            message(STATUS "  - pacs_network: ${PACS_NETWORK_LIB}")
-            message(STATUS "  - pacs_services: ${PACS_SERVICES_LIB}")
-
-            # Build include directories list for pacs_system
-            set(PACS_INCLUDE_DIRS "${PACS_SYSTEM_INCLUDE_DIR}")
-            if(COMMON_SYSTEM_INCLUDE_DIR)
-                list(APPEND PACS_INCLUDE_DIRS "${COMMON_SYSTEM_INCLUDE_DIR}")
-            endif()
-            if(THREAD_SYSTEM_INCLUDE_DIR)
-                list(APPEND PACS_INCLUDE_DIRS "${THREAD_SYSTEM_INCLUDE_DIR}")
-            endif()
-
-            # Create imported target for pacs_system
-            add_library(pacs::core STATIC IMPORTED)
-            set_target_properties(pacs::core PROPERTIES
-                IMPORTED_LOCATION "${PACS_CORE_LIB}"
-                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
-            )
-
-            add_library(pacs::network STATIC IMPORTED)
-            set_target_properties(pacs::network PROPERTIES
-                IMPORTED_LOCATION "${PACS_NETWORK_LIB}"
-                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
-            )
-
-            add_library(pacs::services STATIC IMPORTED)
-            set_target_properties(pacs::services PROPERTIES
-                IMPORTED_LOCATION "${PACS_SERVICES_LIB}"
-                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
-            )
-
-            if(PACS_ENCODING_LIB)
-                add_library(pacs::encoding STATIC IMPORTED)
-                set_target_properties(pacs::encoding PROPERTIES
-                    IMPORTED_LOCATION "${PACS_ENCODING_LIB}"
-                    INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
-                )
-            endif()
-
-            if(PACS_INTEGRATION_LIB)
-                add_library(pacs::integration STATIC IMPORTED)
-                set_target_properties(pacs::integration PROPERTIES
-                    IMPORTED_LOCATION "${PACS_INTEGRATION_LIB}"
-                    INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
-                )
-            endif()
-
-            # Create wrapper targets for dependencies
-            if(CONTAINER_SYSTEM_LIB)
-                add_library(pacs::container_system STATIC IMPORTED)
-                set_target_properties(pacs::container_system PROPERTIES
-                    IMPORTED_LOCATION "${CONTAINER_SYSTEM_LIB}"
-                )
-            endif()
-
-            if(NETWORK_SYSTEM_LIB)
-                add_library(pacs::network_system STATIC IMPORTED)
-                set_target_properties(pacs::network_system PROPERTIES
-                    IMPORTED_LOCATION "${NETWORK_SYSTEM_LIB}"
-                )
-            endif()
-
-            if(LOGGER_SYSTEM_LIB)
-                add_library(pacs::logger_system STATIC IMPORTED)
-                set_target_properties(pacs::logger_system PROPERTIES
-                    IMPORTED_LOCATION "${LOGGER_SYSTEM_LIB}"
-                )
-            endif()
-
-            add_compile_definitions(DICOM_VIEWER_USE_PACS_SYSTEM)
-        else()
-            set(PACS_SYSTEM_FOUND FALSE)
-            message(WARNING "pacs_system libraries not found. Falling back to DCMTK only.")
+        # Build include directories list for pacs_system
+        set(PACS_INCLUDE_DIRS "${PACS_SYSTEM_INCLUDE_DIR}")
+        if(COMMON_SYSTEM_INCLUDE_DIR)
+            list(APPEND PACS_INCLUDE_DIRS "${COMMON_SYSTEM_INCLUDE_DIR}")
         endif()
+        if(THREAD_SYSTEM_INCLUDE_DIR)
+            list(APPEND PACS_INCLUDE_DIRS "${THREAD_SYSTEM_INCLUDE_DIR}")
+        endif()
+
+        # Create imported target for pacs_system
+        add_library(pacs::core STATIC IMPORTED)
+        set_target_properties(pacs::core PROPERTIES
+            IMPORTED_LOCATION "${PACS_CORE_LIB}"
+            INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+        )
+
+        add_library(pacs::network STATIC IMPORTED)
+        set_target_properties(pacs::network PROPERTIES
+            IMPORTED_LOCATION "${PACS_NETWORK_LIB}"
+            INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+        )
+
+        add_library(pacs::services STATIC IMPORTED)
+        set_target_properties(pacs::services PROPERTIES
+            IMPORTED_LOCATION "${PACS_SERVICES_LIB}"
+            INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+        )
+
+        if(PACS_ENCODING_LIB)
+            add_library(pacs::encoding STATIC IMPORTED)
+            set_target_properties(pacs::encoding PROPERTIES
+                IMPORTED_LOCATION "${PACS_ENCODING_LIB}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+            )
+        endif()
+
+        if(PACS_INTEGRATION_LIB)
+            add_library(pacs::integration STATIC IMPORTED)
+            set_target_properties(pacs::integration PROPERTIES
+                IMPORTED_LOCATION "${PACS_INTEGRATION_LIB}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+            )
+        endif()
+
+        # Create wrapper targets for dependencies
+        if(CONTAINER_SYSTEM_LIB)
+            add_library(pacs::container_system STATIC IMPORTED)
+            set_target_properties(pacs::container_system PROPERTIES
+                IMPORTED_LOCATION "${CONTAINER_SYSTEM_LIB}"
+            )
+        endif()
+
+        if(NETWORK_SYSTEM_LIB)
+            add_library(pacs::network_system STATIC IMPORTED)
+            set_target_properties(pacs::network_system PROPERTIES
+                IMPORTED_LOCATION "${NETWORK_SYSTEM_LIB}"
+            )
+        endif()
+
+        if(LOGGER_SYSTEM_LIB)
+            add_library(pacs::logger_system STATIC IMPORTED)
+            set_target_properties(pacs::logger_system PROPERTIES
+                IMPORTED_LOCATION "${LOGGER_SYSTEM_LIB}"
+            )
+        endif()
+
+        if(THREAD_BASE_LIB)
+            add_library(pacs::thread_base STATIC IMPORTED)
+            set_target_properties(pacs::thread_base PROPERTIES
+                IMPORTED_LOCATION "${THREAD_BASE_LIB}"
+            )
+            message(STATUS "  - thread_base: ${THREAD_BASE_LIB}")
+        endif()
+
+        # Define macro to enable pacs_system code paths
+        add_compile_definitions(DICOM_VIEWER_USE_PACS_SYSTEM)
     else()
         set(PACS_SYSTEM_FOUND FALSE)
-        message(WARNING "pacs_system not found at ${PACS_SYSTEM_ROOT}. Falling back to DCMTK only.")
+        message(FATAL_ERROR "pacs_system libraries not found. Please build pacs_system first.")
     endif()
+else()
+    set(PACS_SYSTEM_FOUND FALSE)
+    message(FATAL_ERROR "pacs_system not found at ${PACS_SYSTEM_ROOT}. Please set PACS_SYSTEM_ROOT to the pacs_system source directory.")
 endif()
 
 find_package(spdlog REQUIRED)
@@ -426,58 +430,45 @@ add_library(pacs_service STATIC
 
 target_include_directories(pacs_service PUBLIC
     ${CMAKE_SOURCE_DIR}/include
-    ${DCMTK_INCLUDE_DIRS}
+    ${PACS_SYSTEM_INCLUDE_DIR}
 )
 
-# Add pacs_system include directories if available
-if(USE_PACS_SYSTEM AND PACS_SYSTEM_FOUND)
-    target_include_directories(pacs_service PUBLIC
-        ${PACS_SYSTEM_INCLUDE_DIR}
-    )
-endif()
-
 target_link_directories(pacs_service PUBLIC
-    ${DCMTK_LIBRARY_DIRS}
     /opt/homebrew/lib
 )
 
 target_link_libraries(pacs_service PUBLIC
-    ${DCMTK_LIBRARIES}
+    pacs::core
+    pacs::network
+    pacs::services
     spdlog::spdlog
     fmt::fmt
     Qt6::Core
 )
 
-# Link pacs_system libraries if available (for gradual migration)
-if(USE_PACS_SYSTEM AND PACS_SYSTEM_FOUND)
-    target_link_libraries(pacs_service PUBLIC
-        pacs::core
-        pacs::network
-        pacs::services
-    )
+if(TARGET pacs::encoding)
+    target_link_libraries(pacs_service PUBLIC pacs::encoding)
+endif()
 
-    if(TARGET pacs::encoding)
-        target_link_libraries(pacs_service PUBLIC pacs::encoding)
-    endif()
+if(TARGET pacs::integration)
+    target_link_libraries(pacs_service PUBLIC pacs::integration)
+endif()
 
-    if(TARGET pacs::integration)
-        target_link_libraries(pacs_service PUBLIC pacs::integration)
-    endif()
+# Link pacs_system dependencies
+if(TARGET pacs::container_system)
+    target_link_libraries(pacs_service PUBLIC pacs::container_system)
+endif()
 
-    # Link pacs_system dependencies
-    if(TARGET pacs::container_system)
-        target_link_libraries(pacs_service PUBLIC pacs::container_system)
-    endif()
+if(TARGET pacs::network_system)
+    target_link_libraries(pacs_service PUBLIC pacs::network_system)
+endif()
 
-    if(TARGET pacs::network_system)
-        target_link_libraries(pacs_service PUBLIC pacs::network_system)
-    endif()
+if(TARGET pacs::logger_system)
+    target_link_libraries(pacs_service PUBLIC pacs::logger_system)
+endif()
 
-    if(TARGET pacs::logger_system)
-        target_link_libraries(pacs_service PUBLIC pacs::logger_system)
-    endif()
-
-    message(STATUS "pacs_service: pacs_system integration enabled")
+if(TARGET pacs::thread_base)
+    target_link_libraries(pacs_service PUBLIC pacs::thread_base)
 endif()
 
 add_library(export_service STATIC
@@ -490,18 +481,10 @@ add_library(export_service STATIC
 
 target_include_directories(export_service PUBLIC
     ${CMAKE_SOURCE_DIR}/include
-    ${DCMTK_INCLUDE_DIRS}
+    ${PACS_SYSTEM_INCLUDE_DIR}
 )
 
-# Add pacs_system include directories if available
-if(USE_PACS_SYSTEM AND PACS_SYSTEM_FOUND)
-    target_include_directories(export_service PUBLIC
-        ${PACS_SYSTEM_INCLUDE_DIR}
-    )
-endif()
-
 target_link_directories(export_service PUBLIC
-    ${DCMTK_LIBRARY_DIRS}
     /opt/homebrew/lib
 )
 
@@ -516,10 +499,7 @@ target_link_libraries(export_service PUBLIC
     Qt6::PrintSupport
     nlohmann_json::nlohmann_json
     ${VTK_LIBRARIES}
-    ${DCMTK_LIBRARIES}
 )
-
-# Note: pacs_system libraries are linked through pacs_service dependency
 
 # Controller library
 add_library(dicom_viewer_controller STATIC
@@ -608,17 +588,8 @@ message(STATUS "Version: ${PROJECT_VERSION}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "")
-message(STATUS "DICOM Network Libraries:")
-message(STATUS "  DCMTK: Found (legacy)")
-if(USE_PACS_SYSTEM)
-    if(PACS_SYSTEM_FOUND)
-        message(STATUS "  pacs_system: Found and enabled")
-        message(STATUS "    Root: ${PACS_SYSTEM_ROOT}")
-        message(STATUS "    Build: ${PACS_SYSTEM_BUILD_DIR}")
-    else()
-        message(STATUS "  pacs_system: NOT FOUND (USE_PACS_SYSTEM=ON but library not available)")
-    endif()
-else()
-    message(STATUS "  pacs_system: Disabled (USE_PACS_SYSTEM=OFF)")
-endif()
+message(STATUS "DICOM Network Library:")
+message(STATUS "  pacs_system: Found and enabled")
+message(STATUS "    Root: ${PACS_SYSTEM_ROOT}")
+message(STATUS "    Build: ${PACS_SYSTEM_BUILD_DIR}")
 message(STATUS "")
