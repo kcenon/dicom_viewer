@@ -1,6 +1,6 @@
 # DICOM Viewer - Software Requirements Specification (SRS)
 
-> **Version**: 0.3.0
+> **Version**: 0.4.0
 > **Created**: 2025-12-31
 > **Last Updated**: 2026-02-11
 > **Status**: Draft (Pre-release)
@@ -675,6 +675,31 @@ for (int i = 0; i < 3; ++i) {
 
 ---
 
+#### SRS-FR-041: Histogram Equalization
+**Traces to**: PRD FR-005.3
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P1 (High) |
+| Source | PRD FR-005 |
+| Dependency | ITK ImageStatistics |
+
+**Description**: The system shall apply adaptive histogram equalization to enhance image contrast.
+
+**Specification** (Ref: REF-001):
+- **Filter**: `itk::AdaptiveHistogramEqualizationImageFilter`
+- **Parameters**:
+  - Alpha: 0.0 ~ 1.0 (controls classic vs. unsharp mask behavior, default 0.5)
+  - Beta: 0.0 ~ 1.0 (controls amount of enhancement, default 0.5)
+  - Radius: Neighborhood radius (default 5 voxels)
+
+**Input**: `itk::Image<short, 3>`
+**Output**: `itk::Image<short, 3>` (contrast-enhanced)
+
+**Use Case**: Enhancing low-contrast soft tissue regions in CT/MRI
+
+---
+
 ### 2.6 Segmentation
 
 #### SRS-FR-020: Threshold Segmentation
@@ -768,6 +793,30 @@ for (int i = 0; i < 3; ++i) {
 - Advection Scaling: 1.0 (default)
 - Maximum RMS Error: 0.02
 - Maximum Iterations: 800
+
+---
+
+#### SRS-FR-042: Watershed Segmentation
+**Traces to**: PRD FR-006.6
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P2 (Medium) |
+| Source | PRD FR-006 |
+| Dependency | ITK Watersheds |
+
+**Description**: The system shall apply watershed transform-based segmentation algorithm.
+
+**Specification** (Ref: REF-001, REF-004):
+- **Pipeline**:
+  1. Gradient Magnitude (`itk::GradientMagnitudeImageFilter`)
+  2. Watershed Transform (`itk::WatershedImageFilter`)
+- **Parameters**:
+  - Threshold: 0.0 ~ 1.0 (minimum object size, default 0.01)
+  - Level: 0.0 ~ 1.0 (merge level for over-segmentation control, default 0.1)
+- **Output**: Labeled image (`itk::Image<unsigned long, 3>`)
+
+**Use Case**: Automatic region splitting for complex tissue boundaries
 
 ---
 
@@ -1592,6 +1641,7 @@ See SRS-FR-039 for detailed layout specification.
 | FR-004.5 | STL/PLY export | SRS-FR-015 |
 | FR-005.1 | Gaussian Smoothing | SRS-FR-016 |
 | FR-005.2 | Anisotropic Diffusion | SRS-FR-017 |
+| FR-005.3 | Histogram Equalization | SRS-FR-041 |
 | FR-005.4 | N4 Bias Correction | SRS-FR-018 |
 | FR-005.5 | Isotropic Resampling | SRS-FR-019 |
 | FR-006.1 | Manual threshold segmentation | SRS-FR-020 |
@@ -1599,6 +1649,7 @@ See SRS-FR-039 for detailed layout specification.
 | FR-006.3 | Region Growing | SRS-FR-021 |
 | FR-006.4 | Confidence Connected | SRS-FR-021 |
 | FR-006.5 | Level Set | SRS-FR-022 |
+| FR-006.6 | Watershed Segmentation | SRS-FR-042 |
 | FR-006.7~12 | Manual segmentation tools | SRS-FR-023 |
 | FR-006.13~18 | Multi-label | SRS-FR-024 |
 | FR-006.19~25 | Morphological post-processing | SRS-FR-025 |
@@ -1640,8 +1691,8 @@ See SRS-FR-039 for detailed layout specification.
 | SRS-FR-005~007 | REF-002 |
 | SRS-FR-008~011 | REF-002 |
 | SRS-FR-012~015 | REF-002 |
-| SRS-FR-016~019 | REF-001, REF-004 |
-| SRS-FR-020~025 | REF-001, REF-004 |
+| SRS-FR-016~019, SRS-FR-041 | REF-001, REF-004 |
+| SRS-FR-020~025, SRS-FR-042 | REF-001, REF-004 |
 | SRS-FR-026~030 | REF-002, REF-004 |
 | SRS-FR-034~037 | REF-005 |
 
@@ -1683,6 +1734,7 @@ See SRS-FR-039 for detailed layout specification.
 | 0.1.0 | 2025-12-31 | Development Team | Initial SRS |
 | 0.2.0 | 2025-12-31 | Development Team | Added segmentation (SRS-FR-020~025), measurement (SRS-FR-026~030), ROI management (SRS-FR-031) |
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
+| 0.4.0 | 2026-02-11 | Development Team | Added SRS-FR-041 (Histogram Equalization), SRS-FR-042 (Watershed Segmentation); fixed PRD traceability gaps for FR-005.3 and FR-006.6 |
 
 ---
 
