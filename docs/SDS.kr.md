@@ -1143,8 +1143,8 @@ classDiagram
 | ViewportWidget | QVTKOpenGLNativeWidget 기반 VTK 렌더링 위젯 | SRS-FR-056 | ✅ 구현됨 |
 | PatientBrowser | 검색 기능이 있는 환자/검사/시리즈 트리 브라우저 | SRS-FR-057 | ✅ 구현됨 |
 | ToolsPanel | Window/Level 컨트롤, 프리셋, 시각화 모드 | SRS-FR-058 | ✅ 구현됨 |
-| SegmentationPanel | 분할 도구 패널 | SRS-FR-024 | ⏳ 계획됨 |
-| MeasurementPanel | 측정 도구 패널 | SRS-FR-036 | ⏳ 계획됨 |
+| SegmentationPanel | 분할 도구 패널 (브러시, 지우개, 채우기, 폴리곤, 스마트 가위) | SRS-FR-024 | ✅ 구현됨 |
+| StatisticsPanel | ROI 통계 표시, 히스토그램, 다중 ROI 비교, CSV 내보내기 | SRS-FR-028 | ✅ 구현됨 |
 
 **Widget Hierarchy**:
 
