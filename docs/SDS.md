@@ -1143,8 +1143,8 @@ classDiagram
 | ViewportWidget | VTK rendering widget with QVTKOpenGLNativeWidget | SRS-FR-056 | ✅ Implemented |
 | PatientBrowser | Patient/study/series tree browser with search | SRS-FR-057 | ✅ Implemented |
 | ToolsPanel | Window/level controls, presets, visualization modes | SRS-FR-058 | ✅ Implemented |
-| SegmentationPanel | Segmentation tools panel | SRS-FR-024 | ⏳ Planned |
-| MeasurementPanel | Measurement tools panel | SRS-FR-036 | ⏳ Planned |
+| SegmentationPanel | Segmentation tools panel (brush, eraser, fill, polygon, smart scissors) | SRS-FR-024 | ✅ Implemented |
+| StatisticsPanel | ROI statistics display, histogram, multi-ROI comparison, CSV export | SRS-FR-028 | ✅ Implemented |
 
 **Widget Hierarchy**:
 
