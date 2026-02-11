@@ -781,3 +781,20 @@ target_include_directories(flow_dicom_parser_test PRIVATE
 )
 
 gtest_discover_tests(flow_dicom_parser_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Velocity Field Assembler
+add_executable(velocity_field_assembler_test
+    unit/velocity_field_assembler_test.cpp
+)
+
+target_link_libraries(velocity_field_assembler_test PRIVATE
+    flow_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(velocity_field_assembler_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(velocity_field_assembler_test DISCOVERY_TIMEOUT 60)
