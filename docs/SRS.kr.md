@@ -1,11 +1,11 @@
 # DICOM Viewer - Software Requirements Specification (SRS)
 
-> **Version**: 0.2.0
+> **Version**: 0.3.0
 > **Created**: 2025-12-31
-> **Last Updated**: 2025-12-31
+> **Last Updated**: 2026-02-11
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
-> **Based on**: [PRD v0.2.0](PRD.md)
+> **Based on**: [PRD v0.3.0](PRD.md)
 
 ---
 
@@ -17,6 +17,7 @@
 |---------|------|--------|-------------|
 | 0.1.0 | 2025-12-31 | Development Team | Initial SRS based on PRD 0.1.0 |
 | 0.2.0 | 2025-12-31 | Development Team | Added segmentation and measurement requirements (FR-006, FR-007 expansion) |
+| 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 
 ### Referenced Documents
 
@@ -1681,6 +1682,7 @@ See SRS-FR-039 for detailed layout specification.
 |---------|------|--------|---------|
 | 0.1.0 | 2025-12-31 | Development Team | Initial SRS |
 | 0.2.0 | 2025-12-31 | Development Team | Added segmentation (SRS-FR-020~025), measurement (SRS-FR-026~030), ROI management (SRS-FR-031) |
+| 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 
 ---
 

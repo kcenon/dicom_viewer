@@ -1,8 +1,8 @@
 # DICOM Viewer - Product Requirements Document (PRD)
 
-> **Version**: 0.2.0
+> **Version**: 0.3.0
 > **Created**: 2025-12-31
-> **Last Updated**: 2025-12-31
+> **Last Updated**: 2026-02-11
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
 
@@ -918,6 +918,7 @@ For coordinate system information, see [03-itk-vtk-integration.md](reference/03-
 |---------|------|--------|---------|
 | 0.1.0 | 2025-12-31 | Development Team | Initial PRD |
 | 0.2.0 | 2025-12-31 | Development Team | Detailed segmentation and region measurement features (FR-006, FR-007 expansion, FR-012, FR-013 addition) |
+| 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 
 > **Note**: v0.x.x are Pre-release versions. Official releases start from v1.0.0.
 
