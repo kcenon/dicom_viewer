@@ -217,38 +217,53 @@ cmake .. \
 ```
 dicom_viewer/
 ├── docs/                           # Documentation
-│   ├── PRD.md                      # Product Requirements Document
-│   ├── SRS.md                      # Software Requirements Specification
-│   ├── SDS.md                      # Software Design Specification
-│   └── reference/                  # Technical Reference Documentation
+│   ├── PRD.md / PRD.kr.md         # Product Requirements Document
+│   ├── SRS.md / SRS.kr.md         # Software Requirements Specification
+│   ├── SDS.md / SDS.kr.md         # Software Design Specification
+│   └── reference/                  # Technical Reference (ITK, VTK, pacs_system)
 ├── include/                        # Header Files
 │   ├── core/                       # Core module headers
 │   │   ├── dicom_loader.hpp        # DICOM file loading
 │   │   ├── series_builder.hpp      # Series assembly and 3D volume
-│   │   ├── transfer_syntax_decoder.hpp  # Transfer syntax decoding support
+│   │   ├── transfer_syntax_decoder.hpp  # Transfer syntax decoding
 │   │   ├── hounsfield_converter.hpp  # CT pixel to HU conversion
-│   │   └── image_converter.hpp     # Image format conversion
-│   └── services/                   # Service layer headers
-│       ├── volume_renderer.hpp     # GPU volume rendering with CPU fallback
-│       ├── transfer_function_manager.hpp  # Transfer function preset management
-│       ├── mpr_renderer.hpp        # MPR (Multi-Planar Reconstruction) views
-│       ├── pacs_config.hpp         # PACS server configuration
-│       └── dicom_echo_scu.hpp      # DICOM C-ECHO connectivity test
+│   │   └── image_converter.hpp     # ITK↔VTK format conversion
+│   ├── services/                   # Service layer headers
+│   │   ├── render/                 # Oblique reslice renderer
+│   │   ├── measurement/            # Linear, area, volume, ROI, shape tools
+│   │   ├── preprocessing/          # Gaussian, anisotropic, N4, resampler
+│   │   ├── segmentation/           # Threshold, region growing, level set, etc.
+│   │   ├── export/                 # Report, mesh, DICOM SR, data export
+│   │   ├── coordinate/             # MPR coordinate transformer
+│   │   ├── volume_renderer.hpp     # GPU volume rendering with CPU fallback
+│   │   ├── surface_renderer.hpp    # Isosurface extraction and rendering
+│   │   ├── mpr_renderer.hpp        # MPR (Multi-Planar Reconstruction) views
+│   │   └── dicom_*_scu.hpp        # PACS services (Echo, Find, Move, Store)
+│   └── ui/                         # UI headers
+│       ├── panels/                 # PatientBrowser, ToolsPanel, etc.
+│       └── dialogs/                # SettingsDialog, PacsConfigDialog
 ├── src/                            # Source Code
+│   ├── app/                        # Application entry point (main.cpp)
 │   ├── core/                       # Core Data Structures
 │   │   ├── dicom/                  # DICOM loading and series assembly
 │   │   ├── image/                  # Image processing and HU conversion
-│   │   └── data/                   # Patient data management
+│   │   └── logging/                # spdlog-based logging
 │   ├── services/                   # Service Layer
-│   │   ├── image/                  # Image processing services
-│   │   ├── render/                 # Volume/Surface/MPR rendering
-│   │   ├── measurement/            # Measurement tools
-│   │   ├── segmentation/           # Segmentation algorithms (Threshold, Region Growing)
-│   │   └── pacs/                   # PACS connectivity (C-ECHO, C-FIND, etc.)
-│   ├── controller/                 # Controller Layer
+│   │   ├── render/                 # Volume/Surface/MPR/Oblique rendering
+│   │   ├── measurement/            # Measurement and statistics tools
+│   │   ├── preprocessing/          # Image filters (Gaussian, N4, etc.)
+│   │   ├── segmentation/           # Segmentation algorithms and label mgmt
+│   │   ├── pacs/                   # PACS connectivity (C-ECHO, C-FIND, etc.)
+│   │   ├── export/                 # Report generation, mesh/data export
+│   │   └── coordinate/             # MPR coordinate transformations
 │   └── ui/                         # Qt UI Components
-├── tests/                          # Unit and Integration Tests
-│   └── unit/                       # Unit tests
+│       ├── widgets/                # ViewportWidget, MPRViewWidget, DRViewer
+│       ├── panels/                 # PatientBrowser, ToolsPanel, etc.
+│       └── dialogs/                # Settings, PACS configuration
+├── tests/                          # Test Suite
+│   ├── unit/                       # Unit tests (40+ test files)
+│   ├── integration/                # Integration tests
+│   └── data/                       # Test DICOM data
 ├── LICENSE
 └── README.md
 ```
