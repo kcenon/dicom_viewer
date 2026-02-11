@@ -832,3 +832,21 @@ target_include_directories(temporal_navigator_test PRIVATE
 )
 
 gtest_discover_tests(temporal_navigator_test DISCOVERY_TIMEOUT 60)
+
+# Flow visualizer tests
+add_executable(flow_visualizer_test
+    unit/flow_visualizer_test.cpp
+)
+
+target_link_libraries(flow_visualizer_test PRIVATE
+    flow_service
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(flow_visualizer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(flow_visualizer_test DISCOVERY_TIMEOUT 60)

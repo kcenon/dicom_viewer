@@ -101,6 +101,7 @@ find_package(VTK REQUIRED COMPONENTS
     CommonExecutionModel
     CommonTransforms
     FiltersCore
+    FiltersFlowPaths
     FiltersGeneral
     FiltersGeometry
     FiltersSources
@@ -492,6 +493,7 @@ add_library(flow_service STATIC
     src/services/flow/velocity_field_assembler.cpp
     src/services/flow/phase_corrector.cpp
     src/services/flow/temporal_navigator.cpp
+    src/services/flow/flow_visualizer.cpp
     src/services/flow/vendor_parsers/siemens_flow_parser.cpp
     src/services/flow/vendor_parsers/philips_flow_parser.cpp
     src/services/flow/vendor_parsers/ge_flow_parser.cpp
@@ -500,6 +502,7 @@ add_library(flow_service STATIC
 target_link_libraries(flow_service PUBLIC
     dicom_viewer_core
     ${ITK_LIBRARIES}
+    ${VTK_LIBRARIES}
 )
 
 # UI library
