@@ -94,23 +94,26 @@
 
 ## Architecture
 
-DICOM Viewer adopts a **4-Layer Architecture** to maximize separation of concerns and maintainability.
+DICOM Viewer adopts a **3-Layer Architecture** to maximize separation of concerns and maintainability. UI components access service classes directly without an intermediary controller layer.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Presentation Layer (Qt6)                                               │
-│  • MainWindow, ViewportWidget, ToolsPanel, PatientBrowser               │
-│  • SegmentationPanel, StatisticsPanel                                   │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Controller Layer                                                       │
-│  • ViewerController → Loading, Rendering, Tool, Network Controllers     │
+│  • MainWindow, ViewportWidget, PatientBrowser, ToolsPanel               │
+│  • SegmentationPanel, StatisticsPanel, PacsConfigDialog                 │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  Service Layer                                                          │
-│  • ImageService (ITK) • RenderService (VTK) • NetworkService (pacs)     │
-│  • MeasurementService • SegmentationService                             │
+│  • Render: VolumeRenderer, SurfaceRenderer, MPRRenderer (VTK)           │
+│  • Segmentation: Threshold, RegionGrowing, LevelSet, Watershed (ITK)    │
+│  • Measurement: Linear, Area, Volume, ROI Statistics, ShapeAnalyzer     │
+│  • Preprocessing: Gaussian, AnisotropicDiffusion, N4Bias, Resampler     │
+│  • PACS: DicomFind/Move/Store/Echo (pacs_system)                        │
+│  • Export: Report, MeshExporter, DicomSR, DataExporter                  │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  Data Layer                                                             │
-│  • ImageData (ITK/VTK) • DicomData (pacs_system) • SegmentData          │
+│  Core / Data Layer                                                      │
+│  • DicomLoader, SeriesBuilder, TransferSyntaxDecoder                    │
+│  • HounsfieldConverter, ImageConverter (ITK↔VTK)                        │
+│  • ImageData (ITK/VTK), DicomData (pacs_system), SegmentData            │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 

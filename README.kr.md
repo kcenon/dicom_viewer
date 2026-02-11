@@ -94,22 +94,26 @@
 
 ## 아키텍처
 
-DICOM Viewer는 **4-Layer 아키텍처**를 채택하여 관심사 분리와 유지보수성을 극대화합니다.
+DICOM Viewer는 **3-Layer 아키텍처**를 채택하여 관심사 분리와 유지보수성을 극대화합니다. UI 컴포넌트가 서비스 클래스를 직접 사용하는 구조입니다.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Presentation Layer (Qt6)                                               │
-│  • MainWindow, ViewportWidget, ToolsPanel, PatientBrowser               │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Controller Layer                                                       │
-│  • ViewerController → Loading, Rendering, Tool, Network Controllers     │
+│  • MainWindow, ViewportWidget, PatientBrowser, ToolsPanel               │
+│  • SegmentationPanel, StatisticsPanel, PacsConfigDialog                 │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  Service Layer                                                          │
-│  • ImageService (ITK) • RenderService (VTK) • NetworkService (pacs)     │
-│  • MeasurementService • SegmentationService                             │
+│  • Render: VolumeRenderer, SurfaceRenderer, MPRRenderer (VTK)           │
+│  • Segmentation: Threshold, RegionGrowing, LevelSet, Watershed (ITK)    │
+│  • Measurement: Linear, Area, Volume, ROI Statistics, ShapeAnalyzer     │
+│  • Preprocessing: Gaussian, AnisotropicDiffusion, N4Bias, Resampler     │
+│  • PACS: DicomFind/Move/Store/Echo (pacs_system)                        │
+│  • Export: Report, MeshExporter, DicomSR, DataExporter                  │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  Data Layer                                                             │
-│  • ImageData (ITK/VTK) • DicomData (pacs_system) • SegmentData          │
+│  Core / Data Layer                                                      │
+│  • DicomLoader, SeriesBuilder, TransferSyntaxDecoder                    │
+│  • HounsfieldConverter, ImageConverter (ITK↔VTK)                        │
+│  • ImageData (ITK/VTK), DicomData (pacs_system), SegmentData            │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
