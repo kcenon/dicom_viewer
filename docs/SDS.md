@@ -2763,7 +2763,7 @@ sequenceDiagram
 
 ### SDS-SEQ-007: Flow Quantification Sequence
 
-**Traces to**: SRS-FR-047
+**Traces to**: SRS-FR-047, SRS-FR-048
 
 #### Mermaid Version
 
@@ -2921,7 +2921,7 @@ sequenceDiagram
 | SRS-FR-045 | SDS-MOD-007 (PhaseCorrector), SDS-SEQ-005 | Flow Analysis |
 | SRS-FR-046 | SDS-MOD-007 (FlowVisualizer), SDS-SEQ-006 | Flow Analysis |
 | SRS-FR-047 | SDS-MOD-007 (FlowQuantifier, VesselAnalyzer), SDS-SEQ-007 | Flow Analysis |
-| SRS-FR-048 | SDS-MOD-007 (TemporalNavigator), SDS-DATA-006 | Flow Analysis |
+| SRS-FR-048 | SDS-MOD-007 (TemporalNavigator), SDS-DATA-006, SDS-SEQ-006, SDS-SEQ-007 | Flow Analysis |
 
 ---
 
