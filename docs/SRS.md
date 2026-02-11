@@ -1,11 +1,11 @@
 # DICOM Viewer - Software Requirements Specification (SRS)
 
-> **Version**: 0.4.0
+> **Version**: 0.5.0
 > **Created**: 2025-12-31
 > **Last Updated**: 2026-02-11
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
-> **Based on**: [PRD v0.3.0](PRD.md)
+> **Based on**: [PRD v0.4.0](PRD.md)
 
 ---
 
@@ -18,6 +18,8 @@
 | 0.1.0 | 2025-12-31 | Development Team | Initial SRS based on PRD 0.1.0 |
 | 0.2.0 | 2025-12-31 | Development Team | Added segmentation and measurement requirements (FR-006, FR-007 expansion) |
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
+| 0.4.0 | 2026-02-11 | Development Team | Added SRS-FR-041, SRS-FR-042; fixed PRD traceability gaps |
+| 0.5.0 | 2026-02-11 | Development Team | Added SRS-FR-043~048 (4D Flow MRI), SRS-NFR-021~026; updated traceability |
 
 ### Referenced Documents
 
@@ -53,6 +55,7 @@ This document is the detailed Software Requirements Specification (SRS) for the 
 DICOM Viewer is a desktop application for medical imaging (CT, MRI, DR/CR) that provides:
 - CT/MRI 3D volume rendering and MPR views
 - Region segmentation and measurement
+- 4D Flow MRI velocity field visualization and hemodynamic quantification
 - DR/CR 2D viewing
 - PACS integration
 
@@ -70,6 +73,11 @@ DICOM Viewer is a desktop application for medical imaging (CT, MRI, DR/CR) that 
 | **Transfer Syntax** | DICOM data encoding method |
 | **SCP** | Service Class Provider - DICOM service provider |
 | **SCU** | Service Class User - DICOM service user |
+| **VENC** | Velocity Encoding - Maximum measurable velocity in phase-contrast MRI (cm/s) |
+| **WSS** | Wall Shear Stress - Frictional force of blood on vessel wall (Pa) |
+| **OSI** | Oscillatory Shear Index - Measure of flow reversal (dimensionless, 0-0.5) |
+| **TKE** | Turbulent Kinetic Energy - Energy associated with velocity fluctuations (J/m³) |
+| **4D Flow** | Time-resolved 3D phase-contrast MRI capturing velocity-encoded blood flow |
 
 ### 1.4 System Overview
 
@@ -1298,6 +1306,234 @@ Volume (mL) = Volume (cm³)  // 1 cm³ = 1 mL
 | Toggle Crosshair | C |
 | Toggle Annotations | A |
 
+### 2.13 4D Flow MRI
+
+#### SRS-FR-043: 4D Flow DICOM Parsing
+**Traces to**: PRD FR-014.1, FR-014.2
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P1 (High) |
+| Source | PRD FR-014 |
+| Dependency | GDCM, pacs_system |
+
+**Description**: The system shall parse vendor-specific 4D Flow MRI DICOM series and identify velocity-encoded components per cardiac phase.
+
+**Specification** (Ref: REF-004):
+
+**Vendor Detection**:
+- Check DICOM tag (0018,0020) Scanning Sequence for "PC" (Phase Contrast)
+- Check DICOM tag (0018,9014) Phase Contrast for "YES"
+- Check DICOM tag (0008,0008) Image Type for "P" (phase) or "VELOCITY"
+
+**Vendor-Specific Parsing**:
+
+| Vendor | IOD Type | Velocity Tag | VENC Tag |
+|--------|----------|-------------|----------|
+| Siemens | Enhanced MR | (0051,1014) | (0018,9197) |
+| Philips | Classic MR | (2005,1071) scale slope | (0018,9197) |
+| GE | Classic MR | (0019,10cc) | (0019,10cc) partial |
+
+**Output**:
+- Frame sorting into (cardiac_phase × velocity_component) matrix
+- Velocity component classification: Magnitude, Vx, Vy, Vz
+- VENC value extraction (cm/s)
+- Cardiac phase count and temporal resolution (ms)
+
+---
+
+#### SRS-FR-044: Velocity Field Assembly
+**Traces to**: PRD FR-014.3
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P1 (High) |
+| Source | PRD FR-014 |
+| Dependency | ITK ImageIO, ITK ComposeImageFilter |
+
+**Description**: The system shall assemble 3D velocity vector fields from velocity-encoded DICOM components with VENC scaling.
+
+**Specification** (Ref: REF-001):
+
+**ITK Pipeline**:
+```
+itk::ImageSeriesReader<Image<float,3>> (per component: Vx, Vy, Vz)
+    → itk::ComposeImageFilter<Image<float,3>, VectorImage<float,3>>
+    → VelocityPhase { velocityField, magnitudeImage, phaseIndex, triggerTime }
+```
+
+**VENC Scaling**:
+- Signed phase images: `velocity = (pixel_value / max_possible_value) × VENC`
+- Unsigned phase images: `velocity = ((pixel_value - midpoint) / midpoint) × VENC`
+- Where: `max_possible_value = 2^(bits_stored - 1)`, `midpoint = 2^(bits_stored - 1)`
+
+**Input**: Sorted DICOM frames from SRS-FR-043
+**Output**: `itk::VectorImage<float, 3>` per cardiac phase (3-component: Vx, Vy, Vz)
+
+---
+
+#### SRS-FR-045: Phase Correction
+**Traces to**: PRD FR-014.4
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P1 (High) |
+| Source | PRD FR-014 |
+| Dependency | ITK Statistics, Eigen (least-squares) |
+
+**Description**: The system shall apply velocity aliasing unwrap, eddy current correction, and Maxwell term correction to raw 4D Flow velocity data.
+
+**Specification** (Ref: REF-001):
+
+**Velocity Aliasing Unwrap**:
+- Detect phase wraps where `|V[i] - V[neighbor]| > threshold × VENC`
+- Apply Laplacian-based 3D phase unwrapping
+- Threshold default: 0.8 × VENC
+
+**Eddy Current Correction**:
+1. Create stationary tissue mask from magnitude image (Otsu threshold + erosion)
+2. Fit 2nd-order polynomial to velocity in stationary regions: `V_bg(x,y,z) = a₀ + a₁x + a₂y + a₃z + a₄xy + ...`
+3. Subtract polynomial background: `V_corrected = V_raw - V_bg`
+
+**Maxwell Term Correction**:
+- Compute concomitant gradient phase: `Δφ = γ/(4B₀) × ∫(G²_cross) dt`
+- Requires gradient amplitude from DICOM (0018,9089) or (0019,10e0)
+- Apply only when sequence parameters are available
+
+**Input**: `itk::VectorImage<float, 3>` from SRS-FR-044
+**Output**: Corrected `itk::VectorImage<float, 3>` (each correction independently configurable)
+
+---
+
+#### SRS-FR-046: Flow Visualization
+**Traces to**: PRD FR-014.5, FR-014.6, FR-014.7, FR-014.8
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P1 (High) |
+| Source | PRD FR-014 |
+| Dependency | VTK StreamTracer, VTK ParticleTracer, VTK Glyph3D |
+
+**Description**: The system shall render 4D Flow velocity fields as streamlines, pathlines, and vector glyphs with configurable color mapping.
+
+**Specification** (Ref: REF-002):
+
+**Streamline Pipeline**:
+```
+vtkImageData (from ITK-VTK bridge)
+    → vtkPointSource (seed points on user-defined plane/surface)
+    → vtkStreamTracer (integrator: vtkRungeKutta45)
+        MaximumPropagation, TerminalSpeed=0.1 cm/s
+    → vtkTubeFilter (radius=0.5mm, sides=8)
+    → vtkPolyDataMapper → vtkActor
+```
+
+**Pathline Pipeline**:
+```
+std::vector<VelocityPhase> → vtkTemporalDataSet
+    → vtkParticleTracer (time-dependent integration)
+    → vtkTubeFilter → vtkPolyDataMapper → vtkActor
+```
+
+**Vector Glyph Pipeline**:
+```
+vtkImageData (subsampled by skipFactor=4)
+    → vtkGlyph3D (source: vtkArrowSource, orient=true, scaleByVector)
+    → vtkPolyDataMapper → vtkActor
+```
+
+**Color Mapping Modes**:
+
+| Mode | Scalar Range | Colormap |
+|------|-------------|----------|
+| Velocity Magnitude | [0, VENC] | Rainbow/Jet |
+| Velocity Component | [-VENC, VENC] | Diverging (blue-white-red) |
+| Flow Direction | RGB encoding | Direction-to-RGB |
+| Trigger Time | [0, RR_interval] | Sequential (viridis) |
+
+**Input**: `itk::VectorImage<float, 3>`, seed geometry (plane, surface, or volume bounds)
+**Output**: `vtkActor` for renderer integration
+
+---
+
+#### SRS-FR-047: Flow Quantification
+**Traces to**: PRD FR-014.12, FR-014.13, FR-014.14, FR-014.15, FR-014.16, FR-014.17, FR-014.18
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P1 (High) / P2 (Medium) for advanced metrics |
+| Source | PRD FR-014 |
+| Dependency | VTK Cutter, ITK Statistics |
+
+**Description**: The system shall compute quantitative hemodynamic measurements from 4D Flow velocity data.
+
+**Specification** (Ref: REF-001, REF-002):
+
+**Flow Rate Calculation (P1)**:
+- Define measurement plane: center point + normal vector, or 3 points
+- Extract through-plane velocity: `V_through = V(P) · n` (dot product with plane normal)
+- Integrate within vessel contour: `FlowRate = Σ V_through[i] × ΔA[i]` (mL/s)
+- Auto-detect vessel boundary from magnitude thresholding
+
+**Time-Velocity Curve (P1)**:
+- Compute mean/max velocity and flow rate per cardiac phase
+- Stroke volume = integral of positive flow rates × temporal resolution (mL)
+- Regurgitant volume = integral of negative flow rates × temporal resolution (mL)
+- Regurgitant fraction = regurgitant volume / stroke volume × 100 (%)
+
+**Pressure Gradient (P2)**:
+- Simplified Bernoulli: `ΔP = 4 × V²_max` (mmHg, when V in m/s)
+
+**Wall Shear Stress (P2)**:
+- `WSS = μ × (∂V/∂n)|_wall` where μ = 0.004 Pa·s (blood viscosity)
+- Sample velocity at 1-2 voxels from vessel wall along inward normal
+- Time-Averaged WSS (TAWSS): `TAWSS = (1/N) × Σ |τ_wall[phase_i]|`
+
+**Oscillatory Shear Index (P2)**:
+- `OSI = 0.5 × (1 - |Σ τ_wall[i]| / Σ |τ_wall[i]|)`, range [0, 0.5]
+
+**Turbulent Kinetic Energy (P2)**:
+- `TKE = 0.5 × (σ²_Vx + σ²_Vy + σ²_Vz)` where σ² = temporal variance per voxel
+
+**Input**: Corrected `itk::VectorImage<float, 3>`, measurement plane, vessel contour
+**Output**: `FlowMeasurement`, `TimeVelocityCurve`, `WSSResult` data structures; CSV export
+
+---
+
+#### SRS-FR-048: Temporal Navigation
+**Traces to**: PRD FR-014.9, FR-014.10, FR-014.11
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P1 (High) |
+| Source | PRD FR-014 |
+| Dependency | Qt6 Timer, threading |
+
+**Description**: The system shall provide cardiac phase navigation with cine playback, sliding window memory management, and ECG-gated timeline display.
+
+**Specification** (Ref: REF-006):
+
+**Sliding Window Cache**:
+- Window size: 5 phases (current ± 2)
+- LRU eviction policy when cache exceeds window size
+- Background prefetch thread for adjacent phases
+- Memory budget per phase (256×256×64, 3 components): ~50 MB → 5 phases = ~250 MB
+
+**Cine Playback**:
+- Playback controls: play, pause, stop
+- Configurable frame rate: 1-30 fps (default 15)
+- Playback speed: 0.5x, 1x, 2x, 4x multipliers
+- Loop mode: continuous cycling through all phases
+- Phase transition latency: ≤50 ms (cached), ≤500 ms (uncached)
+
+**Timeline Display**:
+- Phase slider with current phase indicator
+- ECG-gated markers: systole/diastole boundaries (P2)
+- Cache status indicator: visual display of cached vs. uncached phases
+
+**Input**: `std::vector<VelocityPhase>` via `PhaseCache`
+**Output**: Current phase index, playback state signals (Qt signals/slots)
+
 ---
 
 ## 3. Non-Functional Requirements
@@ -1373,6 +1609,80 @@ Volume (mL) = Volume (cm³)  // 1 cm³ = 1 mL
 | Metric | Cold start time |
 | Target | ≤ 5 seconds |
 | Condition | No files opened |
+
+---
+
+#### SRS-NFR-021: 4D Flow Loading Time (Small Dataset)
+**Traces to**: PRD NFR-016
+
+| Attribute | Value |
+|-----------|-------|
+| Metric | Time to parse and assemble velocity fields |
+| Target | ≤ 5 seconds |
+| Condition | 4D Flow dataset ≤ 300 MB (e.g., 128×128×32, 20 phases) |
+| Measurement | From file selection to first phase displayed |
+
+---
+
+#### SRS-NFR-022: 4D Flow Loading Time (Standard Dataset)
+**Traces to**: PRD NFR-017
+
+| Attribute | Value |
+|-----------|-------|
+| Metric | Time to parse and assemble velocity fields |
+| Target | ≤ 15 seconds |
+| Condition | 4D Flow dataset 300 MB – 2 GB (e.g., 256×256×64, 20 phases) |
+| Measurement | From file selection to first phase displayed |
+
+---
+
+#### SRS-NFR-023: 4D Flow Loading Time (Large Dataset)
+**Traces to**: PRD NFR-018
+
+| Attribute | Value |
+|-----------|-------|
+| Metric | Time to load first phase with streaming |
+| Target | ≤ 45 seconds |
+| Condition | 4D Flow dataset 2 – 8 GB (e.g., 320×320×128, 30 phases) |
+| Measurement | First phase interactive; remaining phases load in background |
+| Strategy | On-demand loading with sliding window cache (SRS-FR-048) |
+
+---
+
+#### SRS-NFR-024: 4D Flow Memory Management
+**Traces to**: PRD NFR-019
+
+| Attribute | Value |
+|-----------|-------|
+| Metric | Maximum phases in RAM simultaneously |
+| Target | ≤ 5 phases |
+| Condition | Sliding window cache active |
+| Measurement | Peak RSS during cine playback |
+| Example | 256×256×64 × 3 components × float × 5 phases ≈ 250 MB |
+
+---
+
+#### SRS-NFR-025: Flow Visualization Frame Rate
+**Traces to**: PRD NFR-020
+
+| Attribute | Value |
+|-----------|-------|
+| Metric | Rendering frames per second |
+| Target | ≥ 15 FPS |
+| Condition | ≤ 10,000 streamline seed points |
+| Measurement | VTK render window FPS counter during interaction |
+
+---
+
+#### SRS-NFR-026: Velocity Measurement Accuracy
+**Traces to**: PRD FR-014 (implicit quality requirement)
+
+| Attribute | Value |
+|-----------|-------|
+| Metric | Velocity measurement error |
+| Target | ≤ 2% relative error |
+| Condition | Compared to analytical phantom reference (Poiseuille flow) |
+| Measurement | `|V_measured - V_analytical| / V_analytical × 100` |
 
 ---
 
@@ -1667,6 +1977,14 @@ See SRS-FR-039 for detailed layout specification.
 | FR-010.4 | C-STORE SCP | SRS-FR-037 |
 | FR-010.5 | PACS configuration | SRS-FR-038 |
 | FR-011.1~6 | UI requirements | SRS-FR-039, SRS-FR-040 |
+| FR-014.1~2 | 4D Flow DICOM parsing | SRS-FR-043 |
+| FR-014.3 | Velocity field assembly | SRS-FR-044 |
+| FR-014.4 | Phase correction | SRS-FR-045 |
+| FR-014.5~8 | Flow visualization | SRS-FR-046 |
+| FR-014.9~11 | Temporal navigation | SRS-FR-048 |
+| FR-014.12~15 | Flow quantification (basic) | SRS-FR-047 |
+| FR-014.16~19 | Advanced hemodynamic analysis | SRS-FR-047 |
+| FR-014.20~21 | Flow export and reporting | SRS-FR-047 |
 | NFR-001 | Loading time | SRS-NFR-001 |
 | NFR-002 | Rendering FPS | SRS-NFR-002 |
 | NFR-003 | Slice transition response | SRS-NFR-003 |
@@ -1682,6 +2000,11 @@ See SRS-FR-039 for detailed layout specification.
 | NFR-013 | Anonymization | SRS-NFR-013 |
 | NFR-014 | TLS encryption | SRS-NFR-014 |
 | NFR-015 | Settings encryption | SRS-NFR-015 |
+| NFR-016 | 4D Flow loading (≤300 MB) | SRS-NFR-021 |
+| NFR-017 | 4D Flow loading (300 MB–2 GB) | SRS-NFR-022 |
+| NFR-018 | 4D Flow loading (2–8 GB) | SRS-NFR-023 |
+| NFR-019 | 4D Flow memory (sliding window) | SRS-NFR-024 |
+| NFR-020 | 4D Flow streamline rendering | SRS-NFR-025 |
 
 ### 7.2 SRS to Reference Document Traceability
 
@@ -1695,6 +2018,11 @@ See SRS-FR-039 for detailed layout specification.
 | SRS-FR-020~025, SRS-FR-042 | REF-001, REF-004 |
 | SRS-FR-026~030 | REF-002, REF-004 |
 | SRS-FR-034~037 | REF-005 |
+| SRS-FR-043~044 | REF-001, REF-004 |
+| SRS-FR-045 | REF-001 |
+| SRS-FR-046 | REF-002 |
+| SRS-FR-047 | REF-001, REF-002 |
+| SRS-FR-048 | REF-006 |
 
 ---
 
@@ -1735,6 +2063,7 @@ See SRS-FR-039 for detailed layout specification.
 | 0.2.0 | 2025-12-31 | Development Team | Added segmentation (SRS-FR-020~025), measurement (SRS-FR-026~030), ROI management (SRS-FR-031) |
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 | 0.4.0 | 2026-02-11 | Development Team | Added SRS-FR-041 (Histogram Equalization), SRS-FR-042 (Watershed Segmentation); fixed PRD traceability gaps for FR-005.3 and FR-006.6 |
+| 0.5.0 | 2026-02-11 | Development Team | Added SRS-FR-043~048 (4D Flow MRI: DICOM parsing, velocity assembly, phase correction, visualization, quantification, temporal navigation); added SRS-NFR-021~026 (tiered performance targets); updated PRD→SRS and SRS→Reference traceability |
 
 ---
 
