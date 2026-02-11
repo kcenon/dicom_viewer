@@ -90,7 +90,7 @@ DICOM Viewer는 의료 영상(CT, MRI, DR/CR) 뷰어로서:
 │   │                     Controller Layer                             │  │
 │   │                                                                   │  │
 │   │    ViewerController → LoadingController, RenderingController,    │  │
-│   │                       ToolController, NetworkController          │  │
+│   │                       ToolController                             │  │
 │   │                                                                   │  │
 │   └─────────────────────────────────────────────────────────────────┘  │
 │                              │                                          │

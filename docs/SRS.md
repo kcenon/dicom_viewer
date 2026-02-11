@@ -90,7 +90,7 @@ DICOM Viewer is a desktop application for medical imaging (CT, MRI, DR/CR) that 
 │   │                     Controller Layer                             │  │
 │   │                                                                   │  │
 │   │    ViewerController → LoadingController, RenderingController,    │  │
-│   │                       ToolController, NetworkController          │  │
+│   │                       ToolController                             │  │
 │   │                                                                   │  │
 │   └─────────────────────────────────────────────────────────────────┘  │
 │                              │                                          │

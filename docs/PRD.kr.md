@@ -695,8 +695,7 @@
 │   │                                                                   │  │
 │   │  ViewerController ─┬─ LoadingController (로딩 제어)              │  │
 │   │                    ├─ RenderingController (렌더링 제어)          │  │
-│   │                    ├─ ToolController (도구 제어)                 │  │
-│   │                    └─ NetworkController (PACS 제어)              │  │
+│   │                    └─ ToolController (도구 제어)                 │  │
 │   │                                                                   │  │
 │   └─────────────────────────────────────────────────────────────────┘  │
 │                              │                                          │
