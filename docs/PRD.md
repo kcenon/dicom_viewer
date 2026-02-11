@@ -1,6 +1,6 @@
 # DICOM Viewer - Product Requirements Document (PRD)
 
-> **Version**: 0.3.0
+> **Version**: 0.4.0
 > **Created**: 2025-12-31
 > **Last Updated**: 2026-02-11
 > **Status**: Draft (Pre-release)
@@ -21,6 +21,7 @@
 | **CT/MRI 3D Visualization** | Volume rendering, surface rendering, MPR view | P0 (Critical) |
 | **Region Segmentation** | Automatic/semi-automatic/manual segmentation tools, multi-label support, morphological post-processing | P1 (High) |
 | **Region Measurement & Analysis** | ROI-based area/volume measurement, HU statistics, quantitative analysis, report generation | P1 (High) |
+| **4D Flow MRI Analysis** | Velocity-encoded blood flow visualization and quantification | P1 (High) |
 | **DR/CR 2D Viewing** | Basic 2D image viewing and Window/Level adjustment | P2 (Medium) |
 | **PACS Integration** | PACS integration via C-FIND, C-MOVE, C-STORE | P1 (High) |
 
@@ -30,6 +31,7 @@
 - Volume rendering frame rate: **30 FPS or higher**
 - Memory usage: **under 2GB** for 1GB volume data
 - Supported compression formats: JPEG, JPEG 2000, JPEG-LS, RLE
+- 4D Flow MRI: **under 15 seconds** for standard dataset (≤2 GB), cine playback at **15 FPS or higher**
 
 ---
 
@@ -94,6 +96,8 @@
 | UC-08 | Radiologist | HU statistics analysis (Mean, StdDev) after tumor ROI definition | P1 |
 | UC-09 | Researcher | Multi-organ segmentation (liver, spleen, kidney) for comparative analysis | P1 |
 | UC-10 | Researcher | Save segmentation results as NRRD and generate analysis report | P2 |
+| UC-11 | Radiologist | Visualize aortic blood flow from 4D Flow MRI with streamlines and measure flow rate at cross-section | P1 |
+| UC-12 | Researcher | Analyze Wall Shear Stress distribution on vessel wall from 4D Flow MRI data | P2 |
 
 ---
 
@@ -547,6 +551,93 @@
 | FR-011.5 | Multi-monitor support |
 | FR-011.6 | Layout save/restore |
 
+### 3.7 4D Flow MRI Analysis (P1 - High)
+
+#### FR-014: 4D Flow MRI
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    4D Flow MRI Pipeline                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   ┌──────────────┐   ┌──────────────┐   ┌──────────────────────────┐  │
+│   │ DICOM Parse  │ → │ Vector Field │ → │    Phase Correction      │  │
+│   │              │   │  Assembly    │   │                          │  │
+│   │ • Siemens    │   │ • Mag + Vx,  │   │ • Aliasing unwrap       │  │
+│   │ • Philips    │   │   Vy, Vz     │   │ • Eddy current          │  │
+│   │ • GE         │   │ • VENC scale │   │ • Maxwell terms         │  │
+│   └──────────────┘   └──────────────┘   └──────────────────────────┘  │
+│                                                │                       │
+│                          ┌─────────────────────┘                       │
+│                          ↓                                             │
+│   ┌──────────────────────────────────────────────────────────────────┐│
+│   │                     Visualization & Analysis                       ││
+│   │                                                                    ││
+│   │   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────┐ ││
+│   │   │Streamline│   │ Pathline │   │  Vector  │   │  Temporal    │ ││
+│   │   │          │   │          │   │  Glyph   │   │  Navigation  │ ││
+│   │   └──────────┘   └──────────┘   └──────────┘   └──────────────┘ ││
+│   │                                                                    ││
+│   │   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────┐ ││
+│   │   │Flow Rate │   │   WSS    │   │ Pressure │   │    Report    │ ││
+│   │   │          │   │          │   │ Gradient │   │   Export     │ ││
+│   │   └──────────┘   └──────────┘   └──────────┘   └──────────────┘ ││
+│   └──────────────────────────────────────────────────────────────────┘│
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**FR-014.A: 4D Flow DICOM Parsing and Data Assembly**
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-014.1 | Load 4D Flow MRI DICOM series with vendor-specific parsing (Siemens, Philips, GE) | P1 |
+| FR-014.2 | Identify and sort velocity-encoded components (Magnitude, Vx, Vy, Vz) per cardiac phase | P1 |
+| FR-014.3 | Assemble 3D velocity vector fields from encoded components with VENC scaling | P1 |
+| FR-014.4 | Apply phase correction (velocity aliasing unwrap, eddy current, Maxwell terms) | P1 |
+
+**FR-014.B: Flow Visualization**
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-014.5 | Streamline rendering showing instantaneous flow trajectories | P1 |
+| FR-014.6 | Pathline rendering showing particle motion across cardiac phases | P1 |
+| FR-014.7 | Vector glyph display (arrow-shaped markers for velocity direction and magnitude) | P1 |
+| FR-014.8 | Color mapping by velocity magnitude, direction, or component | P1 |
+
+**FR-014.C: Temporal Navigation**
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-014.9 | Cardiac phase slider with playback controls (play/pause/stop) | P1 |
+| FR-014.10 | Cine mode with configurable frame rate (1-30 fps) | P1 |
+| FR-014.11 | ECG-gated timeline display | P2 |
+
+**FR-014.D: Flow Quantification**
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-014.12 | Flow rate measurement (mL/s) at user-defined cross-sectional planes | P1 |
+| FR-014.13 | Time-velocity curve generation across cardiac cycle | P1 |
+| FR-014.14 | Stroke volume and regurgitant fraction calculation | P1 |
+| FR-014.15 | Pressure gradient estimation (simplified Bernoulli) | P2 |
+
+**FR-014.E: Advanced Hemodynamic Analysis**
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-014.16 | Wall Shear Stress (WSS) calculation on vessel boundaries | P2 |
+| FR-014.17 | Oscillatory Shear Index (OSI) computation | P2 |
+| FR-014.18 | Turbulent Kinetic Energy (TKE) estimation | P2 |
+| FR-014.19 | Vorticity and helicity analysis | P3 |
+
+**FR-014.F: Export and Reporting**
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-014.20 | Export flow quantification results (CSV) | P2 |
+| FR-014.21 | Include flow measurements in analysis reports (PDF) | P2 |
+
 ---
 
 ## 4. Non-Functional Requirements
@@ -560,6 +651,11 @@
 | NFR-003 | MPR slice transition response | ≤ 100ms |
 | NFR-004 | Memory usage (1GB volume) | ≤ 2GB |
 | NFR-005 | Startup time (Cold Start) | ≤ 5 seconds |
+| NFR-016 | 4D Flow loading (≤300 MB) | ≤ 5 seconds |
+| NFR-017 | 4D Flow loading (300 MB–2 GB) | ≤ 15 seconds |
+| NFR-018 | 4D Flow loading (2–8 GB) | ≤ 45 seconds (streaming) |
+| NFR-019 | 4D Flow memory (sliding window) | ≤ 5 phases in RAM simultaneously |
+| NFR-020 | 4D Flow streamline rendering | ≥ 15 FPS for ≤ 10K seed points |
 
 ### 4.2 Compatibility
 
@@ -780,21 +876,21 @@
 │                          Release Timeline                                │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│   Phase 1: Foundation        Phase 2: Core        Phase 3: Enhancement  │
-│   ─────────────────          ──────────────       ──────────────────    │
+│   Phase 1: Foundation    Phase 2: Core     Phase 3: Enhance  Phase 4: Flow│
+│   ─────────────────      ──────────────   ────────────────   ────────────│
 │                                                                         │
-│   v0.1 ──┬── v0.2 ──┬── v0.3 ──┬── v0.4 ──┬── v0.5 ──┬── v1.0         │
-│   (Pre)  │  (Pre)   │  (MVP)   │  (Core)  │  (Enh)   │  (Release)      │
-│   ┌──────┘   ┌──────┘   ┌──────┘   ┌──────┘   ┌──────┘                 │
-│   │          │          │          │          │                         │
-│   Week 1-2   Week 3-4   Week 5-8   Week 9-12  Week 13-16               │
+│   v0.1 ─┬─ v0.2 ─┬─ v0.3 ─┬─ v0.4 ─┬─ v0.5 ─┬─ v0.6 ─┬─ v1.0        │
+│   (Pre) │ (Pre)  │ (MVP)  │ (Core) │ (Enh)  │ (Flow) │ (Release)     │
+│   ┌─────┘  ┌─────┘  ┌─────┘  ┌─────┘  ┌─────┘  ┌─────┘               │
+│   │        │        │        │        │        │                       │
+│   Wk 1-2   Wk 3-4   Wk 5-8   Wk 9-12  Wk 13-16 Wk 17-24             │
 │                                                                         │
-│   • Project  • DICOM    • MPR View • PACS     • DR/CR                  │
-│     setup      loading  • Volume     integr.  • Advanced               │
-│   • Basic UI • ITK/VTK    rendering• Measure    segment.               │
-│              integr.   • Surface   • Basic   • Quant.                  │
-│                          rendering   segment.   analysis               │
-│                        • Presets              • Reports                │
+│   • Project • DICOM  • MPR    • PACS   • DR/CR  • 4D Flow             │
+│     setup     load   • Volume   integr.• Adv.     DICOM               │
+│   • Basic  • ITK/     render.• Measure   segm.  • Flow viz            │
+│     UI       VTK    • Surface• Basic   • Quant.  • Quantify           │
+│              integr.   render.  segm.    analysis• WSS/TKE            │
+│                      • Presets         • Reports                       │
 │                                                                         │
 │   ※ v0.x.x: Pre-release (in development) / v1.0.0+: Official release  │
 │                                                                         │
@@ -855,6 +951,20 @@
 | M4.10 | STL export | Mesh for 3D printing |
 | M4.11 | User settings | Layout, preset save |
 
+#### Milestone 5: 4D Flow MRI Analysis (v0.6.0) - Week 17-24
+
+| Item | Description | Completion Criteria |
+|------|-------------|---------------------|
+| M5.1 | 4D Flow DICOM parsing | Vendor-specific (Siemens, Philips, GE) parsing verified |
+| M5.2 | Velocity field assembly | Vector field construction with VENC scaling |
+| M5.3 | Phase correction | Aliasing unwrap, eddy current correction |
+| M5.4 | Temporal navigation | Cardiac phase slider, cine playback at ≥15 fps |
+| M5.5 | Flow visualization | Streamlines, pathlines, vector glyphs |
+| M5.6 | Flow quantification | Flow rate at cross-section, time-velocity curves |
+| M5.7 | Advanced analysis | WSS, OSI, TKE on vessel boundaries |
+| M5.8 | Flow export and reporting | CSV export of flow results, PDF report integration |
+| M5.9 | Integration testing | End-to-end validation with analytical ground truth |
+
 ---
 
 ## 8. Risks & Mitigations
@@ -867,6 +977,8 @@
 | Memory shortage for large data | High | Medium | Streaming loading, LOD implementation |
 | ITK-VTK version compatibility | Medium | Low | Version pinning with vcpkg |
 | Compression format decoding failure | Medium | Low | Pre-validate pacs_system codecs |
+| 4D Flow vendor DICOM variability | High | High | Test with datasets from all 3 major vendors |
+| 4D Flow memory pressure (>1 GB datasets) | High | Medium | Sliding window cache, memory-mapped I/O |
 
 ### 8.2 Schedule Risks
 
@@ -885,7 +997,7 @@
 | Modality | Code | Priority | 3D Support | Features |
 |----------|------|----------|------------|----------|
 | CT | CT | P0 | Yes | Volume rendering, MPR, HU |
-| MRI | MR | P0 | Yes | Volume rendering, MPR, multi-sequence |
+| MRI | MR | P0 | Yes | Volume rendering, MPR, multi-sequence, 4D Flow (velocity-encoded) |
 | DR (Digital Radiography) | DX | P2 | No | 2D viewing |
 | CR (Computed Radiography) | CR | P2 | No | 2D viewing |
 | PET | PT | P3 | Yes | Fusion view (future) |
@@ -918,6 +1030,7 @@ For coordinate system information, see [03-itk-vtk-integration.md](reference/03-
 | 0.1.0 | 2025-12-31 | Development Team | Initial PRD |
 | 0.2.0 | 2025-12-31 | Development Team | Detailed segmentation and region measurement features (FR-006, FR-007 expansion, FR-012, FR-013 addition) |
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
+| 0.4.0 | 2026-02-11 | Development Team | Added FR-014 (4D Flow MRI Analysis) with 21 sub-requirements; added NFR-016~020 for tiered performance targets; added UC-11, UC-12; added Milestone 5 (v0.6.0) |
 
 > **Note**: v0.x.x are Pre-release versions. Official releases start from v1.0.0.
 
