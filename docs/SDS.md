@@ -1,11 +1,11 @@
 # DICOM Viewer - Software Design Specification (SDS)
 
-> **Version**: 0.3.0
+> **Version**: 0.4.0
 > **Created**: 2025-12-31
 > **Last Updated**: 2026-02-11
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
-> **Based on**: [SRS v0.3.0](SRS.md), [PRD v0.3.0](PRD.md)
+> **Based on**: [SRS v0.4.0](SRS.md), [PRD v0.3.0](PRD.md)
 
 ---
 
@@ -234,7 +234,7 @@ flowchart TB
 
 ### SDS-ARCH-002: Layer Responsibilities
 
-**Traces to**: SRS-FR-001 through SRS-FR-050
+**Traces to**: SRS-FR-001 through SRS-FR-042
 
 | Layer | Responsibility | Key Technologies | Dependencies |
 |-------|---------------|------------------|--------------|
@@ -691,7 +691,7 @@ classDiagram
 
 ### SDS-MOD-002: Image Service Module
 
-**Traces to**: SRS-FR-001 ~ SRS-FR-004, SRS-FR-016 ~ SRS-FR-030
+**Traces to**: SRS-FR-001 ~ SRS-FR-004, SRS-FR-016 ~ SRS-FR-025, SRS-FR-041, SRS-FR-042
 
 **Purpose**: Provide DICOM loading, preprocessing, segmentation, and conversion functionality
 
@@ -706,14 +706,14 @@ classDiagram
 | AnisotropicDiffusionFilter | Edge-preserving noise reduction | SRS-FR-017 |
 | N4BiasCorrector | MRI bias field correction | SRS-FR-018 |
 | IsotropicResampler | Isotropic voxel resampling | SRS-FR-019 |
-| HistogramEqualizer | Histogram equalization | SRS-FR-020 |
-| ThresholdSegmenter | Otsu/manual threshold segmentation | SRS-FR-021 |
-| RegionGrowingSegmenter | Seed-based region growing | SRS-FR-022 |
-| LevelSetSegmenter | Geodesic active contour | SRS-FR-023 |
-| WatershedSegmenter | Watershed transform | SRS-FR-024 |
-| ManualSegmentationController | Brush, eraser, fill, smart scissors | SRS-FR-025 ~ SRS-FR-030 |
-| MorphologicalProcessor | Erosion, dilation, opening, closing | SRS-FR-031 ~ SRS-FR-035 |
-| LabelManager | Multi-label management and merging | SRS-FR-033 |
+| HistogramEqualizer | Histogram equalization | SRS-FR-041 |
+| ThresholdSegmenter | Otsu/manual threshold segmentation | SRS-FR-020 |
+| RegionGrowingSegmenter | Seed-based region growing | SRS-FR-021 |
+| LevelSetSegmenter | Geodesic active contour | SRS-FR-022 |
+| WatershedSegmenter | Watershed transform | SRS-FR-042 |
+| ManualSegmentationController | Brush, eraser, fill, smart scissors | SRS-FR-023 |
+| MorphologicalProcessor | Erosion, dilation, opening, closing | SRS-FR-025 |
+| LabelManager | Multi-label management and merging | SRS-FR-024 |
 
 **Class Diagram**:
 
@@ -862,7 +862,7 @@ classDiagram
 | MPRRenderer | Multiplanar reconstruction (axial/coronal/sagittal) | SRS-FR-008 ~ SRS-FR-011 |
 | ObliquResliceRenderer | Arbitrary angle reslicing | SRS-FR-011 |
 | TransferFunctionManager | Transfer function preset management | SRS-FR-006 |
-| DRViewer | Dedicated DR/CR 2D viewer | SRS-FR-042 ~ SRS-FR-044 |
+| DRViewer | Dedicated DR/CR 2D viewer | SRS-FR-033 |
 
 > **Implementation Note**: The class diagram below shows an `IRenderService` interface from the original design.
 > This interface is **not implemented** — components are accessed directly. See SDS-IF-001 for details.
@@ -944,7 +944,7 @@ classDiagram
 
 ### SDS-MOD-004: Measurement Service Module
 
-**Traces to**: SRS-FR-036 ~ SRS-FR-048
+**Traces to**: SRS-FR-026 ~ SRS-FR-031
 
 **Purpose**: Distance, angle, area, volume measurement and ROI management
 
@@ -952,11 +952,11 @@ classDiagram
 
 | Component | Description | Traces to |
 |-----------|-------------|-----------|
-| LinearMeasurementTool | Distance, angle, Cobb angle measurement | SRS-FR-036 ~ SRS-FR-038 |
-| AreaMeasurementTool | Ellipse, rectangle, polygon, freehand ROI | SRS-FR-039 ~ SRS-FR-041 |
-| VolumeCalculator | 3D volume calculation from segmented regions | SRS-FR-042 ~ SRS-FR-045 |
-| ROIStatistics | Mean, StdDev, Min/Max, histogram for ROI | SRS-FR-046 ~ SRS-FR-048 |
-| ShapeAnalyzer | Sphericity, elongation, principal axes | SRS-FR-049 |
+| LinearMeasurementTool | Distance, angle, Cobb angle measurement | SRS-FR-026 |
+| AreaMeasurementTool | Ellipse, rectangle, polygon, freehand ROI | SRS-FR-027 |
+| VolumeCalculator | 3D volume calculation from segmented regions | SRS-FR-029 |
+| ROIStatistics | Mean, StdDev, Min/Max, histogram for ROI | SRS-FR-028 |
+| ShapeAnalyzer | Sphericity, elongation, principal axes | SRS-FR-030 |
 | MPRCoordinateTransformer | World/screen/image coordinate conversion | SRS-FR-008 |
 
 > **Implementation Note**: The class diagram below shows an `IMeasurementService` interface from the original design.
@@ -1052,7 +1052,7 @@ classDiagram
 
 ### SDS-MOD-005: Network Service Module
 
-**Traces to**: SRS-FR-050 ~ SRS-FR-054
+**Traces to**: SRS-FR-034 ~ SRS-FR-038
 
 **Purpose**: PACS integration (C-FIND, C-MOVE, C-STORE, C-ECHO)
 
@@ -1060,11 +1060,11 @@ classDiagram
 
 | Component | Description | Traces to |
 |-----------|-------------|-----------|
-| DicomFindSCU | C-FIND query (Patient/Study/Series/Image level) | SRS-FR-051 |
-| DicomMoveSCU | C-MOVE retrieval with pending status handling | SRS-FR-052 |
-| DicomStoreSCP | C-STORE SCP receive server | SRS-FR-053 |
-| DicomEchoSCU | C-ECHO connectivity verification | SRS-FR-050 |
-| PacsConfigManager | PACS server configuration management | SRS-FR-054 |
+| DicomFindSCU | C-FIND query (Patient/Study/Series/Image level) | SRS-FR-035 |
+| DicomMoveSCU | C-MOVE retrieval with pending status handling | SRS-FR-036 |
+| DicomStoreSCP | C-STORE SCP receive server | SRS-FR-037 |
+| DicomEchoSCU | C-ECHO connectivity verification | SRS-FR-034 |
+| PacsConfigManager | PACS server configuration management | SRS-FR-038 |
 
 > **Note**: All PACS components use the `pacs_system` library (pacs::services, pacs::network, pacs::core).
 > The original design specified `QueryClient`, `RetrieveClient`, etc. — these were renamed during the
@@ -1137,7 +1137,7 @@ classDiagram
 
 ### SDS-MOD-006: UI Module
 
-**Traces to**: SRS-FR-055 ~ SRS-FR-060
+**Traces to**: SRS-FR-039, SRS-FR-040
 
 **Purpose**: Provide Qt6-based user interface
 
@@ -1145,10 +1145,10 @@ classDiagram
 
 | Component | Description | Traces to | Status |
 |-----------|-------------|-----------|--------|
-| MainWindow | Main window with dockable panels, dark theme | SRS-FR-055 | ✅ Implemented |
-| ViewportWidget | VTK rendering widget with QVTKOpenGLNativeWidget | SRS-FR-056 | ✅ Implemented |
-| PatientBrowser | Patient/study/series tree browser with search | SRS-FR-057 | ✅ Implemented |
-| ToolsPanel | Window/level controls, presets, visualization modes | SRS-FR-058 | ✅ Implemented |
+| MainWindow | Main window with dockable panels, dark theme | SRS-FR-039 | ✅ Implemented |
+| ViewportWidget | VTK rendering widget with QVTKOpenGLNativeWidget | SRS-FR-039 | ✅ Implemented |
+| PatientBrowser | Patient/study/series tree browser with search | SRS-FR-039 | ✅ Implemented |
+| ToolsPanel | Window/level controls, presets, visualization modes | SRS-FR-039 | ✅ Implemented |
 | SegmentationPanel | Segmentation tools panel (brush, eraser, fill, polygon, smart scissors) | SRS-FR-024 | ✅ Implemented |
 | StatisticsPanel | ROI statistics display, histogram, multi-ROI comparison, CSV export | SRS-FR-028 | ✅ Implemented |
 
@@ -1892,7 +1892,7 @@ sequenceDiagram
 
 ### SDS-SEQ-002: Segmentation Workflow Sequence
 
-**Traces to**: SRS-FR-021 ~ SRS-FR-035
+**Traces to**: SRS-FR-020 ~ SRS-FR-025, SRS-FR-042
 
 #### Mermaid Version
 
@@ -1998,7 +1998,7 @@ sequenceDiagram
 
 ### SDS-SEQ-003: Measurement and Statistics Sequence
 
-**Traces to**: SRS-FR-036 ~ SRS-FR-048
+**Traces to**: SRS-FR-026 ~ SRS-FR-031
 
 #### Mermaid Version
 
@@ -2199,14 +2199,14 @@ sequenceDiagram
 | FR-002 (Volume Rendering) | SRS-FR-005, SRS-FR-006, SRS-FR-007 | P0 |
 | FR-003 (MPR) | SRS-FR-008, SRS-FR-009, SRS-FR-010, SRS-FR-011 | P0 |
 | FR-004 (Surface Rendering) | SRS-FR-012, SRS-FR-013, SRS-FR-014, SRS-FR-015 | P0 |
-| FR-005 (Preprocessing) | SRS-FR-016, SRS-FR-017, SRS-FR-018, SRS-FR-019, SRS-FR-020 | P1 |
-| FR-006 (Segmentation) | SRS-FR-021 ~ SRS-FR-035 | P1 |
-| FR-007 (Measurement) | SRS-FR-036 ~ SRS-FR-048 | P1 |
-| FR-008 (2D Viewing) | SRS-FR-042, SRS-FR-043, SRS-FR-044, SRS-FR-045 | P2 |
-| FR-010 (PACS) | SRS-FR-050, SRS-FR-051, SRS-FR-052, SRS-FR-053, SRS-FR-054 | P1 |
-| FR-011 (UI) | SRS-FR-055 ~ SRS-FR-060 | P1 |
-| FR-012 (ROI Management) | SRS-FR-049 | P1 |
-| FR-013 (Analysis Report) | SRS-FR-048 | P2 |
+| FR-005 (Preprocessing) | SRS-FR-016~019, SRS-FR-041 | P1 |
+| FR-006 (Segmentation) | SRS-FR-020~025, SRS-FR-042 | P1 |
+| FR-007 (Measurement) | SRS-FR-026~030 | P1 |
+| FR-008 (2D Viewing) | SRS-FR-033 | P2 |
+| FR-010 (PACS) | SRS-FR-034~038 | P1 |
+| FR-011 (UI) | SRS-FR-039, SRS-FR-040 | P1 |
+| FR-012 (ROI Management) | SRS-FR-031 | P1 |
+| FR-013 (Analysis Report) | SRS-FR-032 | P2 |
 
 ---
 
@@ -2229,12 +2229,14 @@ sequenceDiagram
 | SRS-FR-013 | SDS-MOD-003 (SurfaceRenderer) | Render Service |
 | SRS-FR-014 | SDS-MOD-003 (SurfaceRenderer) | Render Service |
 | SRS-FR-015 | SDS-MOD-003 (SurfaceRenderer) | Render Service |
-| SRS-FR-016~020 | SDS-MOD-002 (Preprocessor) | Image Service |
-| SRS-FR-021~035 | SDS-MOD-002 (Segmentor), SDS-SEQ-002 | Image Service |
-| SRS-FR-036~048 | SDS-MOD-004, SDS-SEQ-003 | Measurement Service |
-| SRS-FR-049 | SDS-MOD-004 (ROIManager) | Measurement Service |
-| SRS-FR-050~054 | SDS-MOD-005 | Network Service |
-| SRS-FR-055~060 | SDS-MOD-006 | UI Module |
+| SRS-FR-016~019, SRS-FR-041 | SDS-MOD-002 (Preprocessor) | Image Service |
+| SRS-FR-020~025, SRS-FR-042 | SDS-MOD-002 (Segmentor), SDS-SEQ-002 | Image Service |
+| SRS-FR-026~030 | SDS-MOD-004, SDS-SEQ-003 | Measurement Service |
+| SRS-FR-031 | SDS-MOD-004 (ROIManager) | Measurement Service |
+| SRS-FR-032 | SDS-MOD-004 (ReportGenerator) | Measurement Service |
+| SRS-FR-033 | SDS-MOD-003 (DRViewer) | Render Service |
+| SRS-FR-034~038 | SDS-MOD-005 | Network Service |
+| SRS-FR-039, SRS-FR-040 | SDS-MOD-006 | UI Module |
 
 ---
 
@@ -2266,22 +2268,22 @@ sequenceDiagram
 | FR-004.5 | SRS-FR-015 | SDS-MOD-003 | Render (SurfaceRenderer) | ✅ Implemented |
 | FR-005.1 | SRS-FR-016 | SDS-MOD-002 | Preprocessing (GaussianSmoother) | ✅ Implemented |
 | FR-005.2 | SRS-FR-017 | SDS-MOD-002 | Preprocessing (AnisotropicDiffusionFilter) | ✅ Implemented |
-| FR-005.3 | SRS-FR-018 | SDS-MOD-002 | Preprocessing (N4BiasCorrector) | ✅ Implemented |
-| FR-005.4 | SRS-FR-019 | SDS-MOD-002 | Preprocessing (IsotropicResampler) | ✅ Implemented |
-| FR-005.5 | SRS-FR-020 | SDS-MOD-002 | Preprocessing (HistogramEqualizer) | ✅ Implemented |
-| FR-006.1~6 | SRS-FR-021~026 | SDS-MOD-002, SDS-SEQ-002 | Segmentation (Threshold, RegionGrowing, LevelSet, Watershed) | ✅ Implemented |
-| FR-006.7~12 | SRS-FR-027~032 | SDS-MOD-002 | Segmentation (ManualSegmentationController) | ✅ Implemented |
-| FR-006.13~18 | SRS-FR-033~035 | SDS-MOD-002, SDS-DATA-003 | Segmentation (MorphologicalProcessor, LabelManager) | ✅ Implemented |
-| FR-006.19~25 | SRS-FR-034~035 | SDS-MOD-002 | Segmentation (LabelMapOverlay, SliceInterpolator) | ✅ Implemented |
-| FR-007.1~5 | SRS-FR-036~038 | SDS-MOD-004, SDS-SEQ-003 | Measurement (LinearMeasurementTool) | ✅ Implemented |
-| FR-007.6~10 | SRS-FR-039~041 | SDS-MOD-004, SDS-DATA-004 | Measurement (AreaMeasurementTool) | ✅ Implemented |
-| FR-007.11~14 | SRS-FR-042~045 | SDS-MOD-004 | Measurement (VolumeCalculator) | ✅ Implemented |
+| FR-005.3 | SRS-FR-041 | SDS-MOD-002 | Preprocessing (HistogramEqualizer) | ✅ Implemented |
+| FR-005.4 | SRS-FR-018 | SDS-MOD-002 | Preprocessing (N4BiasCorrector) | ✅ Implemented |
+| FR-005.5 | SRS-FR-019 | SDS-MOD-002 | Preprocessing (IsotropicResampler) | ✅ Implemented |
+| FR-006.1~6 | SRS-FR-020~022, SRS-FR-042 | SDS-MOD-002, SDS-SEQ-002 | Segmentation (Threshold, RegionGrowing, LevelSet, Watershed) | ✅ Implemented |
+| FR-006.7~12 | SRS-FR-023 | SDS-MOD-002 | Segmentation (ManualSegmentationController) | ✅ Implemented |
+| FR-006.13~18 | SRS-FR-024 | SDS-MOD-002, SDS-DATA-003 | Segmentation (LabelManager) | ✅ Implemented |
+| FR-006.19~25 | SRS-FR-025 | SDS-MOD-002 | Segmentation (MorphologicalProcessor) | ✅ Implemented |
+| FR-007.1~5 | SRS-FR-026 | SDS-MOD-004, SDS-SEQ-003 | Measurement (LinearMeasurementTool) | ✅ Implemented |
+| FR-007.6~10 | SRS-FR-027 | SDS-MOD-004, SDS-DATA-004 | Measurement (AreaMeasurementTool) | ✅ Implemented |
+| FR-007.11~14 | SRS-FR-029 | SDS-MOD-004 | Measurement (VolumeCalculator) | ✅ Implemented |
 | FR-007.15~20 | SRS-FR-028 | SDS-MOD-004 | Measurement (ROIStatistics) | ✅ Implemented |
-| FR-007.21~25 | SRS-FR-048 | SDS-MOD-004 | Measurement (ShapeAnalyzer) | ✅ Implemented |
-| FR-010.1~5 | SRS-FR-050~054 | SDS-MOD-005 | PACS (DicomFindSCU, DicomMoveSCU, DicomStoreSCP, DicomEchoSCU, PacsConfigManager) | ✅ Implemented |
-| FR-011.1~6 | SRS-FR-055~060 | SDS-MOD-006 | UI (MainWindow, ViewportWidget, Panels, Dialogs) | 🟡 Partially Implemented |
-| FR-012.1~8 | SRS-FR-049 | SDS-MOD-004 | Measurement (AreaMeasurementTool) | ✅ Implemented |
-| FR-013.1~6 | SRS-FR-048 | SDS-MOD-004 | Measurement (ROIStatistics, ShapeAnalyzer) | ✅ Implemented |
+| FR-007.21~25 | SRS-FR-030 | SDS-MOD-004 | Measurement (ShapeAnalyzer) | ✅ Implemented |
+| FR-010.1~5 | SRS-FR-034~038 | SDS-MOD-005 | PACS (DicomFindSCU, DicomMoveSCU, DicomStoreSCP, DicomEchoSCU, PacsConfigManager) | ✅ Implemented |
+| FR-011.1~6 | SRS-FR-039, SRS-FR-040 | SDS-MOD-006 | UI (MainWindow, ViewportWidget, Panels, Dialogs) | 🟡 Partially Implemented |
+| FR-012.1~8 | SRS-FR-031 | SDS-MOD-004 | Measurement (ROIManager) | ✅ Implemented |
+| FR-013.1~6 | SRS-FR-032 | SDS-MOD-004 | Measurement (ReportGenerator) | ✅ Implemented |
 
 ---
 
@@ -2521,6 +2523,7 @@ dicom_viewer/
 | 0.1.0 | 2025-12-31 | Development Team | Initial SDS based on SRS 0.1.0 |
 | 0.2.0 | 2025-12-31 | Development Team | Added segmentation and measurement module design |
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
+| 0.4.0 | 2026-02-11 | Development Team | Fixed SRS-FR traceability references throughout (SRS has 42 requirements, not 60); aligned with SRS v0.4.0 |
 
 > **Note**: v0.x.x versions are pre-release. Official release starts from v1.0.0.
 
