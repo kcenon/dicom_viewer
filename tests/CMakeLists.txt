@@ -850,3 +850,20 @@ target_include_directories(flow_visualizer_test PRIVATE
 )
 
 gtest_discover_tests(flow_visualizer_test DISCOVERY_TIMEOUT 60)
+
+# Flow quantifier tests
+add_executable(flow_quantifier_test
+    unit/flow_quantifier_test.cpp
+)
+
+target_link_libraries(flow_quantifier_test PRIVATE
+    flow_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(flow_quantifier_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(flow_quantifier_test DISCOVERY_TIMEOUT 60)
