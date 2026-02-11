@@ -3,7 +3,7 @@
 > **High-Performance Medical Image Viewer** - CT/MRI 3D Volume Rendering and MPR View Support
 
 [![Version](https://img.shields.io/badge/version-0.3.0--pre-orange)](https://github.com)
-[![C++](https://img.shields.io/badge/C++-20-blue.svg)](https://isocpp.org)
+[![C++](https://img.shields.io/badge/C++-23-blue.svg)](https://isocpp.org)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause-green.svg)](LICENSE)
 
 ## Overview
