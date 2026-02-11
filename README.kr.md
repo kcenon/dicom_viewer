@@ -87,8 +87,10 @@
 | **GUI** | Qt | 6.5+ |
 | **영상 처리** | ITK | 5.4+ |
 | **시각화** | VTK | 9.3+ |
-| **DICOM 네트워크** | DCMTK | 3.6.8+ |
+| **DICOM 네트워크** | pacs_system | Latest |
 | **DICOM I/O** | GDCM (via ITK) | Latest |
+
+> **참고**: DICOM 네트워크 작업은 kcenon 에코시스템의 순수 C++20 PACS 구현체인 [pacs_system](https://github.com/kcenon/pacs_system)을 사용합니다.
 
 ## 아키텍처
 
@@ -153,10 +155,10 @@ DICOM Viewer는 **4-Layer 아키텍처**를 채택하여 관심사 분리와 유
 
 ```bash
 # macOS (Homebrew)
-brew install itk vtk qt@6 fftw dcmtk spdlog fmt nlohmann-json
+brew install itk vtk qt@6 fftw spdlog fmt nlohmann-json
 
 # vcpkg 사용 시
-vcpkg install itk[vtk] vtk[qt] qt6 fftw3 dcmtk spdlog fmt nlohmann-json
+vcpkg install itk[vtk] vtk[qt] qt6 fftw3 spdlog fmt nlohmann-json
 ```
 
 ### 빌드
