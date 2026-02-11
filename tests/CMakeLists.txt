@@ -798,3 +798,20 @@ target_include_directories(velocity_field_assembler_test PRIVATE
 )
 
 gtest_discover_tests(velocity_field_assembler_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Phase Corrector
+add_executable(phase_corrector_test
+    unit/phase_corrector_test.cpp
+)
+
+target_link_libraries(phase_corrector_test PRIVATE
+    flow_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(phase_corrector_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(phase_corrector_test DISCOVERY_TIMEOUT 60)
