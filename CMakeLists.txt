@@ -486,6 +486,19 @@ target_link_libraries(export_service PUBLIC
     ${VTK_LIBRARIES}
 )
 
+# Flow analysis service (4D Flow MRI)
+add_library(flow_service STATIC
+    src/services/flow/flow_dicom_parser.cpp
+    src/services/flow/vendor_parsers/siemens_flow_parser.cpp
+    src/services/flow/vendor_parsers/philips_flow_parser.cpp
+    src/services/flow/vendor_parsers/ge_flow_parser.cpp
+)
+
+target_link_libraries(flow_service PUBLIC
+    dicom_viewer_core
+    ${ITK_LIBRARIES}
+)
+
 # UI library
 add_library(dicom_viewer_ui STATIC
     src/ui/main_window.cpp
