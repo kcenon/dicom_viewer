@@ -96,25 +96,23 @@ flowchart TB
         SettingsDlg["SettingsDlg"]
     end
 
-    subgraph ControllerLayer["⚙️ Controller Layer"]
+    subgraph ControllerLayer["⚙️ Controller Layer (stub — not yet implemented)"]
         direction LR
         ViewerController["ViewerController"]
         LoadingCtrl["LoadingController"]
-        RenderCtrl["RenderController"]
+        RenderCtrl["RenderingController"]
         ToolCtrl["ToolController"]
-        NetworkCtrl["NetworkController"]
         ViewerController --- LoadingCtrl
         ViewerController --- RenderCtrl
         ViewerController --- ToolCtrl
-        ViewerController --- NetworkCtrl
     end
 
-    subgraph ServiceLayer["🔧 Service Layer"]
+    subgraph ServiceLayer["🔧 Service Layer (direct component access)"]
         direction LR
-        ImageService["ImageService<br/>• Loading<br/>• Preprocessing<br/>• Segmentation"]
-        RenderService["RenderService<br/>• Volume<br/>• Surface<br/>• MPR"]
-        MeasureService["MeasureService<br/>• Distance<br/>• Area/Volume<br/>• Statistics"]
-        NetworkService["NetworkService<br/>• C-FIND<br/>• C-MOVE<br/>• C-STORE"]
+        ImageServices["Image Services<br/>• DicomLoader<br/>• SeriesBuilder<br/>• ImageConverter"]
+        RenderServices["Render Services<br/>• VolumeRenderer<br/>• SurfaceRenderer<br/>• MPRRenderer"]
+        MeasureServices["Measurement Services<br/>• LinearMeasurementTool<br/>• AreaMeasurementTool<br/>• ROIStatistics"]
+        PACSServices["PACS Services<br/>• DicomFindSCU<br/>• DicomMoveSCU<br/>• DicomStoreSCP"]
     end
 
     subgraph DataLayer["💾 Data Layer"]
@@ -567,11 +565,16 @@ For detailed implementation code, client examples (React, Flutter), and deployme
 
 | Component | Description | File Location |
 |-----------|-------------|---------------|
-| Types | Common type definitions | `include/core/types.hpp` |
-| ImageBridge | ITK-VTK conversion | `include/core/image_bridge.hpp` |
-| MetadataStore | Metadata storage | `include/core/metadata_store.hpp` |
-| CoordinateSystem | Coordinate system conversion | `include/core/coordinate_system.hpp` |
-| TransferFunction | Transfer Function management | `include/core/transfer_function.hpp` |
+| DicomLoader | DICOM file/series loading (GDCM) | `include/core/dicom_loader.hpp` |
+| SeriesBuilder | Series assembly from slices | `include/core/series_builder.hpp` |
+| ImageConverter | ITK-VTK image conversion | `include/core/image_converter.hpp` |
+| HounsfieldConverter | HU value conversion | `include/core/hounsfield_converter.hpp` |
+| TransferSyntaxDecoder | Transfer syntax support detection | `include/core/transfer_syntax_decoder.hpp` |
+| Logging | Centralized logging (spdlog) | `include/core/logging.hpp` |
+
+> **Note**: The original design specified `ImageBridge`, `MetadataStore`, and `CoordinateSystem` classes.
+> In the current implementation, `ImageConverter` replaces `ImageBridge`, metadata is handled inline by `DicomLoader`,
+> and coordinate conversion is provided by `MPRCoordinateTransformer` in the coordinate service module.
 
 **Class Diagram**:
 
@@ -694,13 +697,23 @@ classDiagram
 
 **Components**:
 
+> **Implementation Note**: The original design specified a unified `ImageService` facade with `IImageService` interface.
+> The current implementation uses **direct component access** — each component is a standalone class without a facade orchestrator.
+
 | Component | Description | Traces to |
 |-----------|-------------|-----------|
-| DicomLoader | DICOM file/series loading | SRS-FR-001, SRS-FR-002 |
-| CodecManager | Transfer Syntax decoding | SRS-FR-003 |
-| Preprocessor | Image preprocessing filters | SRS-FR-016 ~ SRS-FR-020 |
-| Segmentor | Segmentation algorithms | SRS-FR-021 ~ SRS-FR-035 |
-| HUConverter | HU value conversion | SRS-FR-004 |
+| GaussianSmoother | Gaussian smoothing filter | SRS-FR-016 |
+| AnisotropicDiffusionFilter | Edge-preserving noise reduction | SRS-FR-017 |
+| N4BiasCorrector | MRI bias field correction | SRS-FR-018 |
+| IsotropicResampler | Isotropic voxel resampling | SRS-FR-019 |
+| HistogramEqualizer | Histogram equalization | SRS-FR-020 |
+| ThresholdSegmenter | Otsu/manual threshold segmentation | SRS-FR-021 |
+| RegionGrowingSegmenter | Seed-based region growing | SRS-FR-022 |
+| LevelSetSegmenter | Geodesic active contour | SRS-FR-023 |
+| WatershedSegmenter | Watershed transform | SRS-FR-024 |
+| ManualSegmentationController | Brush, eraser, fill, smart scissors | SRS-FR-025 ~ SRS-FR-030 |
+| MorphologicalProcessor | Erosion, dilation, opening, closing | SRS-FR-031 ~ SRS-FR-035 |
+| LabelManager | Multi-label management and merging | SRS-FR-033 |
 
 **Class Diagram**:
 
@@ -844,11 +857,12 @@ classDiagram
 
 | Component | Description | Traces to |
 |-----------|-------------|-----------|
-| VolumeRenderer | GPU volume rendering | SRS-FR-005, SRS-FR-006 |
-| SurfaceRenderer | Isosurface extraction and rendering | SRS-FR-012 ~ SRS-FR-015 |
-| MPRRenderer | Multiplanar reconstruction | SRS-FR-008 ~ SRS-FR-011 |
-| SliceViewer | 2D slice view | SRS-FR-042 ~ SRS-FR-044 |
-| TransferFunctionManager | Transfer Function management | SRS-FR-006 |
+| VolumeRenderer | GPU volume ray casting (with CPU fallback) | SRS-FR-005, SRS-FR-006 |
+| SurfaceRenderer | Marching Cubes isosurface extraction | SRS-FR-012 ~ SRS-FR-015 |
+| MPRRenderer | Multiplanar reconstruction (axial/coronal/sagittal) | SRS-FR-008 ~ SRS-FR-011 |
+| ObliquResliceRenderer | Arbitrary angle reslicing | SRS-FR-011 |
+| TransferFunctionManager | Transfer function preset management | SRS-FR-006 |
+| DRViewer | Dedicated DR/CR 2D viewer | SRS-FR-042 ~ SRS-FR-044 |
 
 **Class Diagram**:
 
@@ -935,11 +949,12 @@ classDiagram
 
 | Component | Description | Traces to |
 |-----------|-------------|-----------|
-| LinearMeasurement | Distance, angle measurement | SRS-FR-036 ~ SRS-FR-038 |
-| AreaMeasurement | Area measurement, ROI | SRS-FR-039 ~ SRS-FR-041 |
-| VolumeMeasurement | Volume measurement | SRS-FR-042 ~ SRS-FR-045 |
-| StatisticsCalculator | Statistics analysis | SRS-FR-046 ~ SRS-FR-048 |
-| ROIManager | ROI management | SRS-FR-049 |
+| LinearMeasurementTool | Distance, angle, Cobb angle measurement | SRS-FR-036 ~ SRS-FR-038 |
+| AreaMeasurementTool | Ellipse, rectangle, polygon, freehand ROI | SRS-FR-039 ~ SRS-FR-041 |
+| VolumeCalculator | 3D volume calculation from segmented regions | SRS-FR-042 ~ SRS-FR-045 |
+| ROIStatistics | Mean, StdDev, Min/Max, histogram for ROI | SRS-FR-046 ~ SRS-FR-048 |
+| ShapeAnalyzer | Sphericity, elongation, principal axes | SRS-FR-049 |
+| MPRCoordinateTransformer | World/screen/image coordinate conversion | SRS-FR-008 |
 
 **Class Diagram**:
 
@@ -1039,11 +1054,15 @@ classDiagram
 
 | Component | Description | Traces to |
 |-----------|-------------|-----------|
-| QueryClient | C-FIND SCU | SRS-FR-051 |
-| RetrieveClient | C-MOVE SCU | SRS-FR-052 |
-| StorageServer | C-STORE SCP | SRS-FR-053 |
-| EchoClient | C-ECHO SCU | SRS-FR-050 |
-| PACSConfigManager | PACS configuration management | SRS-FR-054 |
+| DicomFindSCU | C-FIND query (Patient/Study/Series/Image level) | SRS-FR-051 |
+| DicomMoveSCU | C-MOVE retrieval with pending status handling | SRS-FR-052 |
+| DicomStoreSCP | C-STORE SCP receive server | SRS-FR-053 |
+| DicomEchoSCU | C-ECHO connectivity verification | SRS-FR-050 |
+| PacsConfigManager | PACS server configuration management | SRS-FR-054 |
+
+> **Note**: All PACS components use the `pacs_system` library (pacs::services, pacs::network, pacs::core).
+> The original design specified `QueryClient`, `RetrieveClient`, etc. — these were renamed during the
+> DCMTK → pacs_system migration (#110-#117) to follow DICOM service class naming conventions.
 
 **Class Diagram**:
 
@@ -1548,8 +1567,17 @@ const std::vector<TransferFunctionPreset> CT_PRESETS = {
 
 **Traces to**: SRS-IF-001 ~ SRS-IF-010
 
+> **Implementation Status**: The interface classes below (`IImageService`, `IRenderService`,
+> `IMeasurementService`, `INetworkService`) represent the **original design specification**.
+> They are **not yet implemented** as abstract interfaces. The current codebase uses
+> **direct component classes** (e.g., `VolumeRenderer`, `ThresholdSegmenter`, `DicomFindSCU`)
+> without a service facade layer. These interface definitions are retained as a design reference
+> for potential future refactoring toward dependency injection.
+
 ```cpp
-// Service Interfaces (include/services/interfaces.hpp)
+// Service Interfaces — DESIGN REFERENCE (not yet implemented)
+// Actual implementation uses direct component access pattern.
+// See individual component headers in include/services/ for current API.
 namespace dicom_viewer {
 
 // Image Service Interface
@@ -2249,79 +2277,143 @@ dicom_viewer/
 ├── include/
 │   └── dicom_viewer/
 │       ├── core/
-│       │   ├── types.hpp               # SDS-DATA-001
-│       │   ├── image_bridge.hpp        # SDS-MOD-001
-│       │   ├── metadata.hpp            # SDS-DATA-002
-│       │   ├── segmentation_types.hpp  # SDS-DATA-003
-│       │   ├── measurement_types.hpp   # SDS-DATA-004
-│       │   ├── transfer_function.hpp   # SDS-DATA-005
-│       │   └── coordinate_system.hpp
+│       │   ├── dicom_loader.hpp        # SDS-MOD-001
+│       │   ├── series_builder.hpp
+│       │   ├── transfer_syntax_decoder.hpp
+│       │   ├── image_converter.hpp
+│       │   ├── hounsfield_converter.hpp
+│       │   ├── logging.hpp
+│       │   └── platform/
+│       │       └── macos_math_fix.hpp
 │       │
 │       ├── services/
-│       │   ├── interfaces.hpp          # SDS-IF-001
-│       │   ├── image_service.hpp       # SDS-MOD-002
-│       │   ├── render_service.hpp      # SDS-MOD-003
-│       │   ├── measurement_service.hpp # SDS-MOD-004
-│       │   └── network_service.hpp     # SDS-MOD-005
-│       │
-│       ├── controllers/
-│       │   ├── viewer_controller.hpp
-│       │   ├── loading_controller.hpp
-│       │   ├── rendering_controller.hpp
-│       │   ├── tool_controller.hpp
-│       │   └── network_controller.hpp
+│       │   ├── preprocessing/          # SDS-MOD-002 (preprocessing)
+│       │   │   ├── gaussian_smoother.hpp
+│       │   │   ├── anisotropic_diffusion_filter.hpp
+│       │   │   ├── n4_bias_corrector.hpp
+│       │   │   ├── isotropic_resampler.hpp
+│       │   │   └── histogram_equalizer.hpp
+│       │   ├── segmentation/           # SDS-MOD-002 (segmentation)
+│       │   │   ├── threshold_segmenter.hpp
+│       │   │   ├── region_growing_segmenter.hpp
+│       │   │   ├── level_set_segmenter.hpp
+│       │   │   ├── watershed_segmenter.hpp
+│       │   │   ├── manual_segmentation_controller.hpp
+│       │   │   ├── morphological_processor.hpp
+│       │   │   ├── label_manager.hpp
+│       │   │   ├── label_map_overlay.hpp
+│       │   │   ├── slice_interpolator.hpp
+│       │   │   └── mpr_segmentation_renderer.hpp
+│       │   ├── render/                 # SDS-MOD-003
+│       │   │   ├── volume_renderer.hpp
+│       │   │   └── surface_renderer.hpp
+│       │   ├── measurement/            # SDS-MOD-004
+│       │   │   ├── linear_measurement_tool.hpp
+│       │   │   ├── area_measurement_tool.hpp
+│       │   │   ├── roi_statistics.hpp
+│       │   │   ├── volume_calculator.hpp
+│       │   │   └── shape_analyzer.hpp
+│       │   ├── coordinate/
+│       │   │   └── mpr_coordinate_transformer.hpp
+│       │   ├── pacs/                   # SDS-MOD-005
+│       │   │   ├── dicom_echo_scu.hpp
+│       │   │   ├── dicom_find_scu.hpp
+│       │   │   ├── dicom_move_scu.hpp
+│       │   │   ├── dicom_store_scp.hpp
+│       │   │   └── pacs_config_manager.hpp
+│       │   ├── export/
+│       │   │   ├── report_generator.hpp
+│       │   │   ├── data_exporter.hpp
+│       │   │   ├── measurement_serializer.hpp
+│       │   │   ├── mesh_exporter.hpp
+│       │   │   └── dicom_sr_writer.hpp
+│       │   ├── mpr_renderer.hpp
+│       │   ├── oblique_reslice_renderer.hpp
+│       │   └── transfer_function_manager.hpp
 │       │
 │       └── ui/
 │           ├── main_window.hpp         # SDS-MOD-006
-│           ├── viewport_widget.hpp
-│           ├── patient_browser.hpp
-│           ├── tools_panel.hpp
-│           ├── segmentation_panel.hpp
-│           ├── measurement_panel.hpp
-│           └── signals.hpp             # SDS-IF-002
+│           ├── widgets/
+│           │   ├── viewport_widget.hpp
+│           │   ├── mpr_widget.hpp
+│           │   ├── mpr_view_widget.hpp
+│           │   └── dr_viewer.hpp
+│           ├── panels/
+│           │   ├── patient_browser.hpp
+│           │   ├── tools_panel.hpp
+│           │   ├── statistics_panel.hpp
+│           │   └── segmentation_panel.hpp
+│           └── dialogs/
+│               ├── settings_dialog.hpp
+│               └── pacs_config_dialog.hpp
 │
 ├── src/
+│   ├── app/
+│   │   └── main.cpp
+│   │
 │   ├── core/
-│   │   ├── image_bridge.cpp
-│   │   ├── metadata_store.cpp
-│   │   └── coordinate_system.cpp
+│   │   ├── dicom/
+│   │   │   ├── dicom_loader.cpp
+│   │   │   ├── series_builder.cpp
+│   │   │   └── transfer_syntax_decoder.cpp
+│   │   ├── image/
+│   │   │   ├── image_converter.cpp
+│   │   │   └── hounsfield_converter.cpp
+│   │   ├── data/
+│   │   │   └── patient_data.cpp
+│   │   └── logging/
+│   │       └── logging.cpp
 │   │
 │   ├── services/
-│   │   ├── image_service/
-│   │   │   ├── image_service.cpp
-│   │   │   ├── dicom_loader.cpp
-│   │   │   ├── codec_manager.cpp
-│   │   │   ├── preprocessor.cpp
-│   │   │   └── segmentor.cpp
-│   │   │
-│   │   ├── render_service/
-│   │   │   ├── render_service.cpp
+│   │   ├── preprocessing/
+│   │   │   ├── gaussian_smoother.cpp
+│   │   │   ├── anisotropic_diffusion_filter.cpp
+│   │   │   ├── n4_bias_corrector.cpp
+│   │   │   ├── isotropic_resampler.cpp
+│   │   │   └── histogram_equalizer.cpp
+│   │   ├── segmentation/
+│   │   │   ├── threshold_segmenter.cpp
+│   │   │   ├── region_growing_segmenter.cpp
+│   │   │   ├── level_set_segmenter.cpp
+│   │   │   ├── watershed_segmenter.cpp
+│   │   │   ├── manual_segmentation_controller.cpp
+│   │   │   ├── morphological_processor.cpp
+│   │   │   ├── label_manager.cpp
+│   │   │   ├── label_map_overlay.cpp
+│   │   │   ├── slice_interpolator.cpp
+│   │   │   └── mpr_segmentation_renderer.cpp
+│   │   ├── render/
 │   │   │   ├── volume_renderer.cpp
 │   │   │   ├── surface_renderer.cpp
 │   │   │   ├── mpr_renderer.cpp
-│   │   │   └── transfer_function_manager.cpp
-│   │   │
-│   │   ├── measurement_service/
-│   │   │   ├── measurement_service.cpp
-│   │   │   ├── linear_measurement.cpp
-│   │   │   ├── area_measurement.cpp
-│   │   │   ├── volume_measurement.cpp
-│   │   │   ├── statistics_calculator.cpp
-│   │   │   └── roi_manager.cpp
-│   │   │
-│   │   └── network_service/
-│   │       ├── network_service.cpp
-│   │       ├── query_client.cpp
-│   │       ├── retrieve_client.cpp
-│   │       ├── storage_server.cpp
-│   │       └── pacs_config_manager.cpp
+│   │   │   ├── oblique_reslice_renderer.cpp
+│   │   │   └── transfer_function.cpp
+│   │   ├── measurement/
+│   │   │   ├── linear_measurement_tool.cpp
+│   │   │   ├── area_measurement_tool.cpp
+│   │   │   ├── roi_statistics.cpp
+│   │   │   ├── volume_calculator.cpp
+│   │   │   └── shape_analyzer.cpp
+│   │   ├── coordinate/
+│   │   │   └── mpr_coordinate_transformer.cpp
+│   │   ├── pacs/
+│   │   │   ├── dicom_echo_scu.cpp
+│   │   │   ├── dicom_find_scu.cpp
+│   │   │   ├── dicom_move_scu.cpp
+│   │   │   ├── dicom_store_scp.cpp
+│   │   │   └── pacs_config_manager.cpp
+│   │   └── export/
+│   │       ├── report_generator.cpp
+│   │       ├── data_exporter.cpp
+│   │       ├── measurement_serializer.cpp
+│   │       ├── mesh_exporter.cpp
+│   │       └── dicom_sr_writer.cpp
 │   │
-│   ├── controllers/
-│   │   ├── viewer_controller.cpp
-│   │   ├── loading_controller.cpp
-│   │   ├── rendering_controller.cpp
-│   │   ├── tool_controller.cpp
-│   │   └── network_controller.cpp
+│   ├── controller/
+│   │   ├── viewer_controller.cpp    # stub
+│   │   ├── loading_controller.cpp   # stub
+│   │   ├── rendering_controller.cpp # stub
+│   │   └── tool_controller.cpp      # stub
 │   │
 │   ├── ui/
 │   │   ├── main_window.cpp
