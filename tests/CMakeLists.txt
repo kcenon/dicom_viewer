@@ -764,3 +764,20 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(dr_viewer_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Flow DICOM Parser
+add_executable(flow_dicom_parser_test
+    unit/flow_dicom_parser_test.cpp
+)
+
+target_link_libraries(flow_dicom_parser_test PRIVATE
+    flow_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(flow_dicom_parser_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(flow_dicom_parser_test DISCOVERY_TIMEOUT 60)
