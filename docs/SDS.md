@@ -2211,46 +2211,46 @@ sequenceDiagram
 
 | PRD ID | SRS ID | SDS ID | Module | Implementation Status |
 |--------|--------|--------|--------|----------------------|
-| FR-001.1 | SRS-FR-001 | SDS-MOD-002, SDS-CLS-002 | ImageService | Planned |
-| FR-001.2 | SRS-FR-002 | SDS-MOD-002, SDS-SEQ-001 | ImageService | Planned |
-| FR-001.3 | SRS-FR-003 | SDS-MOD-002 | ImageService | Planned |
-| FR-001.4 | SRS-FR-001 | SDS-MOD-001, SDS-DATA-002 | Core | Planned |
-| FR-001.5 | SRS-FR-004 | SDS-MOD-002 | ImageService | Planned |
-| FR-002.1 | SRS-FR-005 | SDS-MOD-003, SDS-SEQ-004 | RenderService | Planned |
-| FR-002.2 | SRS-FR-006 | SDS-MOD-003, SDS-DATA-005 | RenderService | Planned |
-| FR-002.3 | SRS-FR-006 | SDS-MOD-003, SDS-DATA-005 | RenderService | Planned |
-| FR-002.4 | SRS-FR-006 | SDS-MOD-003, SDS-DATA-005 | RenderService | Planned |
-| FR-002.5 | SRS-FR-006 | SDS-MOD-003 | RenderService | Planned |
-| FR-002.6 | SRS-FR-007 | SDS-MOD-003 | RenderService | Planned |
-| FR-003.1 | SRS-FR-008 | SDS-MOD-003 | RenderService | Planned |
-| FR-003.2 | SRS-FR-008 | SDS-MOD-003 | RenderService | Planned |
-| FR-003.3 | SRS-FR-008 | SDS-MOD-003 | RenderService | Planned |
-| FR-003.4 | SRS-FR-009 | SDS-MOD-003 | RenderService | Planned |
-| FR-003.5 | SRS-FR-010 | SDS-MOD-003 | RenderService | Planned |
-| FR-003.6 | SRS-FR-011 | SDS-MOD-003 | RenderService | Planned |
-| FR-004.1 | SRS-FR-012 | SDS-MOD-003 | RenderService | Implemented |
-| FR-004.2 | SRS-FR-012 | SDS-MOD-003 | RenderService | Implemented |
-| FR-004.3 | SRS-FR-013 | SDS-MOD-003 | RenderService | Implemented |
-| FR-004.4 | SRS-FR-014 | SDS-MOD-003 | RenderService | Implemented |
-| FR-004.5 | SRS-FR-015 | SDS-MOD-003 | RenderService | Implemented |
-| FR-005.1 | SRS-FR-016 | SDS-MOD-002 | ImageService | Implemented |
-| FR-005.2 | SRS-FR-017 | SDS-MOD-002 | ImageService | Implemented |
-| FR-005.3 | SRS-FR-018 | SDS-MOD-002 | ImageService | Implemented |
-| FR-005.4 | SRS-FR-019 | SDS-MOD-002 | ImageService | Implemented |
-| FR-005.5 | SRS-FR-020 | SDS-MOD-002 | ImageService | Planned |
-| FR-006.1~6 | SRS-FR-021~026 | SDS-MOD-002, SDS-SEQ-002 | ImageService | Planned |
-| FR-006.7~12 | SRS-FR-027~032 | SDS-MOD-002 | ImageService | Planned |
-| FR-006.13~18 | SRS-FR-033~035 | SDS-MOD-002, SDS-DATA-003 | ImageService | Planned |
-| FR-006.19~25 | SRS-FR-034~035 | SDS-MOD-002 | ImageService | Planned |
-| FR-007.1~5 | SRS-FR-036~038 | SDS-MOD-004, SDS-SEQ-003 | MeasurementService | ✅ Implemented |
-| FR-007.6~10 | SRS-FR-039~041 | SDS-MOD-004, SDS-DATA-004 | MeasurementService | ✅ Implemented |
-| FR-007.11~14 | SRS-FR-042~045 | SDS-MOD-004 | MeasurementService | Planned |
-| FR-007.15~20 | SRS-FR-028 | SDS-MOD-004 | RoiStatisticsCalculator | ✅ Implemented |
-| FR-007.21~25 | SRS-FR-048 | SDS-MOD-004 | MeasurementService | Planned |
-| FR-010.1~5 | SRS-FR-050~054 | SDS-MOD-005 | NetworkService | Planned |
-| FR-011.1~6 | SRS-FR-055~060 | SDS-MOD-006 | UI | Planned |
-| FR-012.1~8 | SRS-FR-049 | SDS-MOD-004 | MeasurementService | 🟡 Partially Implemented (Ellipse ROI) |
-| FR-013.1~6 | SRS-FR-048 | SDS-MOD-004 | MeasurementService | Planned |
+| FR-001.1 | SRS-FR-001 | SDS-MOD-002, SDS-CLS-002 | Core (DicomLoader) | ✅ Implemented |
+| FR-001.2 | SRS-FR-002 | SDS-MOD-002, SDS-SEQ-001 | Core (SeriesBuilder) | ✅ Implemented |
+| FR-001.3 | SRS-FR-003 | SDS-MOD-002 | Core (TransferSyntaxDecoder) | ✅ Implemented |
+| FR-001.4 | SRS-FR-001 | SDS-MOD-001, SDS-DATA-002 | Core (DicomLoader) | ✅ Implemented |
+| FR-001.5 | SRS-FR-004 | SDS-MOD-002 | Core (HounsfieldConverter) | ✅ Implemented |
+| FR-002.1 | SRS-FR-005 | SDS-MOD-003, SDS-SEQ-004 | Render (VolumeRenderer) | ✅ Implemented |
+| FR-002.2 | SRS-FR-006 | SDS-MOD-003, SDS-DATA-005 | Render (TransferFunctionManager) | ✅ Implemented |
+| FR-002.3 | SRS-FR-006 | SDS-MOD-003, SDS-DATA-005 | Render (TransferFunctionManager) | ✅ Implemented |
+| FR-002.4 | SRS-FR-006 | SDS-MOD-003, SDS-DATA-005 | Render (TransferFunctionManager) | ✅ Implemented |
+| FR-002.5 | SRS-FR-006 | SDS-MOD-003 | Render (TransferFunctionManager) | ✅ Implemented |
+| FR-002.6 | SRS-FR-007 | SDS-MOD-003 | Render (DRViewer) | ✅ Implemented |
+| FR-003.1 | SRS-FR-008 | SDS-MOD-003 | Render (MPRRenderer) | ✅ Implemented |
+| FR-003.2 | SRS-FR-008 | SDS-MOD-003 | Render (MPRRenderer) | ✅ Implemented |
+| FR-003.3 | SRS-FR-008 | SDS-MOD-003 | Render (MPRRenderer) | ✅ Implemented |
+| FR-003.4 | SRS-FR-009 | SDS-MOD-003 | Render (MPRRenderer) | ✅ Implemented |
+| FR-003.5 | SRS-FR-010 | SDS-MOD-003 | Render (MPRRenderer) | ✅ Implemented |
+| FR-003.6 | SRS-FR-011 | SDS-MOD-003 | Render (ObliqueResliceRenderer) | ✅ Implemented |
+| FR-004.1 | SRS-FR-012 | SDS-MOD-003 | Render (SurfaceRenderer) | ✅ Implemented |
+| FR-004.2 | SRS-FR-012 | SDS-MOD-003 | Render (SurfaceRenderer) | ✅ Implemented |
+| FR-004.3 | SRS-FR-013 | SDS-MOD-003 | Render (SurfaceRenderer) | ✅ Implemented |
+| FR-004.4 | SRS-FR-014 | SDS-MOD-003 | Render (SurfaceRenderer) | ✅ Implemented |
+| FR-004.5 | SRS-FR-015 | SDS-MOD-003 | Render (SurfaceRenderer) | ✅ Implemented |
+| FR-005.1 | SRS-FR-016 | SDS-MOD-002 | Preprocessing (GaussianSmoother) | ✅ Implemented |
+| FR-005.2 | SRS-FR-017 | SDS-MOD-002 | Preprocessing (AnisotropicDiffusionFilter) | ✅ Implemented |
+| FR-005.3 | SRS-FR-018 | SDS-MOD-002 | Preprocessing (N4BiasCorrector) | ✅ Implemented |
+| FR-005.4 | SRS-FR-019 | SDS-MOD-002 | Preprocessing (IsotropicResampler) | ✅ Implemented |
+| FR-005.5 | SRS-FR-020 | SDS-MOD-002 | Preprocessing (HistogramEqualizer) | ✅ Implemented |
+| FR-006.1~6 | SRS-FR-021~026 | SDS-MOD-002, SDS-SEQ-002 | Segmentation (Threshold, RegionGrowing, LevelSet, Watershed) | ✅ Implemented |
+| FR-006.7~12 | SRS-FR-027~032 | SDS-MOD-002 | Segmentation (ManualSegmentationController) | ✅ Implemented |
+| FR-006.13~18 | SRS-FR-033~035 | SDS-MOD-002, SDS-DATA-003 | Segmentation (MorphologicalProcessor, LabelManager) | ✅ Implemented |
+| FR-006.19~25 | SRS-FR-034~035 | SDS-MOD-002 | Segmentation (LabelMapOverlay, SliceInterpolator) | ✅ Implemented |
+| FR-007.1~5 | SRS-FR-036~038 | SDS-MOD-004, SDS-SEQ-003 | Measurement (LinearMeasurementTool) | ✅ Implemented |
+| FR-007.6~10 | SRS-FR-039~041 | SDS-MOD-004, SDS-DATA-004 | Measurement (AreaMeasurementTool) | ✅ Implemented |
+| FR-007.11~14 | SRS-FR-042~045 | SDS-MOD-004 | Measurement (VolumeCalculator) | ✅ Implemented |
+| FR-007.15~20 | SRS-FR-028 | SDS-MOD-004 | Measurement (ROIStatistics) | ✅ Implemented |
+| FR-007.21~25 | SRS-FR-048 | SDS-MOD-004 | Measurement (ShapeAnalyzer) | ✅ Implemented |
+| FR-010.1~5 | SRS-FR-050~054 | SDS-MOD-005 | PACS (DicomFindSCU, DicomMoveSCU, DicomStoreSCP, DicomEchoSCU, PacsConfigManager) | ✅ Implemented |
+| FR-011.1~6 | SRS-FR-055~060 | SDS-MOD-006 | UI (MainWindow, ViewportWidget, Panels, Dialogs) | 🟡 Partially Implemented |
+| FR-012.1~8 | SRS-FR-049 | SDS-MOD-004 | Measurement (AreaMeasurementTool) | ✅ Implemented |
+| FR-013.1~6 | SRS-FR-048 | SDS-MOD-004 | Measurement (ROIStatistics, ShapeAnalyzer) | ✅ Implemented |
 
 ---
 
