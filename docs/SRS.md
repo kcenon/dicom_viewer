@@ -1457,7 +1457,7 @@ vtkImageData (subsampled by skipFactor=4)
 ---
 
 #### SRS-FR-047: Flow Quantification
-**Traces to**: PRD FR-014.12, FR-014.13, FR-014.14, FR-014.15, FR-014.16, FR-014.17, FR-014.18
+**Traces to**: PRD FR-014.12 ~ FR-014.21
 
 | Attribute | Value |
 |-----------|-------|
