@@ -312,7 +312,6 @@ add_library(dicom_viewer_core STATIC
     src/core/dicom/transfer_syntax_decoder.cpp
     src/core/image/image_converter.cpp
     src/core/image/hounsfield_converter.cpp
-    src/core/data/patient_data.cpp
 )
 
 target_include_directories(dicom_viewer_core PUBLIC
@@ -330,17 +329,6 @@ target_link_libraries(dicom_viewer_core PUBLIC
     ${FFTW3_THREADS_LIBRARY}
     spdlog::spdlog
     fmt::fmt
-)
-
-# Service libraries
-add_library(image_service STATIC
-    src/services/image/image_service.cpp
-    src/services/image/preprocessing_service.cpp
-)
-
-target_link_libraries(image_service PUBLIC
-    dicom_viewer_core
-    ${ITK_LIBRARIES}
 )
 
 # Coordinate transformation service (unified MPR coordinate system)
@@ -370,9 +358,6 @@ target_link_libraries(render_service PUBLIC
 add_library(measurement_service STATIC
     src/services/measurement/linear_measurement_tool.cpp
     src/services/measurement/area_measurement_tool.cpp
-    src/services/measurement/distance_tool.cpp
-    src/services/measurement/area_tool.cpp
-    src/services/measurement/statistics.cpp
     src/services/measurement/roi_statistics.cpp
     src/services/measurement/volume_calculator.cpp
     src/services/measurement/shape_analyzer.cpp
@@ -501,23 +486,6 @@ target_link_libraries(export_service PUBLIC
     ${VTK_LIBRARIES}
 )
 
-# Controller library
-add_library(dicom_viewer_controller STATIC
-    src/controller/viewer_controller.cpp
-    src/controller/loading_controller.cpp
-    src/controller/rendering_controller.cpp
-    src/controller/tool_controller.cpp
-)
-
-target_link_libraries(dicom_viewer_controller PUBLIC
-    image_service
-    render_service
-    measurement_service
-    segmentation_service
-    pacs_service
-    export_service
-)
-
 # UI library
 add_library(dicom_viewer_ui STATIC
     src/ui/main_window.cpp
@@ -544,7 +512,11 @@ add_library(dicom_viewer_ui STATIC
 )
 
 target_link_libraries(dicom_viewer_ui PUBLIC
-    dicom_viewer_controller
+    render_service
+    measurement_service
+    segmentation_service
+    pacs_service
+    export_service
     Qt6::Core
     Qt6::Widgets
     Qt6::Gui
