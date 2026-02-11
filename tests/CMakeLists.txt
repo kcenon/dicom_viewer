@@ -885,3 +885,21 @@ target_include_directories(flow_pipeline_integration_test PRIVATE
 )
 
 gtest_discover_tests(flow_pipeline_integration_test DISCOVERY_TIMEOUT 120)
+
+# Vessel analyzer tests (WSS, vorticity, TKE)
+add_executable(vessel_analyzer_test
+    unit/vessel_analyzer_test.cpp
+)
+
+target_link_libraries(vessel_analyzer_test PRIVATE
+    flow_service
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(vessel_analyzer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(vessel_analyzer_test DISCOVERY_TIMEOUT 120)
