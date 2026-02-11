@@ -1,11 +1,11 @@
 # DICOM Viewer - Software Design Specification (SDS)
 
-> **Version**: 0.4.0
+> **Version**: 0.5.0
 > **Created**: 2025-12-31
 > **Last Updated**: 2026-02-11
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
-> **Based on**: [SRS v0.4.0](SRS.md), [PRD v0.3.0](PRD.md)
+> **Based on**: [SRS v0.5.0](SRS.md), [PRD v0.4.0](PRD.md)
 
 ---
 
@@ -18,6 +18,8 @@
 | 0.1.0 | 2025-12-31 | Development Team | Initial SDS based on SRS 0.1.0 |
 | 0.2.0 | 2025-12-31 | Development Team | Added segmentation and measurement module design |
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
+| 0.4.0 | 2026-02-11 | Development Team | Fixed SRS-FR traceability references; aligned with SRS v0.4.0 |
+| 0.5.0 | 2026-02-11 | Development Team | Added SDS-MOD-007 Flow Analysis Module with 4D Flow MRI support |
 
 ### Referenced Documents
 
@@ -234,13 +236,13 @@ flowchart TB
 
 ### SDS-ARCH-002: Layer Responsibilities
 
-**Traces to**: SRS-FR-001 through SRS-FR-042
+**Traces to**: SRS-FR-001 through SRS-FR-048
 
 | Layer | Responsibility | Key Technologies | Dependencies |
 |-------|---------------|------------------|--------------|
-| **Presentation** | UI rendering, user input handling | Qt6, QVTKOpenGLNativeWidget | Controller |
+| **Presentation** | UI rendering, user input handling, temporal navigation | Qt6, QVTKOpenGLNativeWidget | Controller |
 | **Controller** | Request coordination, event handling | C++ | Service |
-| **Service** | Business logic, image processing | ITK, VTK | Data |
+| **Service** | Business logic, image processing, flow analysis | ITK, VTK | Data |
 | **Data** | Data storage, conversion, management | pacs_system | External Libs |
 | **External Libs** | Foundation functionality | ITK, VTK, Qt6, pacs_system | OS |
 
@@ -272,6 +274,7 @@ graph TB
         RndSvc[render_service]
         NetSvc[network_service]
         MsrSvc[measurement_service]
+        FlwSvc[flow_service]
     end
 
     subgraph Core["🔩 Core Layer"]
@@ -293,11 +296,15 @@ graph TB
     Ctrl --> RndSvc
     Ctrl --> NetSvc
     Ctrl --> MsrSvc
+    Ctrl --> FlwSvc
 
     ImgSvc --> CoreLib
     RndSvc --> CoreLib
     NetSvc --> CoreLib
     MsrSvc --> CoreLib
+    FlwSvc --> CoreLib
+    FlwSvc --> ImgSvc
+    FlwSvc --> RndSvc
 
     CoreLib --> PACS
     CoreLib --> ITKLib
@@ -330,11 +337,14 @@ graph TB
 │         ↓                                                              │      │
 │   dicom_viewer_controller  ←───────────────────────────────────────────┘      │
 │         │                                                                     │
-│         ├─────────────────┬─────────────────┬─────────────────┐              │
-│         ↓                 ↓                 ↓                 ↓              │
-│   image_service     render_service    network_service   measurement_service  │
-│         │                 │                 │                 │              │
-│         └─────────────────┴─────────────────┴─────────────────┘              │
+│         ├──────────────┬──────────────┬──────────────┬──────────────┐        │
+│         ↓              ↓              ↓              ↓              ↓        │
+│   image_service  render_service  network_svc  measurement_svc  flow_service │
+│         │              │              │              │              │        │
+│         │              │              │              │         ┌────┘        │
+│         │              │←─────────────│──────────────│─────────│             │
+│         │←─────────────│──────────────│──────────────│─────────┘             │
+│         └──────────────┴──────────────┴──────────────┘                      │
 │                                   │                                          │
 │                                   ↓                                          │
 │                         dicom_viewer_core                                    │
@@ -1253,6 +1263,219 @@ classDiagram
 
 ---
 
+### SDS-MOD-007: Flow Analysis Module
+
+**Traces to**: SRS-FR-043 ~ SRS-FR-048
+
+**Purpose**: Provide 4D Flow MRI DICOM parsing, velocity field assembly, phase correction, flow visualization, hemodynamic quantification, and temporal navigation
+
+**Components**:
+
+> **Implementation Note**: This module is designed as a new service layer (`flow_service`) with dependencies on `image_service` (for DICOM loading) and `render_service` (for VTK integration). All components are planned for implementation in Phase 4.
+
+| Component | Description | Traces to | Status |
+|-----------|-------------|-----------|--------|
+| FlowDicomParser | Vendor-specific 4D Flow DICOM parsing (Siemens, Philips, GE) | SRS-FR-043 | ⬜ Planned |
+| VelocityFieldAssembler | Vector field construction from velocity-encoded components with VENC scaling | SRS-FR-044 | ⬜ Planned |
+| PhaseCorrector | Velocity aliasing unwrap, eddy current correction, Maxwell term correction | SRS-FR-045 | ⬜ Planned |
+| FlowVisualizer | Streamline, pathline, and vector glyph rendering via VTK | SRS-FR-046 | ⬜ Planned |
+| FlowQuantifier | Flow rate, time-velocity curves, pressure gradient calculations | SRS-FR-047 | ⬜ Planned |
+| VesselAnalyzer | WSS, OSI, TKE, vorticity, and helicity analysis | SRS-FR-047 | ⬜ Planned |
+| TemporalNavigator | Cardiac phase navigation, cine playback, sliding window cache | SRS-FR-048 | ⬜ Planned |
+
+**Class Diagram**:
+
+#### Mermaid Version
+
+```mermaid
+classDiagram
+    class IFlowDicomParser {
+        <<interface>>
+        +detectVendor(dataset) VendorType
+        +parseFlowSeries(path) Result~FlowSeriesInfo~
+        +extractVENC(dataset) float
+        +classifyComponent(dataset) VelocityComponent
+    }
+
+    class FlowDicomParser {
+        -m_vendorParsers : map~VendorType, unique_ptr~IVendorFlowParser~~
+        +detectVendor(dataset) VendorType
+        +parseFlowSeries(path) Result~FlowSeriesInfo~
+        +extractVENC(dataset) float
+        +classifyComponent(dataset) VelocityComponent
+        -selectParser(vendor) IVendorFlowParser*
+    }
+
+    class IVendorFlowParser {
+        <<interface>>
+        +parseVelocityTag(dataset) float
+        +parseVENCTag(dataset) float
+        +getExpectedIODType() string
+    }
+
+    class SiemensFlowParser {
+        +parseVelocityTag(dataset) float
+        +parseVENCTag(dataset) float
+        +getExpectedIODType() string
+    }
+
+    class PhilipsFlowParser {
+        +parseVelocityTag(dataset) float
+        +parseVENCTag(dataset) float
+        +getExpectedIODType() string
+    }
+
+    class GEFlowParser {
+        +parseVelocityTag(dataset) float
+        +parseVENCTag(dataset) float
+        +getExpectedIODType() string
+    }
+
+    class VelocityFieldAssembler {
+        -m_vencValues : array~float, 3~
+        -m_bitsStored : int
+        +assemble(flowInfo, components) Result~VelocityPhase~
+        +applyVENCScaling(image, venc, isSigned) VectorImage
+        -composeVectorField(vx, vy, vz) VectorImage
+    }
+
+    class PhaseCorrector {
+        -m_unwrapThreshold : float
+        -m_eddyCurrentOrder : int
+        +correctAll(velocityPhase) VelocityPhase
+        +unwrapAliasing(field, venc) VectorImage
+        +correctEddyCurrent(field, magnitude) VectorImage
+        +correctMaxwellTerms(field, gradientInfo) VectorImage
+        -fitPolynomial(mask, velocity, order) PolynomialCoeffs
+    }
+
+    class FlowVisualizer {
+        -m_streamTracer : vtkSmartPointer~vtkStreamTracer~
+        -m_tubeFilter : vtkSmartPointer~vtkTubeFilter~
+        -m_glyphFilter : vtkSmartPointer~vtkGlyph3D~
+        -m_colorMode : ColorMappingMode
+        +renderStreamlines(field, seeds) vtkActor*
+        +renderPathlines(phases, seeds) vtkActor*
+        +renderVectorGlyphs(field, skipFactor) vtkActor*
+        +setColorMapping(mode) void
+        -createSeedPoints(geometry) vtkPointSource*
+    }
+
+    class FlowQuantifier {
+        +computeFlowRate(field, plane, contour) FlowMeasurement
+        +computeTimeVelocityCurve(phases, plane) TimeVelocityCurve
+        +computePressureGradient(field) float
+        -extractThroughPlaneVelocity(field, plane) vector~float~
+        -integrateSurface(velocities, areas) float
+    }
+
+    class VesselAnalyzer {
+        -m_viscosity : float
+        +computeWSS(phases, vesselMesh) WSSResult
+        +computeOSI(wssTimeSeries) Image~float~
+        +computeTKE(phases) Image~float~
+        +computeVorticity(field) VectorImage
+        -sampleNearWallVelocity(field, mesh) vector~Vec3~
+    }
+
+    class TemporalNavigator {
+        -m_phaseCache : unique_ptr~PhaseCache~
+        -m_currentPhase : int
+        -m_playbackTimer : QTimer*
+        -m_playbackSpeed : float
+        +setPhase(index) void
+        +play() void
+        +pause() void
+        +stop() void
+        +setFrameRate(fps) void
+        -prefetchAdjacentPhases() void
+    }
+
+    class PhaseCache {
+        -m_windowSize : int
+        -m_cache : map~int, VelocityPhase~
+        -m_memoryBudget : size_t
+        +get(phaseIndex) optional~VelocityPhase~
+        +put(phaseIndex, phase) void
+        +prefetch(indices) future~void~
+        -evictLRU() void
+    }
+
+    IFlowDicomParser <|.. FlowDicomParser
+    IVendorFlowParser <|.. SiemensFlowParser
+    IVendorFlowParser <|.. PhilipsFlowParser
+    IVendorFlowParser <|.. GEFlowParser
+    FlowDicomParser --> IVendorFlowParser : uses
+    FlowDicomParser ..> VelocityFieldAssembler : feeds
+    VelocityFieldAssembler ..> PhaseCorrector : feeds
+    PhaseCorrector ..> FlowVisualizer : feeds
+    PhaseCorrector ..> FlowQuantifier : feeds
+    PhaseCorrector ..> VesselAnalyzer : feeds
+    TemporalNavigator --> PhaseCache : manages
+    TemporalNavigator ..> FlowVisualizer : triggers update
+```
+
+#### ASCII Version
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    SDS-MOD-007: Flow Analysis Module                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   ┌──────────────────────────────────────────────────────────────────┐      │
+│   │                     FlowDicomParser                                │      │
+│   │  ┌───────────────┬───────────────┬───────────────┐               │      │
+│   │  │SiemensParser  │PhilipsParser  │GEParser       │  (Strategy)   │      │
+│   │  │(0051,1014)    │(2005,1071)    │(0019,10cc)    │               │      │
+│   │  └───────────────┴───────────────┴───────────────┘               │      │
+│   └───────────────────────────┬──────────────────────────────────────┘      │
+│                               ↓                                              │
+│   ┌───────────────────────────────────────────────────────────────────┐     │
+│   │                  VelocityFieldAssembler                             │     │
+│   │  ITK: ComposeImageFilter → VectorImage<float,3>                    │     │
+│   │  VENC Scaling: velocity = (pixel / max) × VENC                     │     │
+│   └───────────────────────────┬─────────────────────────────────────┘      │
+│                               ↓                                              │
+│   ┌───────────────────────────────────────────────────────────────────┐     │
+│   │                     PhaseCorrector                                  │     │
+│   │  1. Aliasing Unwrap (Laplacian 3D)                                 │     │
+│   │  2. Eddy Current (2nd-order polynomial fit)                        │     │
+│   │  3. Maxwell Terms (concomitant gradient)                           │     │
+│   └──────────┬────────────────┬────────────────┬────────────────────┘      │
+│              ↓                ↓                ↓                             │
+│   ┌──────────────┐  ┌────────────────┐  ┌─────────────────┐               │
+│   │FlowVisualizer│  │FlowQuantifier  │  │VesselAnalyzer   │               │
+│   │              │  │                │  │                 │               │
+│   │• Streamlines │  │• Flow Rate     │  │• WSS / TAWSS    │               │
+│   │• Pathlines   │  │• TVC           │  │• OSI            │               │
+│   │• Glyphs      │  │• Pressure ΔP   │  │• TKE            │               │
+│   │• Color Maps  │  │• SV / RF       │  │• Vorticity      │               │
+│   └──────────────┘  └────────────────┘  └─────────────────┘               │
+│                                                                               │
+│   ┌───────────────────────────────────────────────────────────────────┐     │
+│   │                   TemporalNavigator                                 │     │
+│   │  ┌──────────────────────────────┐                                  │     │
+│   │  │   PhaseCache                  │  Sliding Window: ±2 phases      │     │
+│   │  │   LRU Eviction, Prefetch     │  Budget: ~250 MB (5 phases)     │     │
+│   │  └──────────────────────────────┘                                  │     │
+│   │  Cine: play/pause/stop, 1-30 fps, 0.5x-4x speed                  │     │
+│   └───────────────────────────────────────────────────────────────────┘     │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Design Decisions**:
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| ITK Vector Type | `itk::VectorImage<float, 3>` | Interleaved storage, memory-efficient for 3-component velocity |
+| Vendor Abstraction | Strategy Pattern (IVendorFlowParser) | Extensible for new vendors without modifying parser core |
+| Memory Management | Sliding Window Cache (±2 phases) | Balances memory usage (~250 MB) with navigation responsiveness |
+| VTK Integration | Direct pipeline (StreamTracer→TubeFilter→Mapper) | Standard VTK pipeline for maintainability and performance |
+| Phase Correction Order | Aliasing → Eddy Current → Maxwell | Each stage depends on the previous correction being applied |
+
+---
+
 ## 4. Data Design
 
 ### SDS-DATA-001: Image Data Structures
@@ -1560,6 +1783,168 @@ const std::vector<TransferFunctionPreset> CT_PRESETS = {
      {{100, 0.8, 0.1, 0.1}, {200, 1, 0.2, 0.2}, {400, 1, 0.5, 0.5}},
      {{100, 0}, {150, 0.3}, {200, 0.7}, {400, 0.9}},
      {}, true, 0.2, 0.8, 0.3, 15}
+};
+
+} // namespace dicom_viewer
+```
+
+---
+
+### SDS-DATA-006: Flow Data Structures
+
+**Traces to**: SRS-FR-043 ~ SRS-FR-048
+
+```cpp
+namespace dicom_viewer {
+
+// --- Vendor identification ---
+
+enum class FlowVendorType {
+    Unknown,
+    Siemens,    // Enhanced MR IOD, (0051,1014)
+    Philips,    // Classic MR, (2005,1071) scale slope
+    GE          // Classic MR, (0019,10cc)
+};
+
+// --- Velocity component classification ---
+
+enum class VelocityComponent {
+    Magnitude,  // Magnitude image (no velocity encoding)
+    Vx,         // Velocity encoding in X (R/L)
+    Vy,         // Velocity encoding in Y (A/P)
+    Vz          // Velocity encoding in Z (S/I)
+};
+
+// --- Flow DICOM parsing result ---
+
+struct FlowSeriesInfo {
+    FlowVendorType vendor;
+    int phaseCount;                     // Number of cardiac phases
+    float temporalResolution;           // ms between phases
+    std::array<float, 3> venc;          // VENC per axis (cm/s)
+    bool isSignedPhase;                 // Signed vs unsigned encoding
+
+    // Frame sorting matrix: [phaseIndex][component] → DICOM file path
+    std::vector<std::map<VelocityComponent, std::vector<std::string>>> frameMatrix;
+
+    // Metadata
+    std::string patientId;
+    std::string studyDate;
+    std::string seriesDescription;
+};
+
+// --- Assembled velocity phase ---
+
+struct VelocityPhase {
+    using VectorImageType = itk::VectorImage<float, 3>;     // 3-component (Vx, Vy, Vz)
+    using ScalarImageType = itk::Image<float, 3>;
+
+    VectorImageType::Pointer velocityField;    // Corrected velocity (cm/s)
+    ScalarImageType::Pointer magnitudeImage;   // Magnitude for masking
+    int phaseIndex;                            // Cardiac phase index [0, N-1]
+    float triggerTime;                         // ms from R-wave
+};
+
+// --- Phase correction configuration ---
+
+struct PhaseCorrectionConfig {
+    bool enableAliasingUnwrap = true;
+    float unwrapThreshold = 0.8f;       // × VENC
+
+    bool enableEddyCurrentCorrection = true;
+    int eddyPolynomialOrder = 2;        // 2nd-order default
+
+    bool enableMaxwellCorrection = false; // Only when gradient info available
+};
+
+// --- Flow visualization ---
+
+enum class FlowVisualizationType {
+    Streamlines,
+    Pathlines,
+    VectorGlyphs
+};
+
+enum class ColorMappingMode {
+    VelocityMagnitude,    // [0, VENC], Rainbow/Jet
+    VelocityComponent,    // [-VENC, VENC], Diverging (blue-white-red)
+    FlowDirection,        // RGB encoding
+    TriggerTime           // [0, RR_interval], Sequential (viridis)
+};
+
+struct FlowVisualizationParams {
+    FlowVisualizationType type = FlowVisualizationType::Streamlines;
+    ColorMappingMode colorMode = ColorMappingMode::VelocityMagnitude;
+
+    // Streamline parameters
+    float maxPropagation = 200.0f;      // mm
+    float terminalSpeed = 0.1f;         // cm/s
+    float tubeRadius = 0.5f;            // mm
+    int tubeSides = 8;
+
+    // Glyph parameters
+    int skipFactor = 4;                 // Subsample grid for glyphs
+
+    // Seed geometry
+    // Defined by: center point + normal (plane), or 3 points, or volume bounds
+};
+
+// --- Flow quantification results ---
+
+struct FlowMeasurement {
+    float flowRate;                     // mL/s (instantaneous)
+    float meanVelocity;                 // cm/s (through-plane mean)
+    float maxVelocity;                  // cm/s (through-plane max)
+    float area;                         // cm² (vessel cross-section area)
+    int phaseIndex;
+    float triggerTime;                  // ms
+};
+
+struct TimeVelocityCurve {
+    std::vector<FlowMeasurement> measurements;  // One per cardiac phase
+    float strokeVolume;                 // mL (integral of positive flow)
+    float regurgitantVolume;            // mL (integral of negative flow)
+    float regurgitantFraction;          // % (regurgitant / stroke × 100)
+    float peakVelocity;                 // cm/s
+    float meanFlowRate;                 // mL/s
+};
+
+// --- Hemodynamic analysis results ---
+
+struct WSSResult {
+    using ImageType = itk::Image<float, 3>;
+    ImageType::Pointer tawssMap;        // Time-Averaged WSS (Pa)
+    ImageType::Pointer osiMap;          // Oscillatory Shear Index [0, 0.5]
+    float meanTAWSS;                    // Pa (spatial average)
+    float maxTAWSS;                     // Pa
+    float meanOSI;
+};
+
+struct HemodynamicResults {
+    float tke;                          // J/m³ (spatially averaged TKE)
+    float pressureGradient;             // mmHg (simplified Bernoulli: 4×V²max)
+
+    using VectorImageType = itk::VectorImage<float, 3>;
+    VectorImageType::Pointer vorticityField;     // 1/s
+    VectorImageType::Pointer helicityField;      // m/s²
+};
+
+// --- Temporal navigation ---
+
+struct PlaybackState {
+    int currentPhase = 0;
+    int totalPhases = 0;
+    bool isPlaying = false;
+    float frameRate = 15.0f;            // fps
+    float speedMultiplier = 1.0f;       // 0.5x, 1x, 2x, 4x
+};
+
+struct CacheStatus {
+    std::set<int> cachedPhases;         // Phase indices currently in memory
+    size_t memoryUsed = 0;              // bytes
+    size_t memoryBudget = 0;            // bytes
+    int windowCenter = 0;               // Current center of sliding window
+    int windowSize = 5;                 // Total phases in window (±2)
 };
 
 } // namespace dicom_viewer
@@ -2189,6 +2574,299 @@ sequenceDiagram
 
 ---
 
+### SDS-SEQ-005: 4D Flow DICOM Load and Assembly Sequence
+
+**Traces to**: SRS-FR-043, SRS-FR-044, SRS-FR-045
+
+#### Mermaid Version
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as MainWindow
+    participant FC as FlowController
+    participant FDP as FlowDicomParser
+    participant VFA as VelocityFieldAssembler
+    participant PC as PhaseCorrector
+    participant TN as TemporalNavigator
+
+    User->>UI: Open 4D Flow DICOM folder
+    UI->>FC: loadFlowSeries(path)
+    FC->>FDP: parseFlowSeries(path)
+
+    Note over FDP: Detect vendor from<br/>(0018,0020), (0018,9014)
+    FDP->>FDP: detectVendor(dataset)
+    FDP->>FDP: selectParser(vendor)
+
+    Note over FDP: Sort frames into<br/>(phase × component) matrix
+    FDP->>FDP: classifyComponent(dataset)
+    FDP-->>FC: FlowSeriesInfo
+
+    loop For each cardiac phase
+        FC->>VFA: assemble(flowInfo, phaseIndex)
+        VFA->>VFA: applyVENCScaling(image, venc)
+        VFA->>VFA: composeVectorField(vx, vy, vz)
+        VFA-->>FC: VelocityPhase (raw)
+
+        FC->>PC: correctAll(velocityPhase)
+        PC->>PC: unwrapAliasing(field, venc)
+        PC->>PC: correctEddyCurrent(field, magnitude)
+        opt Gradient info available
+            PC->>PC: correctMaxwellTerms(field, gradientInfo)
+        end
+        PC-->>FC: VelocityPhase (corrected)
+    end
+
+    FC->>TN: initializeCache(phases)
+    TN->>TN: loadWindow(currentPhase ± 2)
+    FC-->>UI: flowSeriesLoaded(phaseCount, metadata)
+    UI-->>User: Display first phase with magnitude overlay
+```
+
+#### ASCII Version
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              SDS-SEQ-005: 4D Flow DICOM Load and Assembly                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│ User    UI          FlowCtrl    FlowParser    Assembler    Corrector  TempNav│
+│  │       │              │            │             │            │        │   │
+│  │ Open  │              │            │             │            │        │   │
+│  │ 4D    │              │            │             │            │        │   │
+│  │ Flow  │              │            │             │            │        │   │
+│  │──────>│ loadFlow     │            │             │            │        │   │
+│  │       │─────────────>│ parseFlow  │             │            │        │   │
+│  │       │              │───────────>│             │            │        │   │
+│  │       │              │            │ detect      │            │        │   │
+│  │       │              │            │ vendor      │            │        │   │
+│  │       │              │            │ sort frames │            │        │   │
+│  │       │              │ FlowInfo   │             │            │        │   │
+│  │       │              │<───────────│             │            │        │   │
+│  │       │              │                          │            │        │   │
+│  │       │              │ ┌─── For each phase ───┐ │            │        │   │
+│  │       │              │ │ assemble             │ │            │        │   │
+│  │       │              │ │────────────────────> ││ │            │        │   │
+│  │       │              │ │ VelocityPhase (raw)  │ │            │        │   │
+│  │       │              │ │<──────────────────── ││ │            │        │   │
+│  │       │              │ │ correctAll           │ │            │        │   │
+│  │       │              │ │──────────────────────│─│───────────>│        │   │
+│  │       │              │ │ VelocityPhase (ok)   │ │            │        │   │
+│  │       │              │ │<─────────────────────│─│────────────│        │   │
+│  │       │              │ └──────────────────────┘ │            │        │   │
+│  │       │              │                          │            │        │   │
+│  │       │              │ initCache                │            │        │   │
+│  │       │              │──────────────────────────│────────────│──────> │   │
+│  │       │ loaded       │                          │            │        │   │
+│  │       │<─────────────│                          │            │        │   │
+│  │ Show  │              │                          │            │        │   │
+│  │<──────│              │                          │            │        │   │
+│  │       │              │                          │            │        │   │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### SDS-SEQ-006: Flow Visualization Pipeline Sequence
+
+**Traces to**: SRS-FR-046, SRS-FR-048
+
+#### Mermaid Version
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as MainWindow
+    participant FC as FlowController
+    participant FV as FlowVisualizer
+    participant TN as TemporalNavigator
+    participant VP as ViewportWidget
+
+    User->>UI: Select visualization type (Streamlines)
+    UI->>FC: setVisualization(Streamlines, colorMode)
+
+    FC->>TN: getCurrentPhase()
+    TN-->>FC: VelocityPhase
+
+    FC->>FV: renderStreamlines(field, seedGeometry)
+
+    Note over FV: VTK Pipeline:<br/>PointSource → StreamTracer<br/>→ TubeFilter → Mapper
+    FV->>FV: createSeedPoints(geometry)
+    FV->>FV: configure StreamTracer (RK45)
+    FV->>FV: apply TubeFilter (r=0.5mm)
+    FV->>FV: setColorMapping(mode)
+    FV-->>FC: vtkActor*
+
+    FC->>VP: addActor(streamlineActor)
+    VP->>VP: render()
+    VP-->>User: Display streamlines
+
+    Note over User, VP: Phase navigation triggers update
+    User->>TN: setPhase(nextIndex)
+    TN->>TN: prefetchAdjacentPhases()
+    TN-->>FC: phaseChanged(newPhase)
+    FC->>FV: renderStreamlines(newField, seeds)
+    FV-->>FC: vtkActor* (updated)
+    FC->>VP: updateActor(streamlineActor)
+    VP-->>User: Display updated streamlines
+```
+
+#### ASCII Version
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│            SDS-SEQ-006: Flow Visualization Pipeline                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│ User    UI        FlowCtrl    Visualizer    TempNav    Viewport              │
+│  │       │            │            │            │          │                  │
+│  │Select │            │            │            │          │                  │
+│  │Stream │            │            │            │          │                  │
+│  │──────>│setVis      │            │            │          │                  │
+│  │       │───────────>│getPhase    │            │          │                  │
+│  │       │            │────────────│───────────>│          │                  │
+│  │       │            │ VelocPhase │            │          │                  │
+│  │       │            │<───────────│────────────│          │                  │
+│  │       │            │ render     │            │          │                  │
+│  │       │            │───────────>│            │          │                  │
+│  │       │            │            │ VTK        │          │                  │
+│  │       │            │            │ Pipeline   │          │                  │
+│  │       │            │ vtkActor   │            │          │                  │
+│  │       │            │<───────────│            │          │                  │
+│  │       │            │ addActor   │            │          │                  │
+│  │       │            │────────────│────────────│─────────>│                  │
+│  │       │            │            │            │  render  │                  │
+│  │Display│            │            │            │          │                  │
+│  │<──────│────────────│────────────│────────────│──────────│                  │
+│  │       │            │            │            │          │                  │
+│  │ Phase │            │            │            │          │                  │
+│  │ Next  │            │            │            │          │                  │
+│  │───────│────────────│────────────│───────────>│          │                  │
+│  │       │            │phaseChanged│            │          │                  │
+│  │       │            │<───────────│────────────│          │                  │
+│  │       │            │ re-render  │            │          │                  │
+│  │       │            │───────────>│            │          │                  │
+│  │       │            │ updated    │            │          │                  │
+│  │       │            │<───────────│            │          │                  │
+│  │       │            │ update     │            │          │                  │
+│  │       │            │────────────│────────────│─────────>│                  │
+│  │Updated│            │            │            │          │                  │
+│  │<──────│────────────│────────────│────────────│──────────│                  │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### SDS-SEQ-007: Flow Quantification Sequence
+
+**Traces to**: SRS-FR-047
+
+#### Mermaid Version
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as MainWindow
+    participant FC as FlowController
+    participant FQ as FlowQuantifier
+    participant VA as VesselAnalyzer
+    participant TN as TemporalNavigator
+    participant SP as StatisticsPanel
+
+    User->>UI: Place measurement plane on vessel
+    UI->>FC: measureFlow(planeCenter, planeNormal)
+
+    FC->>TN: getAllCachedPhases()
+    TN-->>FC: vector<VelocityPhase>
+
+    loop For each cardiac phase
+        FC->>FQ: computeFlowRate(field, plane, contour)
+        FQ->>FQ: extractThroughPlaneVelocity(field, plane)
+        FQ->>FQ: integrateSurface(velocities, areas)
+        FQ-->>FC: FlowMeasurement
+    end
+
+    FC->>FQ: computeTimeVelocityCurve(measurements)
+    FQ-->>FC: TimeVelocityCurve (SV, RF, peak)
+
+    FC->>SP: displayTVC(timeVelocityCurve)
+    SP-->>User: Show time-velocity curve chart
+
+    opt Advanced analysis requested
+        User->>UI: Request WSS analysis
+        UI->>FC: analyzeVessel(vesselMesh)
+        FC->>VA: computeWSS(phases, vesselMesh)
+        VA->>VA: sampleNearWallVelocity(field, mesh)
+        VA-->>FC: WSSResult (TAWSS, OSI maps)
+
+        FC->>VA: computeTKE(phases)
+        VA-->>FC: TKE map
+
+        FC->>SP: displayHemodynamics(wss, tke)
+        SP-->>User: Show WSS/OSI/TKE maps and statistics
+    end
+
+    opt Export results
+        User->>UI: Export to CSV
+        FC->>FC: exportFlowResults(tvc, wss, path)
+        FC-->>User: CSV file saved
+    end
+```
+
+#### ASCII Version
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              SDS-SEQ-007: Flow Quantification                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│ User    UI        FlowCtrl    Quantifier   VesselAnlz   TempNav   StatsPane│
+│  │       │            │            │            │           │          │     │
+│  │Place  │            │            │            │           │          │     │
+│  │Plane  │            │            │            │           │          │     │
+│  │──────>│measureFlow │            │            │           │          │     │
+│  │       │───────────>│getPhases   │            │           │          │     │
+│  │       │            │────────────│────────────│──────────>│          │     │
+│  │       │            │ phases     │            │           │          │     │
+│  │       │            │<───────────│────────────│───────────│          │     │
+│  │       │            │            │            │           │          │     │
+│  │       │            │ ┌── Per phase ────────┐ │           │          │     │
+│  │       │            │ │ flowRate            │ │           │          │     │
+│  │       │            │ │────────────────────>││ │           │          │     │
+│  │       │            │ │ FlowMeasurement     │ │           │          │     │
+│  │       │            │ │<────────────────────││ │           │          │     │
+│  │       │            │ └─────────────────────┘ │           │          │     │
+│  │       │            │            │            │           │          │     │
+│  │       │            │ computeTVC │            │           │          │     │
+│  │       │            │───────────>│            │           │          │     │
+│  │       │            │ TVC        │            │           │          │     │
+│  │       │            │<───────────│            │           │          │     │
+│  │       │            │ displayTVC │            │           │          │     │
+│  │       │            │────────────│────────────│───────────│─────────>│     │
+│  │ TVC   │            │            │            │           │          │     │
+│  │<──────│────────────│────────────│────────────│───────────│──────────│     │
+│  │       │            │            │            │           │          │     │
+│  │ WSS?  │            │            │            │           │          │     │
+│  │──────>│analyzeVessl│            │            │           │          │     │
+│  │       │───────────>│ WSS        │            │           │          │     │
+│  │       │            │────────────│───────────>│           │          │     │
+│  │       │            │ WSSResult  │            │           │          │     │
+│  │       │            │<───────────│────────────│           │          │     │
+│  │       │            │ displayHemo│            │           │          │     │
+│  │       │            │────────────│────────────│───────────│─────────>│     │
+│  │ Maps  │            │            │            │           │          │     │
+│  │<──────│────────────│────────────│────────────│───────────│──────────│     │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## 7. Traceability Matrix
 
 ### 7.1 PRD → SRS Traceability
@@ -2207,6 +2885,7 @@ sequenceDiagram
 | FR-011 (UI) | SRS-FR-039, SRS-FR-040 | P1 |
 | FR-012 (ROI Management) | SRS-FR-031 | P1 |
 | FR-013 (Analysis Report) | SRS-FR-032 | P2 |
+| FR-014 (4D Flow MRI) | SRS-FR-043~048 | P1 |
 
 ---
 
@@ -2237,6 +2916,12 @@ sequenceDiagram
 | SRS-FR-033 | SDS-MOD-003 (DRViewer) | Render Service |
 | SRS-FR-034~038 | SDS-MOD-005 | Network Service |
 | SRS-FR-039, SRS-FR-040 | SDS-MOD-006 | UI Module |
+| SRS-FR-043 | SDS-MOD-007 (FlowDicomParser), SDS-SEQ-005 | Flow Analysis |
+| SRS-FR-044 | SDS-MOD-007 (VelocityFieldAssembler), SDS-SEQ-005 | Flow Analysis |
+| SRS-FR-045 | SDS-MOD-007 (PhaseCorrector), SDS-SEQ-005 | Flow Analysis |
+| SRS-FR-046 | SDS-MOD-007 (FlowVisualizer), SDS-SEQ-006 | Flow Analysis |
+| SRS-FR-047 | SDS-MOD-007 (FlowQuantifier, VesselAnalyzer), SDS-SEQ-007 | Flow Analysis |
+| SRS-FR-048 | SDS-MOD-007 (TemporalNavigator), SDS-DATA-006 | Flow Analysis |
 
 ---
 
@@ -2284,6 +2969,13 @@ sequenceDiagram
 | FR-011.1~6 | SRS-FR-039, SRS-FR-040 | SDS-MOD-006 | UI (MainWindow, ViewportWidget, Panels, Dialogs) | 🟡 Partially Implemented |
 | FR-012.1~8 | SRS-FR-031 | SDS-MOD-004 | Measurement (ROIManager) | ✅ Implemented |
 | FR-013.1~6 | SRS-FR-032 | SDS-MOD-004 | Measurement (ReportGenerator) | ✅ Implemented |
+| FR-014.1~2 | SRS-FR-043 | SDS-MOD-007, SDS-SEQ-005 | Flow (FlowDicomParser) | ⬜ Planned |
+| FR-014.3 | SRS-FR-044 | SDS-MOD-007, SDS-SEQ-005 | Flow (VelocityFieldAssembler) | ⬜ Planned |
+| FR-014.4 | SRS-FR-045 | SDS-MOD-007, SDS-SEQ-005 | Flow (PhaseCorrector) | ⬜ Planned |
+| FR-014.5~8 | SRS-FR-046 | SDS-MOD-007, SDS-SEQ-006 | Flow (FlowVisualizer) | ⬜ Planned |
+| FR-014.9~11 | SRS-FR-048 | SDS-MOD-007, SDS-DATA-006 | Flow (TemporalNavigator) | ⬜ Planned |
+| FR-014.12~18 | SRS-FR-047 | SDS-MOD-007, SDS-SEQ-007 | Flow (FlowQuantifier) | ⬜ Planned |
+| FR-014.19~21 | SRS-FR-047 | SDS-MOD-007, SDS-SEQ-007 | Flow (VesselAnalyzer, Export) | ⬜ Planned |
 
 ---
 
@@ -2360,6 +3052,20 @@ dicom_viewer/
 │       │   │   ├── measurement_serializer.hpp
 │       │   │   ├── mesh_exporter.hpp
 │       │   │   └── dicom_sr_writer.hpp
+│       │   ├── flow/                    # SDS-MOD-007
+│       │   │   ├── flow_dicom_parser.hpp
+│       │   │   ├── vendor_parsers/
+│       │   │   │   ├── i_vendor_flow_parser.hpp
+│       │   │   │   ├── siemens_flow_parser.hpp
+│       │   │   │   ├── philips_flow_parser.hpp
+│       │   │   │   └── ge_flow_parser.hpp
+│       │   │   ├── velocity_field_assembler.hpp
+│       │   │   ├── phase_corrector.hpp
+│       │   │   ├── flow_visualizer.hpp
+│       │   │   ├── flow_quantifier.hpp
+│       │   │   ├── vessel_analyzer.hpp
+│       │   │   ├── temporal_navigator.hpp
+│       │   │   └── phase_cache.hpp
 │       │   ├── mpr_renderer.hpp
 │       │   ├── oblique_reslice_renderer.hpp
 │       │   └── transfer_function_manager.hpp
@@ -2435,12 +3141,25 @@ dicom_viewer/
 │   │   │   ├── dicom_move_scu.cpp
 │   │   │   ├── dicom_store_scp.cpp
 │   │   │   └── pacs_config_manager.cpp
-│   │   └── export/
-│   │       ├── report_generator.cpp
-│   │       ├── data_exporter.cpp
-│   │       ├── measurement_serializer.cpp
-│   │       ├── mesh_exporter.cpp
-│   │       └── dicom_sr_writer.cpp
+│   │   ├── export/
+│   │   │   ├── report_generator.cpp
+│   │   │   ├── data_exporter.cpp
+│   │   │   ├── measurement_serializer.cpp
+│   │   │   ├── mesh_exporter.cpp
+│   │   │   └── dicom_sr_writer.cpp
+│   │   └── flow/
+│   │       ├── flow_dicom_parser.cpp
+│   │       ├── vendor_parsers/
+│   │       │   ├── siemens_flow_parser.cpp
+│   │       │   ├── philips_flow_parser.cpp
+│   │       │   └── ge_flow_parser.cpp
+│   │       ├── velocity_field_assembler.cpp
+│   │       ├── phase_corrector.cpp
+│   │       ├── flow_visualizer.cpp
+│   │       ├── flow_quantifier.cpp
+│   │       ├── vessel_analyzer.cpp
+│   │       ├── temporal_navigator.cpp
+│   │       └── phase_cache.cpp
 │   │
 │   ├── controller/
 │   │   ├── viewer_controller.cpp    # stub
@@ -2471,12 +3190,17 @@ dicom_viewer/
     │   ├── test_dicom_loader.cpp
     │   ├── test_segmentor.cpp
     │   ├── test_measurement.cpp
-    │   └── test_transfer_function.cpp
+    │   ├── test_transfer_function.cpp
+    │   ├── test_flow_dicom_parser.cpp
+    │   ├── test_velocity_field_assembler.cpp
+    │   ├── test_phase_corrector.cpp
+    │   └── test_flow_quantifier.cpp
     │
     └── integration/
         ├── test_loading_pipeline.cpp
         ├── test_rendering_pipeline.cpp
-        └── test_pacs_integration.cpp
+        ├── test_pacs_integration.cpp
+        └── test_flow_pipeline.cpp
 ```
 
 ---
@@ -2498,7 +3222,7 @@ dicom_viewer/
 |---------|-------|
 | **MVC** | UI-Controller-Service Separation |
 | **Factory** | CodecFactory, FilterFactory |
-| **Strategy** | Segmentation Algorithms |
+| **Strategy** | Segmentation Algorithms, Vendor Flow Parsers |
 | **Observer** | Qt Signals/Slots |
 | **Adapter** | ImageBridge (ITK↔VTK) |
 | **Facade** | Service Layer APIs |
@@ -2524,6 +3248,7 @@ dicom_viewer/
 | 0.2.0 | 2025-12-31 | Development Team | Added segmentation and measurement module design |
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 | 0.4.0 | 2026-02-11 | Development Team | Fixed SRS-FR traceability references throughout (SRS has 42 requirements, not 60); aligned with SRS v0.4.0 |
+| 0.5.0 | 2026-02-11 | Development Team | Added SDS-MOD-007 Flow Analysis Module (7 components), SDS-DATA-006 flow data structures, SDS-SEQ-005~007 flow sequence diagrams; updated ARCH-002/003 and traceability matrices for SRS-FR-043~048 |
 
 > **Note**: v0.x.x versions are pre-release. Official release starts from v1.0.0.
 
