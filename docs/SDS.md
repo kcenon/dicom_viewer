@@ -864,6 +864,9 @@ classDiagram
 | TransferFunctionManager | Transfer function preset management | SRS-FR-006 |
 | DRViewer | Dedicated DR/CR 2D viewer | SRS-FR-042 ~ SRS-FR-044 |
 
+> **Implementation Note**: The class diagram below shows an `IRenderService` interface from the original design.
+> This interface is **not implemented** — components are accessed directly. See SDS-IF-001 for details.
+
 **Class Diagram**:
 
 ```
@@ -955,6 +958,9 @@ classDiagram
 | ROIStatistics | Mean, StdDev, Min/Max, histogram for ROI | SRS-FR-046 ~ SRS-FR-048 |
 | ShapeAnalyzer | Sphericity, elongation, principal axes | SRS-FR-049 |
 | MPRCoordinateTransformer | World/screen/image coordinate conversion | SRS-FR-008 |
+
+> **Implementation Note**: The class diagram below shows an `IMeasurementService` interface from the original design.
+> This interface is **not implemented** — components are accessed directly. See SDS-IF-001 for details.
 
 **Class Diagram**:
 
@@ -1563,21 +1569,37 @@ const std::vector<TransferFunctionPreset> CT_PRESETS = {
 
 ## 5. Interface Design
 
-### SDS-IF-001: Public API Interfaces
+### SDS-IF-001: Service Facade Interfaces — Future Design Reference
 
 **Traces to**: SRS-IF-001 ~ SRS-IF-010
 
-> **Implementation Status**: The interface classes below (`IImageService`, `IRenderService`,
-> `IMeasurementService`, `INetworkService`) represent the **original design specification**.
-> They are **not yet implemented** as abstract interfaces. The current codebase uses
-> **direct component classes** (e.g., `VolumeRenderer`, `ThresholdSegmenter`, `DicomFindSCU`)
-> without a service facade layer. These interface definitions are retained as a design reference
-> for potential future refactoring toward dependency injection.
+> **NOT IMPLEMENTED — DESIGN REFERENCE ONLY**
+>
+> The interface classes below (`IImageService`, `IRenderService`, `IMeasurementService`,
+> `INetworkService`) are **not implemented** in the current codebase. They represent the
+> original facade pattern design and are retained as a reference for potential future
+> refactoring toward dependency injection.
+>
+> **Current Architecture**: The codebase uses **direct component access** — UI and service
+> code instantiate individual component classes directly without a facade layer.
+> See `include/services/` for actual component headers.
+
+**Design Interface → Actual Component Mapping**:
+
+| Design Interface | Actual Components (Direct Access) |
+|-----------------|-----------------------------------|
+| `IImageService` | `DicomLoader`, `SeriesBuilder`, `GaussianSmoother`, `AnisotropicDiffusionFilter`, `N4BiasCorrector`, `IsotropicResampler`, `ThresholdSegmenter`, `RegionGrowingSegmenter`, `LevelSetSegmenter`, `WatershedSegmenter`, `MorphologyProcessor` |
+| `IRenderService` | `VolumeRenderer`, `SurfaceRenderer`, `MprRenderer`, `ObliqueSliceRenderer`, `TransferFunctionManager` |
+| `IMeasurementService` | `LinearMeasurementTool`, `AreaMeasurementTool`, `VolumeMeasurementTool`, `RoiStatistics`, `ShapeAnalyzer`, `ReportGenerator` |
+| `INetworkService` | `DicomEchoScu`, `DicomFindScu`, `DicomMoveScu`, `DicomStoreScp`, `PacsConfig` |
+
+<details>
+<summary><strong>Future Design Reference — Interface Definitions (click to expand)</strong></summary>
 
 ```cpp
-// Service Interfaces — DESIGN REFERENCE (not yet implemented)
-// Actual implementation uses direct component access pattern.
-// See individual component headers in include/services/ for current API.
+// Service Interfaces — FUTURE DESIGN REFERENCE (not implemented)
+// The current codebase does NOT use these interfaces.
+// See the mapping table above for actual component classes.
 namespace dicom_viewer {
 
 // Image Service Interface
@@ -1713,14 +1735,23 @@ public:
 } // namespace dicom_viewer
 ```
 
+</details>
+
 ---
 
-### SDS-IF-002: Signal/Slot Interfaces (Qt)
+### SDS-IF-002: Signal/Slot Interfaces (Qt) — Design Reference
 
 **Traces to**: SRS-IF-011 ~ SRS-IF-015
 
+> **Design Reference**: The consolidated signal classes below (`ViewportSignals`,
+> `PatientBrowserSignals`, `ToolsPanelSignals`) are **not implemented** as separate classes.
+> In the current codebase, Qt signals are defined **directly within each panel/widget class**
+> (e.g., `SegmentationPanel::toolChanged`, `StatisticsPanel::exportRequested`,
+> `PatientBrowser::seriesSelected`). No separate `signals.hpp` file exists.
+
 ```cpp
-// UI Signal/Slot Interfaces (include/ui/signals.hpp)
+// UI Signal/Slot Interfaces — DESIGN REFERENCE (not implemented as separate classes)
+// Actual signals are defined within individual panel/widget classes.
 namespace dicom_viewer {
 
 // Viewport Signals

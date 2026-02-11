@@ -864,6 +864,9 @@ classDiagram
 | TransferFunctionManager | Transfer Function 프리셋 관리 | SRS-FR-006 |
 | DRViewer | 전용 DR/CR 2D 뷰어 | SRS-FR-042 ~ SRS-FR-044 |
 
+> **구현 참고**: 아래 클래스 다이어그램에는 원래 설계의 `IRenderService` 인터페이스가 포함되어 있습니다.
+> 이 인터페이스는 **구현되지 않았으며** — 컴포넌트에 직접 접근합니다. 자세한 내용은 SDS-IF-001을 참조하세요.
+
 **Class Diagram**:
 
 ```
@@ -955,6 +958,9 @@ classDiagram
 | ROIStatistics | 평균, 표준편차, 최소/최대, 히스토그램 | SRS-FR-046 ~ SRS-FR-048 |
 | ShapeAnalyzer | 구형도, 신장도, 주축 분석 | SRS-FR-049 |
 | MPRCoordinateTransformer | 월드/화면/영상 좌표 변환 | SRS-FR-008 |
+
+> **구현 참고**: 아래 클래스 다이어그램에는 원래 설계의 `IMeasurementService` 인터페이스가 포함되어 있습니다.
+> 이 인터페이스는 **구현되지 않았으며** — 컴포넌트에 직접 접근합니다. 자세한 내용은 SDS-IF-001을 참조하세요.
 
 **Class Diagram**:
 
@@ -1537,20 +1543,36 @@ const std::vector<TransferFunctionPreset> CT_PRESETS = {
 
 ## 5. Interface Design
 
-### SDS-IF-001: Public API Interfaces
+### SDS-IF-001: 서비스 파사드 인터페이스 — 향후 설계 참고
 
 **Traces to**: SRS-IF-001 ~ SRS-IF-010
 
-> **구현 상태**: 아래 인터페이스 클래스 (`IImageService`, `IRenderService`,
-> `IMeasurementService`, `INetworkService`)는 **원래 설계 명세**를 나타냅니다.
-> 현재 코드베이스에서는 추상 인터페이스로 **구현되지 않았으며**, 서비스 파사드 계층 없이
-> **직접 컴포넌트 클래스** (예: `VolumeRenderer`, `ThresholdSegmenter`, `DicomFindSCU`)를
-> 사용합니다. 이 인터페이스 정의는 향후 의존성 주입 리팩터링을 위한 설계 참고로 유지됩니다.
+> **미구현 — 설계 참고 전용**
+>
+> 아래 인터페이스 클래스 (`IImageService`, `IRenderService`, `IMeasurementService`,
+> `INetworkService`)는 현재 코드베이스에 **구현되어 있지 않습니다**. 원래 파사드 패턴 설계를
+> 나타내며, 향후 의존성 주입 리팩터링을 위한 참고로 유지됩니다.
+>
+> **현재 아키텍처**: 코드베이스는 **직접 컴포넌트 접근** 방식을 사용합니다 — UI와 서비스 코드가
+> 파사드 계층 없이 개별 컴포넌트 클래스를 직접 인스턴스화합니다.
+> 실제 컴포넌트 헤더는 `include/services/`를 참조하세요.
+
+**설계 인터페이스 → 실제 컴포넌트 매핑**:
+
+| 설계 인터페이스 | 실제 컴포넌트 (직접 접근) |
+|----------------|--------------------------|
+| `IImageService` | `DicomLoader`, `SeriesBuilder`, `GaussianSmoother`, `AnisotropicDiffusionFilter`, `N4BiasCorrector`, `IsotropicResampler`, `ThresholdSegmenter`, `RegionGrowingSegmenter`, `LevelSetSegmenter`, `WatershedSegmenter`, `MorphologyProcessor` |
+| `IRenderService` | `VolumeRenderer`, `SurfaceRenderer`, `MprRenderer`, `ObliqueSliceRenderer`, `TransferFunctionManager` |
+| `IMeasurementService` | `LinearMeasurementTool`, `AreaMeasurementTool`, `VolumeMeasurementTool`, `RoiStatistics`, `ShapeAnalyzer`, `ReportGenerator` |
+| `INetworkService` | `DicomEchoScu`, `DicomFindScu`, `DicomMoveScu`, `DicomStoreScp`, `PacsConfig` |
+
+<details>
+<summary><strong>향후 설계 참고 — 인터페이스 정의 (클릭하여 펼치기)</strong></summary>
 
 ```cpp
-// Service Interfaces — 설계 참고 (미구현)
-// 실제 구현은 직접 컴포넌트 접근 패턴을 사용합니다.
-// 현재 API는 include/services/ 내 개별 컴포넌트 헤더를 참조하세요.
+// Service Interfaces — 향후 설계 참고 (미구현)
+// 현재 코드베이스는 이 인터페이스를 사용하지 않습니다.
+// 실제 컴포넌트 클래스는 위의 매핑 테이블을 참조하세요.
 namespace dicom_viewer {
 
 // Image Service Interface
@@ -1686,14 +1708,23 @@ public:
 } // namespace dicom_viewer
 ```
 
+</details>
+
 ---
 
-### SDS-IF-002: Signal/Slot Interfaces (Qt)
+### SDS-IF-002: Signal/Slot 인터페이스 (Qt) — 설계 참고
 
 **Traces to**: SRS-IF-011 ~ SRS-IF-015
 
+> **설계 참고**: 아래 통합 시그널 클래스 (`ViewportSignals`, `PatientBrowserSignals`,
+> `ToolsPanelSignals`)는 별도 클래스로 **구현되어 있지 않습니다**. 현재 코드베이스에서
+> Qt 시그널은 **각 패널/위젯 클래스 내부에 직접 정의**되어 있습니다 (예:
+> `SegmentationPanel::toolChanged`, `StatisticsPanel::exportRequested`,
+> `PatientBrowser::seriesSelected`). 별도의 `signals.hpp` 파일은 존재하지 않습니다.
+
 ```cpp
-// UI Signal/Slot Interfaces (include/ui/signals.hpp)
+// UI Signal/Slot Interfaces — 설계 참고 (별도 클래스로 미구현)
+// 실제 시그널은 각 패널/위젯 클래스 내부에 정의되어 있습니다.
 namespace dicom_viewer {
 
 // Viewport Signals
