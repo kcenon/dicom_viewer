@@ -962,7 +962,8 @@
 | M5.5 | Flow visualization | Streamlines, pathlines, vector glyphs |
 | M5.6 | Flow quantification | Flow rate at cross-section, time-velocity curves |
 | M5.7 | Advanced analysis | WSS, OSI, TKE on vessel boundaries |
-| M5.8 | Integration testing | End-to-end validation with analytical ground truth |
+| M5.8 | Flow export and reporting | CSV export of flow results, PDF report integration |
+| M5.9 | Integration testing | End-to-end validation with analytical ground truth |
 
 ---
 
