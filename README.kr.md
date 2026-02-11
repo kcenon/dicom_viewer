@@ -184,37 +184,53 @@ cmake --build . --parallel
 ```
 dicom_viewer/
 ├── docs/                           # 문서
-│   ├── PRD.md                      # 제품 요구사항 문서
-│   ├── SRS.md                      # 소프트웨어 요구사항 명세서
-│   ├── SDS.md                      # 소프트웨어 설계 명세서
-│   └── reference/                  # 기술 참조 문서
+│   ├── PRD.md / PRD.kr.md         # 제품 요구사항 문서
+│   ├── SRS.md / SRS.kr.md         # 소프트웨어 요구사항 명세서
+│   ├── SDS.md / SDS.kr.md         # 소프트웨어 설계 명세서
+│   └── reference/                  # 기술 참조 문서 (ITK, VTK, pacs_system)
 ├── include/                        # 헤더 파일
 │   ├── core/                       # 코어 모듈 헤더
 │   │   ├── dicom_loader.hpp        # DICOM 파일 로딩
 │   │   ├── series_builder.hpp      # 시리즈 조립 및 3D 볼륨
-│   │   ├── transfer_syntax_decoder.hpp  # 전송 구문 디코딩 지원
-│   │   ├── hounsfield_converter.hpp  # CT 픽셀 to HU 변환
-│   │   └── image_converter.hpp     # 이미지 포맷 변환
-│   └── services/                   # 서비스 레이어 헤더
-│       ├── volume_renderer.hpp     # GPU 볼륨 렌더링 (CPU 폴백 지원)
-│       ├── transfer_function_manager.hpp  # Transfer Function 프리셋 관리
-│       ├── mpr_renderer.hpp        # MPR (다중 평면 재구성) 뷰
-│       ├── pacs_config.hpp         # PACS 서버 설정
-│       └── dicom_echo_scu.hpp      # DICOM C-ECHO 연결 테스트
+│   │   ├── transfer_syntax_decoder.hpp  # 전송 구문 디코딩
+│   │   ├── hounsfield_converter.hpp  # CT 픽셀 → HU 변환
+│   │   └── image_converter.hpp     # ITK↔VTK 포맷 변환
+│   ├── services/                   # 서비스 레이어 헤더
+│   │   ├── render/                 # Oblique reslice 렌더러
+│   │   ├── measurement/            # 거리, 면적, 부피, ROI, 형상 분석
+│   │   ├── preprocessing/          # Gaussian, 이방성 확산, N4, 리샘플러
+│   │   ├── segmentation/           # 분할 알고리즘 및 라벨 관리
+│   │   ├── export/                 # 리포트, 메시, DICOM SR, 데이터 내보내기
+│   │   ├── coordinate/             # MPR 좌표 변환기
+│   │   ├── volume_renderer.hpp     # GPU 볼륨 렌더링 (CPU 폴백 지원)
+│   │   ├── surface_renderer.hpp    # 등위면 추출 및 렌더링
+│   │   ├── mpr_renderer.hpp        # MPR (다중 평면 재구성) 뷰
+│   │   └── dicom_*_scu.hpp        # PACS 서비스 (Echo, Find, Move, Store)
+│   └── ui/                         # UI 헤더
+│       ├── panels/                 # PatientBrowser, ToolsPanel 등
+│       └── dialogs/                # SettingsDialog, PacsConfigDialog
 ├── src/                            # 소스 코드
+│   ├── app/                        # 앱 진입점 (main.cpp)
 │   ├── core/                       # 핵심 데이터 구조
 │   │   ├── dicom/                  # DICOM 로딩 및 시리즈 조립
 │   │   ├── image/                  # 이미지 처리 및 HU 변환
-│   │   └── data/                   # 환자 데이터 관리
+│   │   └── logging/                # spdlog 기반 로깅
 │   ├── services/                   # 서비스 레이어
-│   │   ├── image/                  # 이미지 처리 서비스
-│   │   ├── render/                 # Volume/Surface/MPR 렌더링
-│   │   ├── measurement/            # 측정 도구
-│   │   ├── segmentation/           # 분할 알고리즘 (Threshold, Region Growing)
-│   │   └── pacs/                   # PACS 연결 (C-ECHO, C-FIND 등)
-│   ├── controller/                 # 컨트롤러 레이어
+│   │   ├── render/                 # Volume/Surface/MPR/Oblique 렌더링
+│   │   ├── measurement/            # 측정 및 통계 도구
+│   │   ├── preprocessing/          # 이미지 필터 (Gaussian, N4 등)
+│   │   ├── segmentation/           # 분할 알고리즘 및 라벨 관리
+│   │   ├── pacs/                   # PACS 연결 (C-ECHO, C-FIND 등)
+│   │   ├── export/                 # 리포트 생성, 메시/데이터 내보내기
+│   │   └── coordinate/             # MPR 좌표 변환
 │   └── ui/                         # Qt UI 컴포넌트
-├── tests/                          # 유닛 및 통합 테스트
+│       ├── widgets/                # ViewportWidget, MPRViewWidget, DRViewer
+│       ├── panels/                 # PatientBrowser, ToolsPanel 등
+│       └── dialogs/                # 설정, PACS 구성
+├── tests/                          # 테스트 스위트
+│   ├── unit/                       # 유닛 테스트 (40+ 파일)
+│   ├── integration/                # 통합 테스트
+│   └── data/                       # 테스트 DICOM 데이터
 ├── LICENSE
 └── README.md
 ```
