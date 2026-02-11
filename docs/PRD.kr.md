@@ -1,8 +1,8 @@
 # DICOM Viewer - Product Requirements Document (PRD)
 
-> **Version**: 0.2.0
+> **Version**: 0.3.0
 > **Created**: 2025-12-31
-> **Last Updated**: 2025-12-31
+> **Last Updated**: 2026-02-11
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
 
@@ -909,6 +909,7 @@
 |---------|------|--------|---------|
 | 0.1.0 | 2025-12-31 | Development Team | Initial PRD |
 | 0.2.0 | 2025-12-31 | Development Team | 세그먼테이션 및 영역 측정 기능 상세화 (FR-006, FR-007 확장, FR-012, FR-013 추가) |
+| 0.3.0 | 2026-02-11 | Development Team | DCMTK를 pacs_system으로 교체하여 DICOM 네트워크 운영 변경; 빌드 시스템과 버전 동기화 |
 
 > **Note**: v0.x.x는 Pre-release 버전입니다. 정식 릴리스는 v1.0.0부터 시작됩니다.
 

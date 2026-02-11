@@ -1,11 +1,11 @@
 # DICOM Viewer - Software Design Specification (SDS)
 
-> **Version**: 0.2.0
+> **Version**: 0.3.0
 > **Created**: 2025-12-31
-> **Last Updated**: 2025-12-31
+> **Last Updated**: 2026-02-11
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
-> **Based on**: [SRS v0.2.0](SRS.md), [PRD v0.2.0](PRD.md)
+> **Based on**: [SRS v0.3.0](SRS.md), [PRD v0.3.0](PRD.md)
 
 ---
 
@@ -17,6 +17,7 @@
 |---------|------|--------|-------------|
 | 0.1.0 | 2025-12-31 | Development Team | Initial SDS based on SRS 0.1.0 |
 | 0.2.0 | 2025-12-31 | Development Team | Added segmentation and measurement module design |
+| 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 
 ### Referenced Documents
 
@@ -2396,6 +2397,7 @@ dicom_viewer/
 |---------|------|--------|---------|
 | 0.1.0 | 2025-12-31 | Development Team | Initial SDS based on SRS 0.1.0 |
 | 0.2.0 | 2025-12-31 | Development Team | Added segmentation and measurement module design |
+| 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 
 > **Note**: v0.x.x versions are pre-release. Official release starts from v1.0.0.
 
