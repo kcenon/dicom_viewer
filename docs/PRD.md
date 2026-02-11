@@ -702,8 +702,7 @@
 │   │                                                                   │  │
 │   │  ViewerController ─┬─ LoadingController (Loading control)        │  │
 │   │                    ├─ RenderingController (Rendering control)    │  │
-│   │                    ├─ ToolController (Tool control)              │  │
-│   │                    └─ NetworkController (PACS control)           │  │
+│   │                    └─ ToolController (Tool control)              │  │
 │   │                                                                   │  │
 │   └─────────────────────────────────────────────────────────────────┘  │
 │                              │                                          │
