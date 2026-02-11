@@ -867,3 +867,21 @@ target_include_directories(flow_quantifier_test PRIVATE
 )
 
 gtest_discover_tests(flow_quantifier_test DISCOVERY_TIMEOUT 60)
+
+# Integration tests for 4D Flow pipeline (end-to-end validation)
+add_executable(flow_pipeline_integration_test
+    integration/flow_pipeline_integration_test.cpp
+)
+
+target_link_libraries(flow_pipeline_integration_test PRIVATE
+    flow_service
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(flow_pipeline_integration_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(flow_pipeline_integration_test DISCOVERY_TIMEOUT 120)
