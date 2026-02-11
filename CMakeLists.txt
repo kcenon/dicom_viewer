@@ -491,6 +491,7 @@ add_library(flow_service STATIC
     src/services/flow/flow_dicom_parser.cpp
     src/services/flow/velocity_field_assembler.cpp
     src/services/flow/phase_corrector.cpp
+    src/services/flow/temporal_navigator.cpp
     src/services/flow/vendor_parsers/siemens_flow_parser.cpp
     src/services/flow/vendor_parsers/philips_flow_parser.cpp
     src/services/flow/vendor_parsers/ge_flow_parser.cpp

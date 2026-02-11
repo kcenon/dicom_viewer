@@ -815,3 +815,20 @@ target_include_directories(phase_corrector_test PRIVATE
 )
 
 gtest_discover_tests(phase_corrector_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Temporal Navigator
+add_executable(temporal_navigator_test
+    unit/temporal_navigator_test.cpp
+)
+
+target_link_libraries(temporal_navigator_test PRIVATE
+    flow_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(temporal_navigator_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(temporal_navigator_test DISCOVERY_TIMEOUT 60)
