@@ -495,6 +495,7 @@ add_library(flow_service STATIC
     src/services/flow/temporal_navigator.cpp
     src/services/flow/flow_visualizer.cpp
     src/services/flow/flow_quantifier.cpp
+    src/services/flow/vessel_analyzer.cpp
     src/services/flow/vendor_parsers/siemens_flow_parser.cpp
     src/services/flow/vendor_parsers/philips_flow_parser.cpp
     src/services/flow/vendor_parsers/ge_flow_parser.cpp
