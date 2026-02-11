@@ -3,7 +3,7 @@
 > **고성능 의료 영상 뷰어** - CT/MRI 3D 볼륨 렌더링 및 MPR 뷰 지원
 
 [![Version](https://img.shields.io/badge/version-0.3.0--pre-orange)](https://github.com)
-[![C++](https://img.shields.io/badge/C++-20-blue.svg)](https://isocpp.org)
+[![C++](https://img.shields.io/badge/C++-23-blue.svg)](https://isocpp.org)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause-green.svg)](LICENSE)
 
 ## 개요
