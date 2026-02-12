@@ -1136,3 +1136,26 @@ target_include_directories(frame_extractor_test PRIVATE
 )
 
 gtest_discover_tests(frame_extractor_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for MPR Segmentation Renderer
+add_executable(mpr_segmentation_renderer_test
+    unit/mpr_segmentation_renderer_test.cpp
+)
+
+target_link_libraries(mpr_segmentation_renderer_test PRIVATE
+    segmentation_service
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(mpr_segmentation_renderer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS mpr_segmentation_renderer_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(mpr_segmentation_renderer_test DISCOVERY_TIMEOUT 60)
