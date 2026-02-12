@@ -138,6 +138,12 @@ find_package(ITK REQUIRED COMPONENTS
     ITKConnectedComponents
 )
 
+# GDCM library for low-level DICOM parsing (Enhanced DICOM, raw tag access)
+find_package(GDCM REQUIRED
+    PATHS /opt/homebrew/lib/gdcm-3.2
+)
+include(${GDCM_USE_FILE})
+
 # pacs_system for DICOM network operations (required)
 # DCMTK migration completed - now using pacs_system exclusively
 
@@ -505,6 +511,19 @@ target_link_libraries(flow_service PUBLIC
     dicom_viewer_core
     ${ITK_LIBRARIES}
     ${VTK_LIBRARIES}
+)
+
+# Enhanced DICOM service (multi-frame IOD parsing)
+add_library(enhanced_dicom_service STATIC
+    src/services/enhanced_dicom/enhanced_dicom_parser.cpp
+    src/services/enhanced_dicom/functional_group_parser.cpp
+    src/services/enhanced_dicom/frame_extractor.cpp
+)
+
+target_link_libraries(enhanced_dicom_service PUBLIC
+    dicom_viewer_core
+    ${ITK_LIBRARIES}
+    ${GDCM_LIBRARIES}
 )
 
 # UI library
