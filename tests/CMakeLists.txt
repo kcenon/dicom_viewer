@@ -1053,3 +1053,29 @@ target_include_directories(dicom_loader_test PRIVATE
 )
 
 gtest_discover_tests(dicom_loader_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Linear Measurement Tool
+add_executable(linear_measurement_tool_test
+    unit/linear_measurement_tool_test.cpp
+)
+
+target_link_directories(linear_measurement_tool_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(linear_measurement_tool_test PRIVATE
+    measurement_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(linear_measurement_tool_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS linear_measurement_tool_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(linear_measurement_tool_test DISCOVERY_TIMEOUT 60)
