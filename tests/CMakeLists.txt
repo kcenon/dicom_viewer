@@ -1119,3 +1119,20 @@ target_include_directories(functional_group_parser_test PRIVATE
 )
 
 gtest_discover_tests(functional_group_parser_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for FrameExtractor
+add_executable(frame_extractor_test
+    unit/frame_extractor_test.cpp
+)
+
+target_link_libraries(frame_extractor_test PRIVATE
+    enhanced_dicom_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(frame_extractor_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(frame_extractor_test DISCOVERY_TIMEOUT 60)
