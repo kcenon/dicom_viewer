@@ -1159,3 +1159,26 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(mpr_segmentation_renderer_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for label map overlay
+add_executable(label_map_overlay_test
+    unit/label_map_overlay_test.cpp
+)
+
+target_link_libraries(label_map_overlay_test PRIVATE
+    segmentation_service
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(label_map_overlay_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS label_map_overlay_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(label_map_overlay_test DISCOVERY_TIMEOUT 60)
