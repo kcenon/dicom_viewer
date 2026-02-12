@@ -1,4 +1,5 @@
 #include "services/enhanced_dicom/enhanced_dicom_parser.hpp"
+#include "services/enhanced_dicom/dimension_index_sorter.hpp"
 #include "services/enhanced_dicom/frame_extractor.hpp"
 #include "services/enhanced_dicom/functional_group_parser.hpp"
 #include "core/logging.hpp"
@@ -71,6 +72,8 @@ public:
     std::shared_ptr<spdlog::logger> logger;
     FunctionalGroupParser groupParser;
     FrameExtractor frameExtractor;
+    DimensionIndexSorter dimensionSorter;
+    DimensionOrganization dimOrg;
     ProgressCallback progressCallback;
 
     Impl() : logger(logging::LoggerFactory::create("EnhancedDicomParser")) {}
@@ -193,7 +196,22 @@ EnhancedDicomParser::parseFile(const std::string& filePath)
     // Step 3: Parse shared functional groups (overrides per-frame defaults)
     impl_->groupParser.parseSharedGroups(filePath, info);
 
-    impl_->reportProgress(0.8);
+    impl_->reportProgress(0.7);
+
+    // Step 4: Parse DimensionIndexSequence and sort frames
+    auto dimResult = impl_->dimensionSorter.parseDimensionIndex(filePath);
+    if (dimResult) {
+        impl_->dimOrg = dimResult.value();
+        if (!impl_->dimOrg.dimensions.empty()) {
+            info.frames = impl_->dimensionSorter.sortFrames(
+                info.frames, impl_->dimOrg);
+            impl_->logger->info(
+                "Frames sorted by {} dimensions from DimensionIndexSequence",
+                impl_->dimOrg.dimensions.size());
+        }
+    }
+
+    impl_->reportProgress(0.9);
 
     impl_->logger->info("Enhanced DICOM parsed: {} frames with metadata",
                         info.frames.size());
@@ -214,6 +232,20 @@ EnhancedDicomParser::assembleVolume(const EnhancedSeriesInfo& info,
 {
     return impl_->frameExtractor.assembleVolumeFromFrames(
         info.filePath, info, frameIndices);
+}
+
+const DimensionOrganization& EnhancedDicomParser::getDimensionOrganization() const
+{
+    return impl_->dimOrg;
+}
+
+std::expected<
+    std::map<int, itk::Image<short, 3>::Pointer>,
+    EnhancedDicomError>
+EnhancedDicomParser::reconstructMultiPhaseVolumes(
+    const EnhancedSeriesInfo& info)
+{
+    return impl_->dimensionSorter.reconstructVolumes(info, impl_->dimOrg);
 }
 
 }  // namespace dicom_viewer::services

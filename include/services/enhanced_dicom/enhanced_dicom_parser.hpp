@@ -2,6 +2,7 @@
 
 #include <expected>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -82,13 +83,38 @@ public:
      * @brief Parse an Enhanced DICOM file and extract all metadata
      *
      * Reads the entire Enhanced DICOM file, parses shared and per-frame
-     * functional groups, and returns complete series metadata.
+     * functional groups, DimensionIndexSequence, and returns complete
+     * series metadata with frames sorted by dimension indices.
      *
      * @param filePath Path to the Enhanced DICOM file
      * @return EnhancedSeriesInfo on success, error on failure
      */
     [[nodiscard]] std::expected<EnhancedSeriesInfo, EnhancedDicomError>
     parseFile(const std::string& filePath);
+
+    /**
+     * @brief Get the dimension organization from the last parsed file
+     *
+     * Available after a successful parseFile() call.
+     *
+     * @return DimensionOrganization (empty if no DimensionIndexSequence)
+     */
+    [[nodiscard]] const DimensionOrganization& getDimensionOrganization() const;
+
+    /**
+     * @brief Reconstruct per-phase 3D volumes from multi-dimensional data
+     *
+     * Groups frames by the outermost dimension and assembles each group
+     * into a separate 3D volume. Requires a prior successful parseFile().
+     *
+     * @param info Parsed series info from parseFile()
+     * @return Map of outer dimension value to assembled 3D volume
+     * @trace SRS-FR-049
+     */
+    [[nodiscard]] std::expected<
+        std::map<int, itk::Image<short, 3>::Pointer>,
+        EnhancedDicomError>
+    reconstructMultiPhaseVolumes(const EnhancedSeriesInfo& info);
 
     /**
      * @brief Assemble all frames into a single 3D volume
