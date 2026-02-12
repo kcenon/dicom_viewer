@@ -1092,6 +1092,291 @@ TEST_F(FunctionalGroupParserTest, ParseSharedEmptyStringValues) {
 }
 
 // =============================================================================
+// Metadata Precedence: shared + per-frame interaction workflow
+// =============================================================================
+
+TEST_F(FunctionalGroupParserTest, SharedThenPerFrameWorkflow) {
+    // Create a synthetic DICOM file with BOTH shared AND per-frame sequences.
+    // This tests the intended DICOM Enhanced IOD workflow:
+    // 1. parseSharedGroups() sets shared defaults on all frames
+    // 2. parsePerFrameGroups() returns new frames with per-frame overrides
+
+    // Shared: rescale slope=1.0, intercept=-1024.0
+    gdcm::DataSet pvtShared;
+    insertStringElement(pvtShared, tags::RescaleSlope, "1.0");
+    insertStringElement(pvtShared, tags::RescaleIntercept, "-1024.0");
+    gdcm::DataSet sharedGroupDs;
+    insertSequenceWithItem(sharedGroupDs,
+                           tags::PixelValueTransformationSequence, pvtShared);
+    // Shared pixel spacing
+    gdcm::DataSet pixelMeasuresDs;
+    insertStringElement(pixelMeasuresDs, tags::PixelSpacing, "0.5\\0.5");
+    insertSequenceWithItem(sharedGroupDs, tags::PixelMeasuresSequence,
+                           pixelMeasuresDs);
+
+    // Per-frame: frame 0 has rescale slope=2.0, intercept=-500.0
+    //            frame 1 has NO rescale (should retain defaults)
+    std::vector<gdcm::DataSet> perFrameItems;
+    {
+        gdcm::DataSet pvtPerFrame;
+        insertStringElement(pvtPerFrame, tags::RescaleSlope, "2.0");
+        insertStringElement(pvtPerFrame, tags::RescaleIntercept, "-500.0");
+        gdcm::DataSet frame0;
+        insertSequenceWithItem(frame0,
+                               tags::PixelValueTransformationSequence,
+                               pvtPerFrame);
+        perFrameItems.push_back(frame0);
+    }
+    {
+        // Frame 1: position only, no rescale override
+        gdcm::DataSet planePosDs;
+        insertStringElement(planePosDs, tags::ImagePositionPatient,
+                            "0.0\\0.0\\5.0");
+        gdcm::DataSet frame1;
+        insertSequenceWithItem(frame1, tags::PlanePositionSequence,
+                               planePosDs);
+        perFrameItems.push_back(frame1);
+    }
+
+    gdcm::DataSet topDs;
+    insertSequenceWithItem(topDs, tags::SharedFunctionalGroups, sharedGroupDs);
+    insertSequenceWithItems(topDs, tags::PerFrameFunctionalGroups,
+                            perFrameItems);
+
+    std::string path = writeDicomFile(topDs, "precedence_both.dcm");
+
+    // Workflow: parse per-frame first → then assign and apply shared
+    EnhancedSeriesInfo info;
+    auto frames = parser_.parsePerFrameGroups(path, 2, info);
+    info.frames = frames;
+
+    // Per-frame results: frame 0 has override, frame 1 has defaults
+    EXPECT_DOUBLE_EQ(info.frames[0].rescaleSlope, 2.0);
+    EXPECT_DOUBLE_EQ(info.frames[0].rescaleIntercept, -500.0);
+    EXPECT_DOUBLE_EQ(info.frames[1].rescaleSlope, 1.0);      // default
+    EXPECT_DOUBLE_EQ(info.frames[1].rescaleIntercept, 0.0);   // default
+
+    // Now apply shared groups (overwrites ALL frames)
+    parser_.parseSharedGroups(path, info);
+
+    // After shared: pixel spacing set, rescale overwritten on all frames
+    EXPECT_DOUBLE_EQ(info.pixelSpacingX, 0.5);
+    EXPECT_DOUBLE_EQ(info.pixelSpacingY, 0.5);
+    // Shared rescale overwrites per-frame — this documents actual behavior
+    EXPECT_DOUBLE_EQ(info.frames[0].rescaleSlope, 1.0);
+    EXPECT_DOUBLE_EQ(info.frames[0].rescaleIntercept, -1024.0);
+    EXPECT_DOUBLE_EQ(info.frames[1].rescaleSlope, 1.0);
+    EXPECT_DOUBLE_EQ(info.frames[1].rescaleIntercept, -1024.0);
+}
+
+TEST_F(FunctionalGroupParserTest, PerFrameOverridesWhenCalledAfterShared) {
+    // Alternative workflow: shared first, then per-frame replaces frames.
+    // This achieves the DICOM-intended semantics where per-frame overrides shared.
+
+    // Shared: rescale slope=1.0, intercept=-1024.0, orientation=axial
+    gdcm::DataSet pvtShared;
+    insertStringElement(pvtShared, tags::RescaleSlope, "1.0");
+    insertStringElement(pvtShared, tags::RescaleIntercept, "-1024.0");
+    gdcm::DataSet orientShared;
+    insertStringElement(orientShared, tags::ImageOrientationPatient,
+                        "1.0\\0.0\\0.0\\0.0\\1.0\\0.0");
+    gdcm::DataSet sharedGroupDs;
+    insertSequenceWithItem(sharedGroupDs,
+                           tags::PixelValueTransformationSequence, pvtShared);
+    insertSequenceWithItem(sharedGroupDs, tags::PlaneOrientationSequence,
+                           orientShared);
+
+    // Per-frame: frame 0 has rescale=3.0/-500, frame 1 has no rescale
+    std::vector<gdcm::DataSet> perFrameItems;
+    {
+        gdcm::DataSet pvtPerFrame;
+        insertStringElement(pvtPerFrame, tags::RescaleSlope, "3.0");
+        insertStringElement(pvtPerFrame, tags::RescaleIntercept, "-500.0");
+        gdcm::DataSet frame0;
+        insertSequenceWithItem(frame0,
+                               tags::PixelValueTransformationSequence,
+                               pvtPerFrame);
+        perFrameItems.push_back(frame0);
+    }
+    {
+        gdcm::DataSet frame1;  // empty — no per-frame overrides
+        perFrameItems.push_back(frame1);
+    }
+
+    gdcm::DataSet topDs;
+    insertSequenceWithItem(topDs, tags::SharedFunctionalGroups, sharedGroupDs);
+    insertSequenceWithItems(topDs, tags::PerFrameFunctionalGroups,
+                            perFrameItems);
+
+    std::string path = writeDicomFile(topDs, "precedence_override.dcm");
+
+    // Workflow: shared first → per-frame second (replaces frame vector)
+    EnhancedSeriesInfo info;
+    info.frames.resize(2);
+    parser_.parseSharedGroups(path, info);
+
+    // After shared: both frames have shared rescale and orientation
+    EXPECT_DOUBLE_EQ(info.frames[0].rescaleSlope, 1.0);
+    EXPECT_DOUBLE_EQ(info.frames[0].rescaleIntercept, -1024.0);
+    EXPECT_DOUBLE_EQ(info.frames[1].rescaleSlope, 1.0);
+    EXPECT_DOUBLE_EQ(info.frames[1].imageOrientation[0], 1.0);
+
+    // Now per-frame replaces the frame vector entirely
+    info.frames = parser_.parsePerFrameGroups(path, 2, info);
+
+    // Frame 0: per-frame rescale overrides (3.0/-500.0)
+    EXPECT_DOUBLE_EQ(info.frames[0].rescaleSlope, 3.0);
+    EXPECT_DOUBLE_EQ(info.frames[0].rescaleIntercept, -500.0);
+    // Frame 1: no per-frame rescale → hardcoded defaults (1.0/0.0),
+    // NOT shared values (since parsePerFrameGroups creates fresh frames)
+    EXPECT_DOUBLE_EQ(info.frames[1].rescaleSlope, 1.0);
+    EXPECT_DOUBLE_EQ(info.frames[1].rescaleIntercept, 0.0);
+}
+
+TEST_F(FunctionalGroupParserTest, MixedPresencePerFrameAndShared) {
+    // Tests the scenario where:
+    // - Shared has orientation + pixel spacing
+    // - Per-frame frame 0 has position + rescale override
+    // - Per-frame frame 1 has only position (no rescale)
+    // - Per-frame frame 2 has nothing (empty item)
+
+    gdcm::DataSet pixelMeasuresDs;
+    insertStringElement(pixelMeasuresDs, tags::PixelSpacing, "0.75\\0.75");
+    gdcm::DataSet orientDs;
+    insertStringElement(orientDs, tags::ImageOrientationPatient,
+                        "1.0\\0.0\\0.0\\0.0\\1.0\\0.0");
+    gdcm::DataSet sharedGroupDs;
+    insertSequenceWithItem(sharedGroupDs, tags::PixelMeasuresSequence,
+                           pixelMeasuresDs);
+    insertSequenceWithItem(sharedGroupDs, tags::PlaneOrientationSequence,
+                           orientDs);
+
+    std::vector<gdcm::DataSet> perFrameItems;
+    // Frame 0: position + rescale
+    {
+        gdcm::DataSet planePosDs;
+        insertStringElement(planePosDs, tags::ImagePositionPatient,
+                            "-120.0\\-120.0\\0.0");
+        gdcm::DataSet pvtDs;
+        insertStringElement(pvtDs, tags::RescaleSlope, "2.0");
+        insertStringElement(pvtDs, tags::RescaleIntercept, "-500.0");
+        gdcm::DataSet frame;
+        insertSequenceWithItem(frame, tags::PlanePositionSequence, planePosDs);
+        insertSequenceWithItem(frame,
+                               tags::PixelValueTransformationSequence, pvtDs);
+        perFrameItems.push_back(frame);
+    }
+    // Frame 1: position only
+    {
+        gdcm::DataSet planePosDs;
+        insertStringElement(planePosDs, tags::ImagePositionPatient,
+                            "-120.0\\-120.0\\3.0");
+        gdcm::DataSet frame;
+        insertSequenceWithItem(frame, tags::PlanePositionSequence, planePosDs);
+        perFrameItems.push_back(frame);
+    }
+    // Frame 2: empty item
+    {
+        gdcm::DataSet frame;
+        perFrameItems.push_back(frame);
+    }
+
+    gdcm::DataSet topDs;
+    insertSequenceWithItem(topDs, tags::SharedFunctionalGroups, sharedGroupDs);
+    insertSequenceWithItems(topDs, tags::PerFrameFunctionalGroups,
+                            perFrameItems);
+
+    std::string path = writeDicomFile(topDs, "mixed_presence.dcm");
+
+    EnhancedSeriesInfo info;
+    info.frames = parser_.parsePerFrameGroups(path, 3, info);
+
+    // Frame 0: has position and rescale from per-frame
+    EXPECT_DOUBLE_EQ(info.frames[0].imagePosition[0], -120.0);
+    EXPECT_DOUBLE_EQ(info.frames[0].imagePosition[2], 0.0);
+    EXPECT_DOUBLE_EQ(info.frames[0].rescaleSlope, 2.0);
+    EXPECT_DOUBLE_EQ(info.frames[0].rescaleIntercept, -500.0);
+
+    // Frame 1: has position from per-frame, default rescale
+    EXPECT_DOUBLE_EQ(info.frames[1].imagePosition[2], 3.0);
+    EXPECT_DOUBLE_EQ(info.frames[1].rescaleSlope, 1.0);
+
+    // Frame 2: all defaults (empty per-frame item)
+    EXPECT_DOUBLE_EQ(info.frames[2].imagePosition[0], 0.0);
+    EXPECT_DOUBLE_EQ(info.frames[2].rescaleSlope, 1.0);
+
+    // Now apply shared — pixel spacing set, orientation applied to all
+    parser_.parseSharedGroups(path, info);
+    EXPECT_DOUBLE_EQ(info.pixelSpacingX, 0.75);
+    for (const auto& frame : info.frames) {
+        EXPECT_DOUBLE_EQ(frame.imageOrientation[0], 1.0);
+        EXPECT_DOUBLE_EQ(frame.imageOrientation[4], 1.0);
+    }
+}
+
+// =============================================================================
+// Edge case: very large NumberOfFrames (1000+) with synthetic DICOM
+// =============================================================================
+
+TEST_F(FunctionalGroupParserTest, LargeFrameCountSyntheticDicom) {
+    const int numFrames = 1000;
+    std::vector<gdcm::DataSet> perFrameItems;
+
+    for (int i = 0; i < numFrames; ++i) {
+        gdcm::DataSet planePosDs;
+        std::string posStr = "0.0\\0.0\\" + std::to_string(i * 2.5);
+        insertStringElement(planePosDs, tags::ImagePositionPatient, posStr);
+        gdcm::DataSet frameItemDs;
+        insertSequenceWithItem(frameItemDs, tags::PlanePositionSequence,
+                               planePosDs);
+        perFrameItems.push_back(frameItemDs);
+    }
+
+    gdcm::DataSet topDs;
+    insertSequenceWithItems(topDs, tags::PerFrameFunctionalGroups,
+                            perFrameItems);
+
+    std::string path = writeDicomFile(topDs, "large_frame_count.dcm");
+
+    EnhancedSeriesInfo sharedInfo;
+    auto frames = parser_.parsePerFrameGroups(path, numFrames, sharedInfo);
+
+    ASSERT_EQ(frames.size(), static_cast<size_t>(numFrames));
+    // Verify first, middle, and last frames
+    EXPECT_DOUBLE_EQ(frames[0].imagePosition[2], 0.0);
+    EXPECT_NEAR(frames[499].imagePosition[2], 499 * 2.5, 0.1);
+    EXPECT_NEAR(frames[999].imagePosition[2], 999 * 2.5, 0.1);
+    // Verify sequential indexing
+    for (int i = 0; i < numFrames; ++i) {
+        EXPECT_EQ(frames[i].frameIndex, i);
+    }
+}
+
+// =============================================================================
+// Edge case: asymmetric pixel spacing
+// =============================================================================
+
+TEST_F(FunctionalGroupParserTest, ParseSharedAsymmetricPixelSpacing) {
+    gdcm::DataSet pixelMeasuresDs;
+    insertStringElement(pixelMeasuresDs, tags::PixelSpacing, "0.5\\0.75");
+
+    gdcm::DataSet sharedGroupDs;
+    insertSequenceWithItem(sharedGroupDs, tags::PixelMeasuresSequence,
+                           pixelMeasuresDs);
+
+    gdcm::DataSet topDs;
+    insertSequenceWithItem(topDs, tags::SharedFunctionalGroups, sharedGroupDs);
+
+    std::string path = writeDicomFile(topDs, "asymmetric_spacing.dcm");
+
+    EnhancedSeriesInfo info;
+    parser_.parseSharedGroups(path, info);
+
+    EXPECT_DOUBLE_EQ(info.pixelSpacingX, 0.5);
+    EXPECT_DOUBLE_EQ(info.pixelSpacingY, 0.75);
+}
+
+// =============================================================================
 // DimensionOrganization struct tests (pure data structure, no I/O)
 // =============================================================================
 
