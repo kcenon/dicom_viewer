@@ -1,11 +1,11 @@
 # DICOM Viewer - Software Design Specification (SDS)
 
-> **Version**: 0.5.0
+> **Version**: 0.6.0
 > **Created**: 2025-12-31
-> **Last Updated**: 2026-02-11
+> **Last Updated**: 2026-02-12
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
-> **Based on**: [SRS v0.5.0](SRS.md), [PRD v0.4.0](PRD.md)
+> **Based on**: [SRS v0.6.0](SRS.md), [PRD v0.5.0](PRD.md)
 
 ---
 
@@ -1476,6 +1476,190 @@ classDiagram
 
 ---
 
+### SDS-MOD-008: Enhanced DICOM Module
+
+**Traces to**: SRS-FR-049
+
+**Purpose**: Parse Enhanced (multi-frame) DICOM IODs and extract frames with per-frame metadata, enabling compatibility with modern CT/MR scanners.
+
+**Components**:
+
+| Component | Description | Traces to | Status |
+|-----------|-------------|-----------|--------|
+| EnhancedDicomParser | Detect and parse Enhanced CT/MR IODs | SRS-FR-049 | ⬜ Planned |
+| FrameExtractor | Extract individual frames from multi-frame pixel data | SRS-FR-049 | ⬜ Planned |
+| FunctionalGroupParser | Parse Shared/PerFrame FunctionalGroupsSequence | SRS-FR-049 | ⬜ Planned |
+| DimensionIndexSorter | Sort frames by DimensionIndexSequence | SRS-FR-049 | ⬜ Planned |
+
+**Class Diagram**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    SDS-MOD-008: Enhanced DICOM Module                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   ┌───────────────────────────────────────────────────────────────────┐     │
+│   │                    EnhancedDicomParser                              │     │
+│   │  • detectEnhancedIOD(sopClassUID) → bool                          │     │
+│   │  • parseMultiFrame(path) → Result<EnhancedSeriesInfo>             │     │
+│   │  • assembleVolume(frames) → itk::Image<short,3>                   │     │
+│   └───────────────────────────┬─────────────────────────────────────┘      │
+│                               ↓                                              │
+│   ┌──────────────────────────────────────────────────────────────────┐      │
+│   │                    FunctionalGroupParser                           │      │
+│   │  ┌────────────────────────┐  ┌─────────────────────────────────┐│      │
+│   │  │ SharedFunctionalGroup  │  │ PerFrameFunctionalGroup         ││      │
+│   │  │ (5200,9229)            │  │ (5200,9230)                     ││      │
+│   │  │ • PixelValueTransform  │  │ • PlanePositionSequence         ││      │
+│   │  │ • FrameContentSequence │  │ • PlaneOrientationSequence      ││      │
+│   │  │ • PixelMeasures        │  │ • FrameContentSequence          ││      │
+│   │  └────────────────────────┘  └─────────────────────────────────┘│      │
+│   └──────────────────────────────────────────────────────────────────┘      │
+│                               ↓                                              │
+│   ┌──────────────────────────────────────────────────────────────────┐      │
+│   │                    DimensionIndexSorter                            │      │
+│   │  • parseDimensionIndex(0020,9222) → DimensionOrganization        │      │
+│   │  • sortFrames(frames, dimIndex) → vector<FrameInfo>              │      │
+│   │  • groupByDimension(frames, dimId) → map<int, vector<FrameInfo>> │      │
+│   └──────────────────────────────────────────────────────────────────┘      │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Data Structures**:
+
+```cpp
+struct EnhancedFrameInfo {
+    int frameIndex;
+    std::array<double, 3> imagePosition;
+    std::array<double, 6> imageOrientation;
+    double sliceThickness;
+    double rescaleSlope;
+    double rescaleIntercept;
+    std::optional<double> triggerTime;
+    std::optional<int> temporalPositionIndex;
+    std::map<uint32_t, int> dimensionIndices;  // dimension pointer → index value
+};
+
+struct EnhancedSeriesInfo {
+    std::string sopClassUID;
+    int numberOfFrames;
+    int rows, columns;
+    int bitsAllocated, bitsStored;
+    std::vector<EnhancedFrameInfo> frames;
+    // Shared metadata (common to all frames)
+    double pixelSpacingX, pixelSpacingY;
+};
+```
+
+**Key Design Decisions**:
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| IOD Detection | SOP Class UID lookup | Deterministic, no ambiguity |
+| Frame Memory | On-demand extraction | Large multi-frame files may exceed memory if all loaded at once |
+| Classic Fallback | Auto-routing by SOP Class | Seamless backward compatibility with existing loader |
+| Pixel Data | Offset table + frame-by-frame | Required for encapsulated transfer syntaxes |
+
+---
+
+### SDS-MOD-009: Cardiac CT Analysis Module
+
+**Traces to**: SRS-FR-050 ~ SRS-FR-053
+
+**Purpose**: Provide ECG-gated cardiac CT phase separation, coronary CTA analysis, calcium scoring, and cine MRI temporal display.
+
+**Components**:
+
+| Component | Description | Traces to | Status |
+|-----------|-------------|-----------|--------|
+| CardiacPhaseDetector | Detect and separate ECG-gated cardiac phases | SRS-FR-050 | ⬜ Planned |
+| CoronaryCenterlineExtractor | Extract coronary artery centerlines (Frangi vesselness + minimal path) | SRS-FR-051 | ⬜ Planned |
+| CurvedPlanarReformatter | Generate CPR views along extracted centerlines | SRS-FR-051 | ⬜ Planned |
+| CalciumScorer | Compute Agatston, volume, and mass calcium scores | SRS-FR-052 | ⬜ Planned |
+| CineOrganizer | Detect and organize multi-phase cine MRI series | SRS-FR-053 | ⬜ Planned |
+
+**Class Diagram**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                SDS-MOD-009: Cardiac CT Analysis Module                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   ┌────────────────────────┐   ┌────────────────────────────────────────┐  │
+│   │ CardiacPhaseDetector   │   │ CoronaryCenterlineExtractor            │  │
+│   │                        │   │                                        │  │
+│   │ • detectECGGating()    │   │ • computeVesselness(image)             │  │
+│   │ • separatePhases()     │   │ • extractCenterline(seed, vesselness)  │  │
+│   │ • selectBestPhase()    │   │ • smoothCenterline(path)               │  │
+│   │ • getPhaseInfo()       │   │ • measureStenosis(centerline, image)   │  │
+│   └───────────┬────────────┘   └──────────────────┬─────────────────────┘  │
+│               ↓                                    ↓                        │
+│   ┌────────────────────────┐   ┌────────────────────────────────────────┐  │
+│   │ CalciumScorer          │   │ CurvedPlanarReformatter                │  │
+│   │                        │   │                                        │  │
+│   │ • computeAgatston()    │   │ • generateStraightenedCPR()            │  │
+│   │ • computeVolumeScore() │   │ • generateCrossSectionalCPR()          │  │
+│   │ • classifyRisk()       │   │ • computeStretchedCPR()                │  │
+│   │ • assignToArteries()   │   │                                        │  │
+│   └────────────────────────┘   └────────────────────────────────────────┘  │
+│                                                                               │
+│   ┌──────────────────────────────────────────────────────────────────────┐  │
+│   │                       CineOrganizer                                    │  │
+│   │  • detectCineSeries(dicomFiles) → CineSeriesInfo                      │  │
+│   │  • organizePhases(series) → vector<PhaseVolume>                       │  │
+│   │  • detectOrientation(series) → "SA"|"2CH"|"3CH"|"4CH"                │  │
+│   │  NOTE: Uses TemporalNavigator from SDS-MOD-007 for playback          │  │
+│   └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Data Structures**:
+
+```cpp
+struct CardiacPhaseInfo {
+    int phaseIndex;
+    double triggerTime;        // ms from R-wave
+    double nominalPercentage;  // % of R-R interval
+    std::string phaseLabel;    // "75% diastole", "40% systole"
+};
+
+struct CalciumScoreResult {
+    double totalAgatston;
+    double volumeScore;        // mm³
+    double massScore;          // mg
+    std::map<std::string, double> perArteryScores;  // "LAD" → score
+    std::string riskCategory;  // "None", "Minimal", "Mild", "Moderate", "Severe"
+};
+
+struct CenterlinePoint {
+    std::array<double, 3> position;
+    double radius;             // estimated vessel radius
+    std::array<double, 3> tangent;
+};
+
+struct CineSeriesInfo {
+    int phaseCount;
+    int sliceCount;
+    double temporalResolution;
+    std::string orientation;   // "SA", "2CH", "3CH", "4CH"
+    std::vector<double> triggerTimes;
+};
+```
+
+**Key Design Decisions**:
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Vesselness Filter | Frangi (Hessian-based) | Well-validated for coronary artery detection in literature |
+| Centerline Tracking | Minimal path (fast marching) | Robust to noise, produces globally optimal path |
+| Phase Separation | Trigger Time grouping | Standard ECG-gated CT acquisition metadata |
+| TemporalNavigator Reuse | Composition (not inheritance) | Cardiac CT phases share same navigation pattern as 4D Flow |
+| Calcium Threshold | Fixed 130 HU (Agatston standard) | Clinical standard, non-configurable for reproducibility |
+
+---
+
 ## 4. Data Design
 
 ### SDS-DATA-001: Image Data Structures
@@ -2886,6 +3070,9 @@ sequenceDiagram
 | FR-012 (ROI Management) | SRS-FR-031 | P1 |
 | FR-013 (Analysis Report) | SRS-FR-032 | P2 |
 | FR-014 (4D Flow MRI) | SRS-FR-043~048 | P1 |
+| FR-015 (Enhanced DICOM) | SRS-FR-049 | P0 |
+| FR-016 (Cardiac CT) | SRS-FR-050~052 | P1 |
+| FR-017 (Cine MRI) | SRS-FR-053 | P2 |
 
 ---
 
@@ -2922,6 +3109,11 @@ sequenceDiagram
 | SRS-FR-046 | SDS-MOD-007 (FlowVisualizer), SDS-SEQ-006 | Flow Analysis |
 | SRS-FR-047 | SDS-MOD-007 (FlowQuantifier, VesselAnalyzer), SDS-SEQ-007 | Flow Analysis |
 | SRS-FR-048 | SDS-MOD-007 (TemporalNavigator), SDS-DATA-006, SDS-SEQ-006, SDS-SEQ-007 | Flow Analysis |
+| SRS-FR-049 | SDS-MOD-008 (EnhancedDicomParser, FrameExtractor, FunctionalGroupParser, DimensionIndexSorter) | Enhanced DICOM |
+| SRS-FR-050 | SDS-MOD-009 (CardiacPhaseDetector) | Cardiac CT |
+| SRS-FR-051 | SDS-MOD-009 (CoronaryCenterlineExtractor, CurvedPlanarReformatter) | Cardiac CT |
+| SRS-FR-052 | SDS-MOD-009 (CalciumScorer) | Cardiac CT |
+| SRS-FR-053 | SDS-MOD-009 (CineOrganizer) + SDS-MOD-007 (TemporalNavigator) | Cardiac CT / Cine MRI |
 
 ---
 
@@ -2976,6 +3168,12 @@ sequenceDiagram
 | FR-014.9~11 | SRS-FR-048 | SDS-MOD-007, SDS-DATA-006 | Flow (TemporalNavigator) | ⬜ Planned |
 | FR-014.12~18 | SRS-FR-047 | SDS-MOD-007, SDS-SEQ-007 | Flow (FlowQuantifier) | ⬜ Planned |
 | FR-014.19~21 | SRS-FR-047 | SDS-MOD-007, SDS-SEQ-007 | Flow (VesselAnalyzer, Export) | ⬜ Planned |
+| FR-015.1~6 | SRS-FR-049 | SDS-MOD-008 | Enhanced DICOM (EnhancedDicomParser, FrameExtractor, FunctionalGroupParser) | ⬜ Planned |
+| FR-016.1~4 | SRS-FR-050 | SDS-MOD-009 | Cardiac CT (CardiacPhaseDetector) | ⬜ Planned |
+| FR-016.5~8 | SRS-FR-051 | SDS-MOD-009 | Cardiac CT (CoronaryCenterlineExtractor, CurvedPlanarReformatter) | ⬜ Planned |
+| FR-016.9~12 | SRS-FR-052 | SDS-MOD-009 | Cardiac CT (CalciumScorer) | ⬜ Planned |
+| FR-016.13~14 | SRS-FR-050 | SDS-MOD-009 | Cardiac CT (CardiacPhaseDetector - EF) | ⬜ Planned |
+| FR-017.1~4 | SRS-FR-053 | SDS-MOD-009, SDS-MOD-007 | Cine MRI (CineOrganizer + TemporalNavigator) | ⬜ Planned |
 
 ---
 
@@ -3052,6 +3250,17 @@ dicom_viewer/
 │       │   │   ├── measurement_serializer.hpp
 │       │   │   ├── mesh_exporter.hpp
 │       │   │   └── dicom_sr_writer.hpp
+│       │   ├── enhanced_dicom/           # SDS-MOD-008
+│       │   │   ├── enhanced_dicom_parser.hpp
+│       │   │   ├── frame_extractor.hpp
+│       │   │   ├── functional_group_parser.hpp
+│       │   │   └── dimension_index_sorter.hpp
+│       │   ├── cardiac/                 # SDS-MOD-009
+│       │   │   ├── cardiac_phase_detector.hpp
+│       │   │   ├── coronary_centerline_extractor.hpp
+│       │   │   ├── curved_planar_reformatter.hpp
+│       │   │   ├── calcium_scorer.hpp
+│       │   │   └── cine_organizer.hpp
 │       │   ├── flow/                    # SDS-MOD-007
 │       │   │   ├── flow_dicom_parser.hpp
 │       │   │   ├── vendor_parsers/
@@ -3249,6 +3458,7 @@ dicom_viewer/
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 | 0.4.0 | 2026-02-11 | Development Team | Fixed SRS-FR traceability references throughout (SRS has 42 requirements, not 60); aligned with SRS v0.4.0 |
 | 0.5.0 | 2026-02-11 | Development Team | Added SDS-MOD-007 Flow Analysis Module (7 components), SDS-DATA-006 flow data structures, SDS-SEQ-005~007 flow sequence diagrams; updated ARCH-002/003 and traceability matrices for SRS-FR-043~048 |
+| 0.6.0 | 2026-02-12 | Development Team | Added SDS-MOD-008 (Enhanced DICOM Module, 4 components), SDS-MOD-009 (Cardiac CT Analysis Module, 5 components); updated traceability matrices for SRS-FR-049~053 |
 
 > **Note**: v0.x.x versions are pre-release. Official release starts from v1.0.0.
 
