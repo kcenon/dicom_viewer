@@ -937,3 +937,20 @@ target_include_directories(dimension_index_sorter_test PRIVATE
 )
 
 gtest_discover_tests(dimension_index_sorter_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Cardiac Phase Detector
+add_executable(cardiac_phase_detector_test
+    unit/cardiac_phase_detector_test.cpp
+)
+
+target_link_libraries(cardiac_phase_detector_test PRIVATE
+    cardiac_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(cardiac_phase_detector_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(cardiac_phase_detector_test DISCOVERY_TIMEOUT 60)

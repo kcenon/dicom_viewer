@@ -527,6 +527,17 @@ target_link_libraries(enhanced_dicom_service PUBLIC
     ${GDCM_LIBRARIES}
 )
 
+# Cardiac analysis service (ECG-gated phase detection)
+add_library(cardiac_service STATIC
+    src/services/cardiac/cardiac_phase_detector.cpp
+)
+
+target_link_libraries(cardiac_service PUBLIC
+    dicom_viewer_core
+    enhanced_dicom_service
+    ${ITK_LIBRARIES}
+)
+
 # UI library
 add_library(dicom_viewer_ui STATIC
     src/ui/main_window.cpp
