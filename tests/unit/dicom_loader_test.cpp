@@ -222,6 +222,22 @@ TEST_F(DicomLoaderTest, LoadFileErrorMessageContainsPath)
     EXPECT_NE(result.error().message.find("specific_test_path"), std::string::npos);
 }
 
+TEST_F(DicomLoaderTest, LoadFileReadOnlyNonDicomFile)
+{
+    // Create a non-DICOM file and verify it fails gracefully even if readable
+    auto path = createNonDicomFile("readonly.dcm", "NOT_A_DICOM_FILE");
+    std::filesystem::permissions(path, std::filesystem::perms::owner_read);
+
+    DicomLoader loader;
+    auto result = loader.loadFile(path);
+    ASSERT_FALSE(result.has_value());
+    // Should fail as InvalidDicomFormat (file is readable but not valid DICOM)
+    EXPECT_EQ(result.error().code, DicomError::InvalidDicomFormat);
+
+    // Restore permissions for cleanup
+    std::filesystem::permissions(path, std::filesystem::perms::owner_all);
+}
+
 // ============================================================================
 // scanDirectory — error paths
 // ============================================================================
@@ -268,6 +284,24 @@ TEST_F(DicomLoaderTest, ScanDirectoryWithNonDicomFiles)
     auto result = loader.scanDirectory(dir);
     ASSERT_TRUE(result.has_value());
     // Non-DICOM files should be filtered out
+    EXPECT_TRUE(result.value().empty());
+}
+
+TEST_F(DicomLoaderTest, ScanDirectoryWithNestedSubdirectories)
+{
+    auto dir = tempDir_ / "nested_dir";
+    auto subdir = dir / "subdir1" / "subdir2";
+    std::filesystem::create_directories(subdir);
+
+    // Create non-DICOM files at different levels
+    std::ofstream(dir / "readme.txt") << "not dicom";
+    std::ofstream(subdir / "data.txt") << "not dicom either";
+
+    DicomLoader loader;
+    // scanDirectory with recursive=false should still succeed
+    auto result = loader.scanDirectory(dir);
+    ASSERT_TRUE(result.has_value());
+    // No valid DICOM files at any level
     EXPECT_TRUE(result.value().empty());
 }
 
