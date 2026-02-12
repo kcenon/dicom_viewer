@@ -971,3 +971,26 @@ target_include_directories(calcium_scorer_test PRIVATE
 )
 
 gtest_discover_tests(calcium_scorer_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Coronary Centerline Extractor and CPR
+add_executable(coronary_centerline_extractor_test
+    unit/coronary_centerline_extractor_test.cpp
+)
+
+target_link_libraries(coronary_centerline_extractor_test PRIVATE
+    cardiac_service
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(coronary_centerline_extractor_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS coronary_centerline_extractor_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(coronary_centerline_extractor_test DISCOVERY_TIMEOUT 120)

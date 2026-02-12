@@ -216,4 +216,75 @@ namespace calcium_constants {
     inline constexpr double kRiskModerate = 400.0;
 }  // namespace calcium_constants
 
+// =============================================================================
+// Coronary CTA Types (Centerline & CPR)
+// =============================================================================
+
+/**
+ * @brief Parameters for Frangi vesselness filter
+ *
+ * Controls multi-scale Hessian analysis for tubular structure enhancement.
+ * Default values are optimized for coronary arteries (0.5-3.0 mm radius).
+ *
+ * @trace SRS-FR-051, SDS-MOD-009
+ */
+struct VesselnessParams {
+    double sigmaMin = 0.5;     ///< Minimum scale in mm
+    double sigmaMax = 3.0;     ///< Maximum scale in mm
+    int sigmaSteps = 5;        ///< Number of intermediate scales
+    double alpha = 0.5;        ///< Plate-like structure suppression
+    double beta = 0.5;         ///< Blob-like structure suppression
+    double gamma = 5.0;        ///< Background suppression (Frobenius norm)
+};
+
+/**
+ * @brief Single point along a vessel centerline
+ *
+ * Each point stores 3D position, estimated vessel radius,
+ * and local Frenet frame (tangent, normal) for CPR generation.
+ *
+ * @trace SRS-FR-051
+ */
+struct CenterlinePoint {
+    std::array<double, 3> position = {0.0, 0.0, 0.0};
+    double radius = 0.0;                ///< Estimated vessel radius at this point (mm)
+    std::array<double, 3> tangent = {1.0, 0.0, 0.0};   ///< Tangent direction
+    std::array<double, 3> normal = {0.0, 1.0, 0.0};    ///< Normal direction
+};
+
+/**
+ * @brief Complete centerline extraction result for one vessel
+ *
+ * @trace SRS-FR-051, SDS-MOD-009
+ */
+struct CenterlineResult {
+    std::string vesselName;                     ///< "LAD", "LCx", "RCA", etc.
+    std::vector<CenterlinePoint> points;
+    double totalLength = 0.0;                   ///< Total path length in mm
+    double minLumenDiameter = 0.0;              ///< Minimum lumen diameter in mm
+    double referenceDiameter = 0.0;             ///< Proximal reference diameter in mm
+    double stenosisPercent = 0.0;               ///< (1 - min/ref) * 100
+
+    /// Check if the centerline is valid
+    [[nodiscard]] bool isValid() const noexcept {
+        return points.size() >= 2;
+    }
+
+    /// Get number of centerline points
+    [[nodiscard]] int pointCount() const noexcept {
+        return static_cast<int>(points.size());
+    }
+};
+
+/**
+ * @brief CPR view generation mode
+ *
+ * @trace SRS-FR-051
+ */
+enum class CPRType {
+    Straightened,       ///< Unfold vessel onto flat 2D plane
+    CrossSectional,     ///< Perpendicular slices at intervals
+    Stretched           ///< Preserve proportional distances
+};
+
 }  // namespace dicom_viewer::services

@@ -1,0 +1,113 @@
+#pragma once
+
+#include <expected>
+#include <memory>
+#include <vector>
+
+#include <itkImage.h>
+#include <vtkImageData.h>
+#include <vtkSmartPointer.h>
+
+#include "services/cardiac/cardiac_types.hpp"
+
+namespace dicom_viewer::services {
+
+/**
+ * @brief Curved Planar Reformation (CPR) view generator
+ *
+ * Generates three types of CPR views from a vessel centerline and CT volume:
+ * - Straightened CPR: unfolds the vessel onto a flat 2D plane
+ * - Cross-sectional CPR: perpendicular slices at regular intervals
+ * - Stretched CPR: preserves proportional arc-length distances
+ *
+ * CPR views are essential for coronary CTA analysis, allowing the entire
+ * vessel to be visualized in a single 2D image despite its tortuous 3D path.
+ *
+ * @example
+ * @code
+ * CurvedPlanarReformatter cpr;
+ * auto straightened = cpr.generateStraightenedCPR(centerline, volume);
+ * if (straightened) {
+ *     auto imageData = straightened.value();
+ *     // Display in VTK viewer...
+ * }
+ * @endcode
+ *
+ * @trace SRS-FR-051, SDS-MOD-009
+ */
+class CurvedPlanarReformatter {
+public:
+    CurvedPlanarReformatter();
+    ~CurvedPlanarReformatter();
+
+    CurvedPlanarReformatter(const CurvedPlanarReformatter&) = delete;
+    CurvedPlanarReformatter& operator=(const CurvedPlanarReformatter&) = delete;
+    CurvedPlanarReformatter(CurvedPlanarReformatter&&) noexcept;
+    CurvedPlanarReformatter& operator=(CurvedPlanarReformatter&&) noexcept;
+
+    /**
+     * @brief Generate straightened CPR view
+     *
+     * Samples the volume along the centerline, creating a 2D image
+     * where the x-axis is perpendicular width and y-axis is arc length.
+     *
+     * @param centerline Centerline with Frenet frame
+     * @param volume CT volume to sample from
+     * @param samplingWidth Half-width of sampling plane in mm
+     * @param samplingResolution Pixel size in mm
+     * @return 2D vtkImageData (straightened CPR), or error
+     * @trace SRS-FR-051
+     */
+    [[nodiscard]] std::expected<vtkSmartPointer<vtkImageData>, CardiacError>
+    generateStraightenedCPR(const CenterlineResult& centerline,
+                            itk::Image<short, 3>::Pointer volume,
+                            double samplingWidth = 20.0,
+                            double samplingResolution = 0.5) const;
+
+    /**
+     * @brief Generate cross-sectional CPR views
+     *
+     * Produces a set of 2D images representing perpendicular cross-sections
+     * of the vessel at regular intervals along the centerline.
+     *
+     * @param centerline Centerline with Frenet frame
+     * @param volume CT volume to sample from
+     * @param interval Distance between cross-sections in mm
+     * @param crossSectionSize Half-width of cross-section in mm
+     * @param samplingResolution Pixel size in mm
+     * @return Vector of 2D vtkImageData cross-sections, or error
+     * @trace SRS-FR-051
+     */
+    [[nodiscard]] std::expected<std::vector<vtkSmartPointer<vtkImageData>>, CardiacError>
+    generateCrossSectionalCPR(const CenterlineResult& centerline,
+                              itk::Image<short, 3>::Pointer volume,
+                              double interval = 1.0,
+                              double crossSectionSize = 10.0,
+                              double samplingResolution = 0.5) const;
+
+    /**
+     * @brief Generate stretched CPR view
+     *
+     * Similar to straightened CPR but preserves proportional distances
+     * along the vessel length. The output is a 2D image where the y-axis
+     * represents proportional arc length.
+     *
+     * @param centerline Centerline with Frenet frame
+     * @param volume CT volume to sample from
+     * @param samplingWidth Half-width of sampling plane in mm
+     * @param samplingResolution Pixel size in mm
+     * @return 2D vtkImageData (stretched CPR), or error
+     * @trace SRS-FR-051
+     */
+    [[nodiscard]] std::expected<vtkSmartPointer<vtkImageData>, CardiacError>
+    generateStretchedCPR(const CenterlineResult& centerline,
+                         itk::Image<short, 3>::Pointer volume,
+                         double samplingWidth = 20.0,
+                         double samplingResolution = 0.5) const;
+
+private:
+    class Impl;
+    std::unique_ptr<Impl> impl_;
+};
+
+}  // namespace dicom_viewer::services
