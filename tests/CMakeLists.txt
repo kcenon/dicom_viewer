@@ -1079,3 +1079,26 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(linear_measurement_tool_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for ImageConverter
+add_executable(image_converter_test
+    unit/image_converter_test.cpp
+)
+
+target_link_libraries(image_converter_test PRIVATE
+    dicom_viewer_core
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(image_converter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS image_converter_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(image_converter_test DISCOVERY_TIMEOUT 60)
