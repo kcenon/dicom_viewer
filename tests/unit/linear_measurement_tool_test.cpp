@@ -5,6 +5,9 @@
 #include <cmath>
 #include <numbers>
 
+#include <vtkRenderer.h>
+#include <vtkSmartPointer.h>
+
 namespace dicom_viewer::services {
 namespace {
 
@@ -205,6 +208,35 @@ TEST_F(LinearMeasurementToolTest, MoveAssignment) {
     // Verify no crash on move assignment
 }
 
+TEST_F(LinearMeasurementToolTest, MoveConstructionTargetIsUsable) {
+    LinearMeasurementTool tool1;
+    tool1.setPixelSpacing(0.5, 0.5, 2.0);
+    tool1.setCurrentSlice(10);
+
+    LinearMeasurementTool tool2(std::move(tool1));
+
+    // Moved-to tool should be fully functional
+    EXPECT_EQ(tool2.getMode(), MeasurementMode::None);
+    EXPECT_FALSE(tool2.isMeasuring());
+    EXPECT_EQ(tool2.getMeasurementCount(), 0u);
+    EXPECT_TRUE(tool2.getDistanceMeasurements().empty());
+    EXPECT_TRUE(tool2.getAngleMeasurements().empty());
+}
+
+TEST_F(LinearMeasurementToolTest, MoveAssignmentTargetIsUsable) {
+    LinearMeasurementTool tool1;
+    tool1.setPixelSpacing(0.3, 0.3, 1.5);
+
+    LinearMeasurementTool tool2;
+    tool2 = std::move(tool1);
+
+    // Moved-to tool should be fully functional
+    EXPECT_EQ(tool2.getMode(), MeasurementMode::None);
+    EXPECT_EQ(tool2.getMeasurementCount(), 0u);
+    auto params = tool2.getDisplayParams();
+    EXPECT_FLOAT_EQ(params.lineWidth, 2.0f);
+}
+
 // =============================================================================
 // LinearMeasurementTool — Initial State
 // =============================================================================
@@ -257,6 +289,47 @@ TEST_F(LinearMeasurementToolTest, StartDistanceMeasurementErrorMessageMentionsRe
     auto result = tool_->startDistanceMeasurement();
     EXPECT_FALSE(result.has_value());
     EXPECT_NE(result.error().message.find("Renderer"), std::string::npos);
+}
+
+// --- Renderer set, but interactor not set ---
+
+TEST_F(LinearMeasurementToolTest, StartDistanceMeasurementFailsWithoutInteractor) {
+    auto renderer = vtkSmartPointer<vtkRenderer>::New();
+    tool_->setRenderer(renderer);
+    // Interactor not set
+    auto result = tool_->startDistanceMeasurement();
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, MeasurementError::Code::NoActiveRenderer);
+    EXPECT_NE(result.error().message.find("Interactor"), std::string::npos);
+}
+
+TEST_F(LinearMeasurementToolTest, StartAngleMeasurementFailsWithoutInteractor) {
+    auto renderer = vtkSmartPointer<vtkRenderer>::New();
+    tool_->setRenderer(renderer);
+    auto result = tool_->startAngleMeasurement();
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, MeasurementError::Code::NoActiveRenderer);
+    EXPECT_NE(result.error().message.find("Interactor"), std::string::npos);
+}
+
+TEST_F(LinearMeasurementToolTest, StartCobbAngleMeasurementFailsWithoutInteractor) {
+    auto renderer = vtkSmartPointer<vtkRenderer>::New();
+    tool_->setRenderer(renderer);
+    auto result = tool_->startCobbAngleMeasurement();
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, MeasurementError::Code::NoActiveRenderer);
+}
+
+// --- setRenderer/setInteractor with nullptr ---
+
+TEST_F(LinearMeasurementToolTest, SetRendererNullptrDoesNotCrash) {
+    tool_->setRenderer(nullptr);
+    EXPECT_EQ(tool_->getMode(), MeasurementMode::None);
+}
+
+TEST_F(LinearMeasurementToolTest, SetInteractorNullptrDoesNotCrash) {
+    tool_->setInteractor(nullptr);
+    EXPECT_EQ(tool_->getMode(), MeasurementMode::None);
 }
 
 // =============================================================================
