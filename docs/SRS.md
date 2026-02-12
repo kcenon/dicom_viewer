@@ -1,11 +1,11 @@
 # DICOM Viewer - Software Requirements Specification (SRS)
 
-> **Version**: 0.5.0
+> **Version**: 0.6.0
 > **Created**: 2025-12-31
-> **Last Updated**: 2026-02-11
+> **Last Updated**: 2026-02-12
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
-> **Based on**: [PRD v0.4.0](PRD.md)
+> **Based on**: [PRD v0.5.0](PRD.md)
 
 ---
 
@@ -78,6 +78,11 @@ DICOM Viewer is a desktop application for medical imaging (CT, MRI, DR/CR) that 
 | **OSI** | Oscillatory Shear Index - Measure of flow reversal (dimensionless, 0-0.5) |
 | **TKE** | Turbulent Kinetic Energy - Energy associated with velocity fluctuations (J/m³) |
 | **4D Flow** | Time-resolved 3D phase-contrast MRI capturing velocity-encoded blood flow |
+| **Enhanced IOD** | Multi-frame DICOM Information Object Definition storing multiple frames in a single file |
+| **CPR** | Curved Planar Reformation - reslicing along a curved centerline |
+| **Agatston Score** | Standardized calcium scoring method using ≥130 HU threshold with area-weighted density |
+| **ECG Gating** | Cardiac phase synchronization using electrocardiogram trigger timing |
+| **Cine MRI** | Multi-phase cardiac MRI acquired across cardiac cycle for motion assessment |
 
 ### 1.4 System Overview
 
@@ -1534,6 +1539,233 @@ vtkImageData (subsampled by skipFactor=4)
 **Input**: `std::vector<VelocityPhase>` via `PhaseCache`
 **Output**: Current phase index, playback state signals (Qt signals/slots)
 
+### 2.14 Enhanced DICOM IOD Support
+
+#### SRS-FR-049: Enhanced Multi-Frame DICOM Parser
+**Traces to**: PRD FR-015.1 ~ FR-015.6
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P0 (Critical) |
+| Source | PRD FR-015 |
+| Dependency | pacs_system, GDCM |
+
+**Description**: The system shall parse Enhanced (multi-frame) DICOM IODs where a single file contains multiple image frames with shared and per-frame metadata.
+
+**Specification**:
+
+**Supported Enhanced SOP Classes**:
+
+| SOP Class | UID | Use |
+|-----------|-----|-----|
+| Enhanced CT Image Storage | 1.2.840.10008.5.1.4.1.1.2.1 | Modern CT scanners |
+| Enhanced MR Image Storage | 1.2.840.10008.5.1.4.1.1.4.1 | Modern MR scanners |
+| Enhanced XA Image Storage | 1.2.840.10008.5.1.4.1.1.12.1.1 | Angiography |
+
+**Multi-Frame Parsing**:
+- Read NumberOfFrames (0028,0008) to determine frame count
+- Parse SharedFunctionalGroupsSequence (5200,9229) for common metadata
+- Parse PerFrameFunctionalGroupsSequence (5200,9230) for per-frame metadata
+- Extract per-frame: Image Position, Image Orientation, Pixel Value Transformation, Frame Content
+
+**Frame Ordering**:
+- Parse DimensionIndexSequence (0020,9222) for multi-dimensional frame organization
+- Support dimension indices: Stack ID, In-Stack Position, Temporal Position, etc.
+- Sort frames by dimension indices for correct spatial/temporal ordering
+
+**Pixel Data Extraction**:
+- Extract individual frames from concatenated pixel data using frame offset table
+- Handle both encapsulated (compressed) and native (uncompressed) multi-frame pixel data
+- Support Basic Offset Table and Extended Offset Table
+
+**Backward Compatibility**:
+- Auto-detect Enhanced vs. Classic IOD by SOP Class UID
+- Route to existing `DicomLoader` for Classic IODs
+- Route to new `EnhancedDicomParser` for Enhanced IODs
+
+**Input**: DICOM file path
+**Output**: Vector of frame images with per-frame metadata, or assembled 3D/4D volume
+
+---
+
+### 2.15 Cardiac CT Analysis
+
+#### SRS-FR-050: ECG-Gated Cardiac Phase Separation
+**Traces to**: PRD FR-016.1 ~ FR-016.4
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P1 (High) |
+| Source | PRD FR-016 |
+| Dependency | SRS-FR-049 (Enhanced IOD), SRS-FR-002 (Series Assembly) |
+
+**Description**: The system shall detect ECG-gated cardiac CT series and separate multi-phase data into individual cardiac phase volumes.
+
+**Specification**:
+
+**ECG Gating Detection**:
+- Check Trigger Time (0018,1060) presence
+- Check Cardiac Synchronization Technique (0018,9037): PROSPECTIVE, RETROSPECTIVE
+- Check Nominal Percentage of Cardiac Phase (0018,9241)
+
+**Phase Separation Algorithm**:
+```cpp
+struct CardiacPhaseInfo {
+    int phaseIndex;
+    double triggerTime;        // ms from R-wave
+    double nominalPercentage;  // % of R-R interval
+    std::string phaseLabel;    // e.g., "75% diastole"
+};
+```
+- Group slices by Trigger Time or Nominal Percentage of Cardiac Phase
+- Build separate 3D volumes per cardiac phase
+- Maintain slice ordering within each phase
+
+**Best Phase Selection**:
+- Diastole (default): ~70-80% of R-R interval (least cardiac motion)
+- Systole: ~35-45% of R-R interval
+- User-selectable phase with preview
+
+**Temporal Navigation**:
+- Reuse `TemporalNavigator` pattern from 4D Flow module (SRS-FR-048)
+- Sliding window cache for memory-efficient multi-phase browsing
+- Cine playback across cardiac phases
+
+**Input**: ECG-gated cardiac CT series (Classic or Enhanced IOD)
+**Output**: Vector of phase-separated `itk::Image<short, 3>` volumes with CardiacPhaseInfo
+
+---
+
+#### SRS-FR-051: Coronary CTA Analysis
+**Traces to**: PRD FR-016.5 ~ FR-016.8
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P1 (High) |
+| Source | PRD FR-016 |
+| Dependency | SRS-FR-050 (Phase Separation), SRS-FR-012 (Surface Rendering) |
+
+**Description**: The system shall extract coronary artery centerlines and provide Curved Planar Reformation (CPR) views for stenosis assessment.
+
+**Specification**:
+
+**Centerline Extraction Pipeline**:
+1. Vessel enhancement: `itk::HessianRecursiveGaussianImageFilter` → eigenvalue analysis (Frangi vesselness)
+2. Seed point selection: User clicks on coronary ostium in MPR view
+3. Path tracking: Fast marching or minimal path extraction along vesselness ridge
+4. Centerline smoothing: B-spline fitting
+
+**Curved Planar Reformation (CPR)**:
+- Straightened CPR: Unfold vessel along centerline onto a flat 2D plane
+- Cross-sectional CPR: Perpendicular slices at regular intervals along centerline
+- Stretched CPR: Preserve proportional distances along path
+
+**Vessel Measurements**:
+- Cross-sectional area at any point along centerline
+- Minimum lumen diameter
+- Stenosis percentage: `(1 - Dmin/Dref) × 100%`
+- Length measurement along centerline
+
+**Input**: Best-phase cardiac CT volume, user-defined seed point(s)
+**Output**: Centerline path, CPR view actors, measurement results
+
+---
+
+#### SRS-FR-052: Calcium Scoring
+**Traces to**: PRD FR-016.9 ~ FR-016.12
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P1 (High) |
+| Source | PRD FR-016 |
+| Dependency | SRS-FR-004 (HU Conversion) |
+
+**Description**: The system shall compute Agatston calcium score from non-contrast cardiac CT acquisitions.
+
+**Specification**:
+
+**Agatston Score Algorithm**:
+1. Threshold: Identify voxels ≥ 130 HU
+2. Connected component analysis: Group adjacent calcified voxels into lesions
+3. For each lesion:
+   - Measure peak HU density
+   - Assign density weighting factor:
+     | Peak HU | Weight Factor |
+     |---------|--------------|
+     | 130-199 | 1 |
+     | 200-299 | 2 |
+     | 300-399 | 3 |
+     | ≥ 400 | 4 |
+   - Score = Area (mm²) × Weight Factor
+4. Total Agatston Score = sum of all lesion scores
+
+**Per-Artery Scoring**:
+- ROI-based assignment: User draws or auto-detects artery territories
+- Arteries: LAD (Left Anterior Descending), LCx (Left Circumflex), RCA (Right Coronary Artery), LM (Left Main)
+
+**Risk Classification**:
+
+| Agatston Score | Risk Category |
+|---------------|---------------|
+| 0 | No identifiable disease |
+| 1-10 | Minimal |
+| 11-100 | Mild |
+| 101-400 | Moderate |
+| > 400 | Severe |
+
+**Alternative Scores**:
+- Volume Score: Sum of calcified voxel volumes (mm³)
+- Mass Score: Sum of (mean_HU × volume × calibration_factor) per lesion
+
+**Input**: Non-contrast cardiac CT `itk::Image<short, 3>`, slice thickness
+**Output**: `CalciumScoreResult` { totalAgatston, perArteryScores, riskCategory, volumeScore }
+
+---
+
+### 2.16 Cine MRI
+
+#### SRS-FR-053: Cine MRI Temporal Display
+**Traces to**: PRD FR-017.1 ~ FR-017.4
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | P2 (Medium) |
+| Source | PRD FR-017 |
+| Dependency | SRS-FR-002 (Series Assembly), SRS-FR-048 (Temporal Navigation pattern) |
+
+**Description**: The system shall detect, organize, and display multi-phase cine MRI series with temporal playback.
+
+**Specification**:
+
+**Cine MRI Series Detection**:
+- Check for multiple Trigger Times (0018,1060) within same series
+- Check Temporal Position Index (0020,9128) or Temporal Position Identifier (0020,0100)
+- Modality = "MR" with cardiac acquisition context
+
+**Series Organization**:
+```cpp
+struct CineSeriesInfo {
+    int phaseCount;
+    int sliceCount;
+    double temporalResolution;    // ms between phases
+    std::string orientation;      // "SA" (short-axis), "2CH", "3CH", "4CH"
+    std::vector<double> triggerTimes;
+};
+```
+
+**View Reconstruction**:
+- Short-axis (SA) stack: Multiple parallel slices from base to apex
+- Long-axis views: 2-chamber (2CH), 3-chamber (3CH), 4-chamber (4CH)
+- Auto-detect orientation from Image Orientation Patient (0020,0037)
+
+**Temporal Display**:
+- Reuse TemporalNavigator from SRS-FR-048
+- Phase slider, cine playback, configurable frame rate
+- Synchronized multi-view: SA and LA views play in phase sync
+
+**Input**: Multi-phase cine MRI DICOM series
+**Output**: Organized phase volumes with temporal playback controls
+
 ---
 
 ## 3. Non-Functional Requirements
@@ -1683,6 +1915,52 @@ vtkImageData (subsampled by skipFactor=4)
 | Target | ≤ 2% relative error |
 | Condition | Compared to analytical phantom reference (Poiseuille flow) |
 | Measurement | `|V_measured - V_analytical| / V_analytical × 100` |
+
+#### SRS-NFR-027: Enhanced DICOM Multi-Frame Parsing Time
+**Traces to**: PRD NFR-021
+
+| Attribute | Value |
+|-----------|-------|
+| Metric | Time to parse and assemble volume from multi-frame DICOM |
+| Target | ≤ 5 seconds |
+| Condition | Enhanced CT/MR IOD with ≤ 1000 frames |
+| Measurement | From file open to first volume rendered |
+
+---
+
+#### SRS-NFR-028: Cardiac CT Multi-Phase Loading Time
+**Traces to**: PRD NFR-022
+
+| Attribute | Value |
+|-----------|-------|
+| Metric | Time to load and separate ECG-gated phases |
+| Target | ≤ 5 seconds |
+| Condition | 10-phase cardiac CT (512×512×200 per phase) |
+| Measurement | From directory scan to best-phase volume displayed |
+
+---
+
+#### SRS-NFR-029: Calcium Scoring Computation Time
+**Traces to**: PRD NFR-023
+
+| Attribute | Value |
+|-----------|-------|
+| Metric | Agatston score calculation time |
+| Target | ≤ 2 seconds |
+| Condition | Standard cardiac CT volume (512×512×200) |
+| Measurement | From computation start to score display |
+
+---
+
+#### SRS-NFR-030: Coronary Centerline Extraction Time
+**Traces to**: PRD NFR-024
+
+| Attribute | Value |
+|-----------|-------|
+| Metric | Time from seed point to complete centerline |
+| Target | ≤ 10 seconds |
+| Condition | Single coronary artery branch from ostium |
+| Measurement | From user seed click to centerline display |
 
 ---
 
@@ -1868,6 +2146,8 @@ See SRS-FR-039 for detailed layout specification.
 | MRI | MR Image Storage | Required |
 | DR | Digital X-Ray Image Storage | Required |
 | CR | Computed Radiography Image Storage | Required |
+| CT (Enhanced) | Enhanced CT Image Storage | Required |
+| MRI (Enhanced) | Enhanced MR Image Storage | Required |
 | Secondary Capture | Secondary Capture Image Storage | Required |
 
 ---
@@ -1985,6 +2265,12 @@ See SRS-FR-039 for detailed layout specification.
 | FR-014.12~15 | Flow quantification (basic) | SRS-FR-047 |
 | FR-014.16~19 | Advanced hemodynamic analysis | SRS-FR-047 |
 | FR-014.20~21 | Flow export and reporting | SRS-FR-047 |
+| FR-015.1~6 | Enhanced DICOM IOD parsing | SRS-FR-049 |
+| FR-016.1~4 | ECG-gated cardiac phase separation | SRS-FR-050 |
+| FR-016.5~8 | Coronary CTA analysis | SRS-FR-051 |
+| FR-016.9~12 | Calcium scoring | SRS-FR-052 |
+| FR-016.13~14 | Cardiac function (EF) | SRS-FR-050 |
+| FR-017.1~4 | Cine MRI temporal display | SRS-FR-053 |
 | NFR-001 | Loading time | SRS-NFR-001 |
 | NFR-002 | Rendering FPS | SRS-NFR-002 |
 | NFR-003 | Slice transition response | SRS-NFR-003 |
@@ -2005,6 +2291,10 @@ See SRS-FR-039 for detailed layout specification.
 | NFR-018 | 4D Flow loading (2–8 GB) | SRS-NFR-023 |
 | NFR-019 | 4D Flow memory (sliding window) | SRS-NFR-024 |
 | NFR-020 | 4D Flow streamline rendering | SRS-NFR-025 |
+| NFR-021 | Enhanced DICOM multi-frame parsing | SRS-NFR-027 |
+| NFR-022 | Cardiac CT multi-phase loading | SRS-NFR-028 |
+| NFR-023 | Calcium scoring computation | SRS-NFR-029 |
+| NFR-024 | Coronary centerline extraction | SRS-NFR-030 |
 
 ### 7.2 SRS to Reference Document Traceability
 
@@ -2023,6 +2313,11 @@ See SRS-FR-039 for detailed layout specification.
 | SRS-FR-046 | REF-002 |
 | SRS-FR-047 | REF-001, REF-002 |
 | SRS-FR-048 | REF-006 |
+| SRS-FR-049 | REF-004, REF-005 |
+| SRS-FR-050 | REF-004 |
+| SRS-FR-051 | REF-001, REF-002 |
+| SRS-FR-052 | REF-004 |
+| SRS-FR-053 | REF-004, REF-006 |
 
 ---
 
@@ -2064,6 +2359,7 @@ See SRS-FR-039 for detailed layout specification.
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 | 0.4.0 | 2026-02-11 | Development Team | Added SRS-FR-041 (Histogram Equalization), SRS-FR-042 (Watershed Segmentation); fixed PRD traceability gaps for FR-005.3 and FR-006.6 |
 | 0.5.0 | 2026-02-11 | Development Team | Added SRS-FR-043~048 (4D Flow MRI: DICOM parsing, velocity assembly, phase correction, visualization, quantification, temporal navigation); added SRS-NFR-021~026 (tiered performance targets); updated PRD→SRS and SRS→Reference traceability |
+| 0.6.0 | 2026-02-12 | Development Team | Added SRS-FR-049 (Enhanced DICOM IOD), SRS-FR-050 (ECG-Gated Phase Separation), SRS-FR-051 (Coronary CTA), SRS-FR-052 (Calcium Scoring), SRS-FR-053 (Cine MRI); added SRS-NFR-027~030; updated traceability matrices |
 
 ---
 
