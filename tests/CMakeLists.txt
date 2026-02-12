@@ -920,3 +920,20 @@ target_include_directories(enhanced_dicom_parser_test PRIVATE
 )
 
 gtest_discover_tests(enhanced_dicom_parser_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for DimensionIndex Sorter
+add_executable(dimension_index_sorter_test
+    unit/dimension_index_sorter_test.cpp
+)
+
+target_link_libraries(dimension_index_sorter_test PRIVATE
+    enhanced_dicom_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(dimension_index_sorter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(dimension_index_sorter_test DISCOVERY_TIMEOUT 60)
