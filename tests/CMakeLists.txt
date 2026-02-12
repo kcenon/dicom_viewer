@@ -1017,3 +1017,22 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(cardiac_pipeline_integration_test DISCOVERY_TIMEOUT 120)
+
+# Unit tests for Cine MRI Organizer
+add_executable(cine_organizer_test
+    unit/cine_organizer_test.cpp
+)
+
+target_link_libraries(cine_organizer_test PRIVATE
+    cardiac_service
+    flow_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(cine_organizer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/tests
+)
+
+gtest_discover_tests(cine_organizer_test DISCOVERY_TIMEOUT 60)

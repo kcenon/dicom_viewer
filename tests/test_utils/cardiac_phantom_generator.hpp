@@ -406,4 +406,140 @@ generateCardiacPhaseFrames(
     return {frames, truth};
 }
 
+// =============================================================================
+// Cine MRI Phantom
+// =============================================================================
+
+/// Ground truth for cine MRI organization
+struct CineGroundTruth {
+    int phaseCount;
+    int sliceCount;
+    double temporalResolution;    ///< ms between phases
+    std::vector<double> triggerTimes;
+};
+
+/// Generate EnhancedSeriesInfo simulating a multi-phase cine MRI
+/// The returned series has MR modality with temporal position indices.
+///
+/// @param phaseCount Number of temporal phases (typically 20-30)
+/// @param slicesPerPhase Number of slice locations (typically 8-12 for SA)
+/// @param rrInterval R-R interval in ms (typically 800-1000)
+/// @param rows Image rows
+/// @param columns Image columns
+inline std::pair<services::EnhancedSeriesInfo, CineGroundTruth>
+generateCineMRIPhantom(
+    int phaseCount = 25,
+    int slicesPerPhase = 10,
+    double rrInterval = 900.0,
+    int rows = 192,
+    int columns = 192)
+{
+    services::EnhancedSeriesInfo series;
+    series.sopClassUid = services::enhanced_sop_class::EnhancedMRImageStorage;
+    series.sopInstanceUid = "1.2.3.4.5.6.7.8.9";
+    series.numberOfFrames = phaseCount * slicesPerPhase;
+    series.rows = rows;
+    series.columns = columns;
+    series.bitsAllocated = 16;
+    series.bitsStored = 12;
+    series.highBit = 11;
+    series.pixelRepresentation = 1;  // signed
+    series.pixelSpacingX = 1.5;
+    series.pixelSpacingY = 1.5;
+    series.modality = "MR";
+    series.seriesDescription = "cine_retro SA";
+    series.filePath = "/phantom/cine_mri.dcm";
+
+    CineGroundTruth truth;
+    truth.phaseCount = phaseCount;
+    truth.sliceCount = slicesPerPhase;
+    truth.temporalResolution = rrInterval / phaseCount;
+
+    double sliceSpacing = 8.0;  // 8mm gap between SA slices
+    int frameIdx = 0;
+
+    for (int phase = 0; phase < phaseCount; ++phase) {
+        double triggerTime = phase * truth.temporalResolution;
+        truth.triggerTimes.push_back(triggerTime);
+
+        for (int slice = 0; slice < slicesPerPhase; ++slice) {
+            services::EnhancedFrameInfo frame;
+            frame.frameIndex = frameIdx++;
+            // SA orientation: slices stacked along Z (approximately)
+            frame.imagePosition = {0.0, 0.0, slice * sliceSpacing};
+            frame.imageOrientation = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0};
+            frame.sliceThickness = sliceSpacing;
+            frame.triggerTime = triggerTime;
+            frame.temporalPositionIndex = phase + 1;  // 1-based
+            series.frames.push_back(frame);
+        }
+    }
+
+    return {series, truth};
+}
+
+/// Generate a non-cine MR series for negative detection testing
+inline services::EnhancedSeriesInfo generateNonCineMRPhantom(
+    int sliceCount = 20,
+    int rows = 256,
+    int columns = 256)
+{
+    services::EnhancedSeriesInfo series;
+    series.sopClassUid = services::enhanced_sop_class::EnhancedMRImageStorage;
+    series.sopInstanceUid = "1.2.3.4.5.6.7.8.10";
+    series.numberOfFrames = sliceCount;
+    series.rows = rows;
+    series.columns = columns;
+    series.bitsAllocated = 16;
+    series.bitsStored = 12;
+    series.highBit = 11;
+    series.pixelRepresentation = 1;
+    series.pixelSpacingX = 1.0;
+    series.pixelSpacingY = 1.0;
+    series.modality = "MR";
+    series.seriesDescription = "T2 FLAIR";
+
+    for (int i = 0; i < sliceCount; ++i) {
+        services::EnhancedFrameInfo frame;
+        frame.frameIndex = i;
+        frame.imagePosition = {0.0, 0.0, i * 5.0};
+        frame.imageOrientation = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0};
+        frame.sliceThickness = 5.0;
+        // No temporal information — single-phase acquisition
+        series.frames.push_back(frame);
+    }
+
+    return series;
+}
+
+/// Generate an Enhanced CT series (not MR) for negative cine detection
+inline services::EnhancedSeriesInfo generateEnhancedCTPhantom(
+    int sliceCount = 50)
+{
+    services::EnhancedSeriesInfo series;
+    series.sopClassUid = services::enhanced_sop_class::EnhancedCTImageStorage;
+    series.sopInstanceUid = "1.2.3.4.5.6.7.8.11";
+    series.numberOfFrames = sliceCount;
+    series.rows = 512;
+    series.columns = 512;
+    series.bitsAllocated = 16;
+    series.bitsStored = 12;
+    series.highBit = 11;
+    series.pixelRepresentation = 1;
+    series.pixelSpacingX = 0.5;
+    series.pixelSpacingY = 0.5;
+    series.modality = "CT";
+    series.seriesDescription = "Chest CT";
+
+    for (int i = 0; i < sliceCount; ++i) {
+        services::EnhancedFrameInfo frame;
+        frame.frameIndex = i;
+        frame.imagePosition = {0.0, 0.0, i * 2.0};
+        frame.sliceThickness = 2.0;
+        series.frames.push_back(frame);
+    }
+
+    return series;
+}
+
 }  // namespace dicom_viewer::test_utils
