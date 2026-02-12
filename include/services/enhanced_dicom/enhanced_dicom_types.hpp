@@ -140,6 +140,63 @@ struct EnhancedSeriesInfo {
 };
 
 /**
+ * @brief Represents one dimension in DimensionIndexSequence (0020,9222)
+ *
+ * Each entry defines a dimension axis used to organize multi-frame data.
+ * The dimension order (index in the vector) determines sorting priority:
+ * first dimension = outermost loop, last = innermost.
+ *
+ * @trace SRS-FR-049, SDS-MOD-008
+ */
+struct DimensionDefinition {
+    uint32_t dimensionIndexPointer = 0;       ///< DICOM tag this dimension references
+    uint32_t functionalGroupPointer = 0;      ///< Functional group containing the tag
+    std::string dimensionOrganizationUID;     ///< Optional grouping UID
+    std::string dimensionDescription;         ///< Human-readable label
+};
+
+/**
+ * @brief Complete dimension organization for an Enhanced DICOM file
+ *
+ * Parsed from DimensionIndexSequence (0020,9222). The dimension order
+ * determines the sorting priority for frame ordering.
+ *
+ * @trace SRS-FR-049, SDS-MOD-008
+ */
+struct DimensionOrganization {
+    std::vector<DimensionDefinition> dimensions;
+
+    /// Check if a specific dimension pointer is present
+    [[nodiscard]] bool hasDimension(uint32_t pointer) const {
+        for (const auto& dim : dimensions) {
+            if (dim.dimensionIndexPointer == pointer) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// Get the index position of a dimension (for sorting priority)
+    [[nodiscard]] std::optional<size_t> dimensionIndex(uint32_t pointer) const {
+        for (size_t i = 0; i < dimensions.size(); ++i) {
+            if (dimensions[i].dimensionIndexPointer == pointer) {
+                return i;
+            }
+        }
+        return std::nullopt;
+    }
+};
+
+/// Well-known DICOM tags used as dimension index pointers
+namespace dimension_tag {
+    inline constexpr uint32_t InStackPositionNumber  = 0x00209057;
+    inline constexpr uint32_t TemporalPositionIndex  = 0x00209128;
+    inline constexpr uint32_t StackID                = 0x00209056;
+    inline constexpr uint32_t DiffusionBValue        = 0x00189087;
+    inline constexpr uint32_t EchoNumber             = 0x00180086;
+}  // namespace dimension_tag
+
+/**
  * @brief Check if a SOP Class UID is an Enhanced multi-frame IOD
  */
 [[nodiscard]] inline bool isEnhancedSopClass(const std::string& sopClassUid) {
