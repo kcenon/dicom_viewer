@@ -1,6 +1,8 @@
 #pragma once
 
+#include <array>
 #include <cmath>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -146,5 +148,72 @@ namespace cardiac_constants {
     /// Trigger time clustering tolerance (ms)
     inline constexpr double kTriggerTimeToleranceMs = 10.0;
 }  // namespace cardiac_constants
+
+// =============================================================================
+// Calcium Scoring Types
+// =============================================================================
+
+/**
+ * @brief Individual calcified lesion detected in coronary calcium scoring
+ *
+ * Each lesion is a connected component of voxels >= 130 HU with area >= 1mm².
+ * The Agatston score for the lesion is area * density weight factor.
+ *
+ * @trace SRS-FR-052, SDS-MOD-009
+ */
+struct CalcifiedLesion {
+    int labelId = 0;                          ///< Connected component label
+    double areaMM2 = 0.0;                     ///< Total area in mm²
+    double peakHU = 0.0;                      ///< Peak Hounsfield Unit in lesion
+    int weightFactor = 0;                     ///< Agatston density weight (1-4)
+    double agatstonScore = 0.0;               ///< Sum of per-slice (area * weight)
+    double volumeMM3 = 0.0;                   ///< Volume in mm³
+    std::array<double, 3> centroid = {0.0, 0.0, 0.0};  ///< Center of mass
+    std::string assignedArtery;               ///< "LAD", "LCx", "RCA", "LM", or ""
+};
+
+/**
+ * @brief Complete calcium scoring result
+ *
+ * Contains total Agatston score, volume score, per-artery breakdown,
+ * risk classification, and individual lesion details.
+ *
+ * @trace SRS-FR-052, SDS-MOD-009
+ */
+struct CalciumScoreResult {
+    double totalAgatston = 0.0;
+    double volumeScore = 0.0;                 ///< Total calcified volume in mm³
+    double massScore = 0.0;                   ///< Mass score in mg (requires calibration)
+    std::map<std::string, double> perArteryScores;  ///< "LAD" → Agatston
+    std::string riskCategory;                 ///< "None", "Minimal", "Mild", "Moderate", "Severe"
+    std::vector<CalcifiedLesion> lesions;
+    int lesionCount = 0;
+
+    /// Check if any calcification was found
+    [[nodiscard]] bool hasCalcium() const noexcept {
+        return totalAgatston > 0.0;
+    }
+};
+
+/// Constants for Agatston calcium scoring algorithm
+namespace calcium_constants {
+    /// Fixed HU threshold for calcified lesions (Agatston standard)
+    inline constexpr short kHUThreshold = 130;
+
+    /// Minimum lesion area to qualify (noise filter)
+    inline constexpr double kMinLesionAreaMM2 = 1.0;
+
+    /// Density weight factor thresholds
+    inline constexpr short kWeightThreshold1 = 130;   ///< 130-199 HU → weight 1
+    inline constexpr short kWeightThreshold2 = 200;   ///< 200-299 HU → weight 2
+    inline constexpr short kWeightThreshold3 = 300;   ///< 300-399 HU → weight 3
+    inline constexpr short kWeightThreshold4 = 400;   ///< >= 400 HU → weight 4
+
+    /// Risk classification thresholds (Agatston score)
+    inline constexpr double kRiskNone = 0.0;
+    inline constexpr double kRiskMinimal = 10.0;
+    inline constexpr double kRiskMild = 100.0;
+    inline constexpr double kRiskModerate = 400.0;
+}  // namespace calcium_constants
 
 }  // namespace dicom_viewer::services

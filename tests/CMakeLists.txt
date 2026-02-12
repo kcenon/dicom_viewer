@@ -954,3 +954,20 @@ target_include_directories(cardiac_phase_detector_test PRIVATE
 )
 
 gtest_discover_tests(cardiac_phase_detector_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Calcium Scorer
+add_executable(calcium_scorer_test
+    unit/calcium_scorer_test.cpp
+)
+
+target_link_libraries(calcium_scorer_test PRIVATE
+    cardiac_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(calcium_scorer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(calcium_scorer_test DISCOVERY_TIMEOUT 60)
