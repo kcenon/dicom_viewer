@@ -131,6 +131,19 @@ public:
     loadMRSeries(const std::vector<SliceInfo>& slices);
 
     /**
+     * @brief Check if a DICOM file is an Enhanced multi-frame IOD
+     *
+     * Reads the SOP Class UID from the file and checks against known
+     * Enhanced IOD UIDs (Enhanced CT, Enhanced MR, Enhanced XA).
+     * Use EnhancedDicomParser from services/enhanced_dicom/ to load these files.
+     *
+     * @param filePath Path to the DICOM file
+     * @return true if the file uses an Enhanced SOP Class UID
+     * @trace SRS-FR-049
+     */
+    [[nodiscard]] static bool isEnhancedDicom(const std::filesystem::path& filePath);
+
+    /**
      * @brief Get the last loaded metadata
      */
     const DicomMetadata& getMetadata() const { return metadata_; }

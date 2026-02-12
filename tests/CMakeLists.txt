@@ -903,3 +903,20 @@ target_include_directories(vessel_analyzer_test PRIVATE
 )
 
 gtest_discover_tests(vessel_analyzer_test DISCOVERY_TIMEOUT 120)
+
+# Unit tests for Enhanced DICOM Parser
+add_executable(enhanced_dicom_parser_test
+    unit/enhanced_dicom_parser_test.cpp
+)
+
+target_link_libraries(enhanced_dicom_parser_test PRIVATE
+    enhanced_dicom_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(enhanced_dicom_parser_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(enhanced_dicom_parser_test DISCOVERY_TIMEOUT 60)

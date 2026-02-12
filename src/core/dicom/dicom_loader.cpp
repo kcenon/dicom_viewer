@@ -7,6 +7,9 @@
 #include <map>
 #include <sstream>
 
+#include <gdcmReader.h>
+#include <gdcmTag.h>
+
 #include <itkGDCMImageIO.h>
 #include <itkGDCMSeriesFileNames.h>
 #include <itkImageSeriesReader.h>
@@ -402,6 +405,44 @@ double DicomLoader::calculateSlicePosition(const SliceInfo& slice,
     return slice.imagePosition[0] * normal[0] +
            slice.imagePosition[1] * normal[1] +
            slice.imagePosition[2] * normal[2];
+}
+
+bool DicomLoader::isEnhancedDicom(const std::filesystem::path& filePath)
+{
+    // Known Enhanced multi-frame SOP Class UIDs
+    static const std::vector<std::string> kEnhancedSopClasses = {
+        "1.2.840.10008.5.1.4.1.1.2.1",     // Enhanced CT Image Storage
+        "1.2.840.10008.5.1.4.1.1.4.1",     // Enhanced MR Image Storage
+        "1.2.840.10008.5.1.4.1.1.12.1.1",  // Enhanced XA Image Storage
+    };
+
+    gdcm::Reader reader;
+    reader.SetFileName(filePath.string().c_str());
+    if (!reader.Read()) {
+        return false;
+    }
+
+    const auto& ds = reader.GetFile().GetDataSet();
+    const gdcm::Tag sopClassTag{0x0008, 0x0016};
+    if (!ds.FindDataElement(sopClassTag)) {
+        return false;
+    }
+
+    const auto& de = ds.GetDataElement(sopClassTag);
+    if (de.IsEmpty() || de.GetByteValue() == nullptr) {
+        return false;
+    }
+
+    std::string uid(de.GetByteValue()->GetPointer(),
+                    de.GetByteValue()->GetLength());
+    // Trim trailing whitespace/null
+    while (!uid.empty() && (uid.back() == ' ' || uid.back() == '\0')) {
+        uid.pop_back();
+    }
+
+    return std::find(kEnhancedSopClasses.begin(),
+                     kEnhancedSopClasses.end(), uid)
+           != kEnhancedSopClasses.end();
 }
 
 bool DicomLoader::isTransferSyntaxSupported(const std::string& uid)
