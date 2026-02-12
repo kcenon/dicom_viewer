@@ -1036,3 +1036,20 @@ target_include_directories(cine_organizer_test PRIVATE
 )
 
 gtest_discover_tests(cine_organizer_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for DicomLoader
+add_executable(dicom_loader_test
+    unit/dicom_loader_test.cpp
+)
+
+target_link_libraries(dicom_loader_test PRIVATE
+    dicom_viewer_core
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(dicom_loader_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(dicom_loader_test DISCOVERY_TIMEOUT 60)
