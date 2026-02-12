@@ -994,3 +994,26 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(coronary_centerline_extractor_test DISCOVERY_TIMEOUT 120)
+
+# Integration tests for Cardiac CT pipeline (calcium scoring, centerline, CPR, phases)
+add_executable(cardiac_pipeline_integration_test
+    integration/cardiac_pipeline_integration_test.cpp
+)
+
+target_link_libraries(cardiac_pipeline_integration_test PRIVATE
+    cardiac_service
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(cardiac_pipeline_integration_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS cardiac_pipeline_integration_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(cardiac_pipeline_integration_test DISCOVERY_TIMEOUT 120)
