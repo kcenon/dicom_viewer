@@ -1,8 +1,8 @@
 # DICOM Viewer - Product Requirements Document (PRD)
 
-> **Version**: 0.4.0
+> **Version**: 0.5.0
 > **Created**: 2025-12-31
-> **Last Updated**: 2026-02-11
+> **Last Updated**: 2026-02-12
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
 
@@ -22,6 +22,9 @@
 | **Region Segmentation** | Automatic/semi-automatic/manual segmentation tools, multi-label support, morphological post-processing | P1 (High) |
 | **Region Measurement & Analysis** | ROI-based area/volume measurement, HU statistics, quantitative analysis, report generation | P1 (High) |
 | **4D Flow MRI Analysis** | Velocity-encoded blood flow visualization and quantification | P1 (High) |
+| **Enhanced DICOM IOD** | Multi-frame Enhanced CT/MR IOD parsing for modern scanner compatibility | P0 (Critical) |
+| **Cardiac CT Analysis** | ECG-gated reconstruction, coronary CTA, calcium scoring | P1 (High) |
+| **Cine MRI** | Multi-phase cardiac cine MRI temporal display and analysis | P2 (Medium) |
 | **DR/CR 2D Viewing** | Basic 2D image viewing and Window/Level adjustment | P2 (Medium) |
 | **PACS Integration** | PACS integration via C-FIND, C-MOVE, C-STORE | P1 (High) |
 
@@ -32,6 +35,8 @@
 - Memory usage: **under 2GB** for 1GB volume data
 - Supported compression formats: JPEG, JPEG 2000, JPEG-LS, RLE
 - 4D Flow MRI: **under 15 seconds** for standard dataset (≤2 GB), cine playback at **15 FPS or higher**
+- Enhanced DICOM multi-frame: **under 5 seconds** for 1000-frame Enhanced CT/MR dataset
+- Cardiac CT multi-phase: **under 5 seconds** for 10-phase ECG-gated dataset
 
 ---
 
@@ -98,6 +103,10 @@
 | UC-10 | Researcher | Save segmentation results as NRRD and generate analysis report | P2 |
 | UC-11 | Radiologist | Visualize aortic blood flow from 4D Flow MRI with streamlines and measure flow rate at cross-section | P1 |
 | UC-12 | Researcher | Analyze Wall Shear Stress distribution on vessel wall from 4D Flow MRI data | P2 |
+| UC-13 | Radiologist | Review coronary CTA with centerline extraction and CPR for stenosis grading | P1 |
+| UC-14 | Radiologist | Calculate Agatston calcium score from non-contrast cardiac CT | P1 |
+| UC-15 | Radiologist | Evaluate cardiac wall motion from cine MRI with temporal playback | P2 |
+| UC-16 | Radiologist | Load Enhanced DICOM multi-frame dataset from modern Siemens/Philips scanner | P0 |
 
 ---
 
@@ -638,6 +647,100 @@
 | FR-014.20 | Export flow quantification results (CSV) | P2 |
 | FR-014.21 | Include flow measurements in analysis reports (PDF) | P2 |
 
+### 3.8 Enhanced DICOM IOD Support (P0 - Critical)
+
+#### FR-015: Enhanced Multi-Frame DICOM
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    Enhanced DICOM IOD Pipeline                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   ┌──────────────┐   ┌──────────────────┐   ┌──────────────────────┐  │
+│   │ Enhanced IOD │ → │  Frame Extraction │ → │   Volume Assembly    │  │
+│   │   Detection  │   │                  │   │                      │  │
+│   │ • CT Enhanced│   │ • Shared Groups  │   │ • Dimension Index    │  │
+│   │ • MR Enhanced│   │ • Per-Frame      │   │   based sorting      │  │
+│   │ • XA Enhanced│   │   Groups         │   │ • Multi-phase split  │  │
+│   └──────────────┘   └──────────────────┘   └──────────────────────┘  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-015.1 | Parse Enhanced CT Image Storage (1.2.840.10008.5.1.4.1.1.2.1) | P0 |
+| FR-015.2 | Parse Enhanced MR Image Storage (1.2.840.10008.5.1.4.1.1.4.1) | P0 |
+| FR-015.3 | Extract frames from SharedFunctionalGroupsSequence and PerFrameFunctionalGroupsSequence | P0 |
+| FR-015.4 | DimensionIndexSequence-based frame ordering and multi-dimensional sorting | P0 |
+| FR-015.5 | Backward-compatible with Classic (single-frame) DICOM IOD | P0 |
+| FR-015.6 | Support NumberOfFrames-based multi-frame pixel data extraction | P0 |
+
+### 3.9 Cardiac CT Analysis (P1 - High)
+
+#### FR-016: Cardiac CT
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    Cardiac CT Pipeline                                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   ┌──────────────┐   ┌──────────────────┐   ┌──────────────────────┐  │
+│   │  ECG-Gated   │ → │ Phase Selection  │ → │   Analysis Tools     │  │
+│   │  Detection   │   │                  │   │                      │  │
+│   │ • Trigger    │   │ • Best diastole  │   │ • Coronary CTA       │  │
+│   │   Time tag   │   │ • Best systole   │   │ • Calcium Score      │  │
+│   │ • R-R Window │   │ • All phases     │   │ • Cardiac Function   │  │
+│   └──────────────┘   └──────────────────┘   └──────────────────────┘  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**FR-016.A: ECG-Gated Reconstruction**
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-016.1 | Detect ECG-gated cardiac CT series via Trigger Time (0018,1060) and Cardiac Phase tags | P1 |
+| FR-016.2 | Separate multi-phase cardiac CT into individual phase volumes | P1 |
+| FR-016.3 | Automatic best-phase selection (diastole ~75%, systole ~40%) | P1 |
+| FR-016.4 | Multi-phase temporal navigation (reuse TemporalNavigator pattern from 4D Flow) | P1 |
+
+**FR-016.B: Coronary CTA Analysis**
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-016.5 | Coronary artery centerline extraction from contrast-enhanced cardiac CT | P1 |
+| FR-016.6 | Curved Planar Reformation (CPR) along extracted centerlines | P1 |
+| FR-016.7 | Straightened CPR view for vessel lumen assessment | P2 |
+| FR-016.8 | Vessel diameter and stenosis measurement along centerline | P2 |
+
+**FR-016.C: Calcium Scoring**
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-016.9 | Agatston score calculation from non-contrast cardiac CT | P1 |
+| FR-016.10 | Per-artery calcium scoring (LAD, LCx, RCA, LM) | P2 |
+| FR-016.11 | Volume and mass score alternatives | P2 |
+| FR-016.12 | Risk category classification (0, 1-10, 11-100, 101-400, >400) | P1 |
+
+**FR-016.D: Cardiac Function**
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-016.13 | Left ventricular volume calculation (end-diastole and end-systole) | P2 |
+| FR-016.14 | Ejection fraction (EF) calculation from multi-phase cardiac CT | P2 |
+
+### 3.10 Cine MRI Support (P2 - Medium)
+
+#### FR-017: Cine MRI
+
+| Requirement | Description | Priority |
+|-------------|-------------|----------|
+| FR-017.1 | Detect and classify multi-phase cine MRI series via Trigger Time and Temporal Position Index | P2 |
+| FR-017.2 | Temporal navigation with cine playback controls (reuse TemporalNavigator from 4D Flow) | P2 |
+| FR-017.3 | Short-axis stack and long-axis (2CH, 3CH, 4CH) view reconstruction | P2 |
+| FR-017.4 | Cardiac phase-matched display (synchronize multiple cine series) | P3 |
+
 ---
 
 ## 4. Non-Functional Requirements
@@ -656,6 +759,10 @@
 | NFR-018 | 4D Flow loading (2–8 GB) | ≤ 45 seconds (streaming) |
 | NFR-019 | 4D Flow memory (sliding window) | ≤ 5 phases in RAM simultaneously |
 | NFR-020 | 4D Flow streamline rendering | ≥ 15 FPS for ≤ 10K seed points |
+| NFR-021 | Enhanced DICOM multi-frame parsing (1000 frames) | ≤ 5 seconds |
+| NFR-022 | Cardiac CT multi-phase loading (10 phases) | ≤ 5 seconds |
+| NFR-023 | Calcium scoring computation | ≤ 2 seconds |
+| NFR-024 | Coronary centerline extraction | ≤ 10 seconds |
 
 ### 4.2 Compatibility
 
@@ -663,7 +770,7 @@
 |----|-------------|---------|
 | NFR-006 | Operating System | macOS 12+, Windows 10+, Ubuntu 20.04+ |
 | NFR-007 | Graphics Card | GPU supporting OpenGL 4.1+ |
-| NFR-008 | DICOM Standard | DICOM PS3.x compliant |
+| NFR-008 | DICOM Standard | DICOM PS3.x compliant (Classic and Enhanced IODs) |
 | NFR-009 | Transfer Syntax | JPEG, JPEG2000, JPEG-LS, RLE |
 
 ### 4.3 Usability
@@ -965,6 +1072,18 @@
 | M5.8 | Flow export and reporting | CSV export of flow results, PDF report integration |
 | M5.9 | Integration testing | End-to-end validation with analytical ground truth |
 
+#### Milestone 6: Enhanced DICOM & Cardiac CT (v0.7.0) - Week 25-32
+
+| Item | Description | Completion Criteria |
+|------|-------------|---------------------|
+| M6.1 | Enhanced DICOM IOD parser | Multi-frame CT/MR Enhanced IOD parsing verified |
+| M6.2 | Frame extraction and sorting | DimensionIndexSequence-based ordering correct |
+| M6.3 | ECG-gated phase separation | Cardiac CT phases correctly split by trigger time |
+| M6.4 | Coronary CTA centerline | Centerline extraction and CPR view functional |
+| M6.5 | Calcium scoring | Agatston score with per-artery breakdown |
+| M6.6 | Cine MRI temporal display | Multi-phase cine playback at ≥15 fps |
+| M6.7 | Integration testing | End-to-end validation with cardiac CT/MRI datasets |
+
 ---
 
 ## 8. Risks & Mitigations
@@ -996,8 +1115,10 @@
 
 | Modality | Code | Priority | 3D Support | Features |
 |----------|------|----------|------------|----------|
-| CT | CT | P0 | Yes | Volume rendering, MPR, HU |
-| MRI | MR | P0 | Yes | Volume rendering, MPR, multi-sequence, 4D Flow (velocity-encoded) |
+| CT | CT | P0 | Yes | Volume rendering, MPR, HU, Cardiac CT (ECG-gated, CTA, Calcium Score) |
+| MRI | MR | P0 | Yes | Volume rendering, MPR, multi-sequence, 4D Flow (velocity-encoded), Cine MRI |
+| Enhanced CT | CT (Enhanced) | P0 | Yes | Multi-frame IOD, per-frame functional groups |
+| Enhanced MR | MR (Enhanced) | P0 | Yes | Multi-frame IOD, per-frame functional groups |
 | DR (Digital Radiography) | DX | P2 | No | 2D viewing |
 | CR (Computed Radiography) | CR | P2 | No | 2D viewing |
 | PET | PT | P3 | Yes | Fusion view (future) |
@@ -1031,6 +1152,7 @@ For coordinate system information, see [03-itk-vtk-integration.md](reference/03-
 | 0.2.0 | 2025-12-31 | Development Team | Detailed segmentation and region measurement features (FR-006, FR-007 expansion, FR-012, FR-013 addition) |
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 | 0.4.0 | 2026-02-11 | Development Team | Added FR-014 (4D Flow MRI Analysis) with 21 sub-requirements; added NFR-016~020 for tiered performance targets; added UC-11, UC-12; added Milestone 5 (v0.6.0) |
+| 0.5.0 | 2026-02-12 | Development Team | Added FR-015 (Enhanced DICOM IOD, 6 sub-reqs), FR-016 (Cardiac CT, 14 sub-reqs), FR-017 (Cine MRI, 4 sub-reqs); added NFR-021~024; added UC-13~16; added Milestone 6 (v0.7.0) |
 
 > **Note**: v0.x.x are Pre-release versions. Official releases start from v1.0.0.
 
