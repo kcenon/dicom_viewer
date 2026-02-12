@@ -4,9 +4,23 @@
 
 #include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <random>
 #include <thread>
 
 using namespace dicom_viewer::services;
+
+namespace {
+
+// Generate a random ephemeral port to minimize CI conflicts.
+// Uses the dynamic/private port range (49152-65535) per IANA.
+uint16_t randomEphemeralPort() {
+    static std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<uint16_t> dist(49152, 65535);
+    return dist(gen);
+}
+
+} // namespace
 
 class DicomStoreScpTest : public ::testing::Test {
 protected:
@@ -31,7 +45,7 @@ protected:
 
     StorageScpConfig createValidConfig() {
         StorageScpConfig config;
-        config.port = 11113;  // Use non-standard port for testing
+        config.port = randomEphemeralPort();
         config.aeTitle = "TEST_SCP";
         config.storageDirectory = tempDir;
         config.maxPduSize = 16384;
@@ -44,7 +58,10 @@ protected:
     std::filesystem::path tempDir;
 };
 
-// Configuration validation tests
+// ============================================================================
+// Configuration Validation Tests
+// ============================================================================
+
 TEST_F(DicomStoreScpTest, ConfigValidation_ValidConfig) {
     auto config = createValidConfig();
     EXPECT_TRUE(config.isValid());
@@ -74,7 +91,28 @@ TEST_F(DicomStoreScpTest, ConfigValidation_ZeroPort) {
     EXPECT_FALSE(config.isValid());
 }
 
-// Construction tests
+TEST_F(DicomStoreScpTest, ConfigValidation_MaxAeTitleLength) {
+    auto config = createValidConfig();
+    config.aeTitle = "1234567890123456";  // Exactly 16 chars (DICOM limit)
+    EXPECT_TRUE(config.isValid());
+}
+
+TEST_F(DicomStoreScpTest, ConfigValidation_MinPort) {
+    auto config = createValidConfig();
+    config.port = 1;
+    EXPECT_TRUE(config.isValid());
+}
+
+TEST_F(DicomStoreScpTest, ConfigValidation_MaxPort) {
+    auto config = createValidConfig();
+    config.port = 65535;
+    EXPECT_TRUE(config.isValid());
+}
+
+// ============================================================================
+// Construction Tests
+// ============================================================================
+
 TEST_F(DicomStoreScpTest, DefaultConstruction) {
     EXPECT_NE(scp, nullptr);
     EXPECT_FALSE(scp->isRunning());
@@ -86,11 +124,27 @@ TEST_F(DicomStoreScpTest, MoveConstruction) {
     EXPECT_FALSE(moved.isRunning());
 }
 
-// Start/Stop tests
-// Note: Network binding tests may fail in some environments due to permissions
-// or port conflicts. These tests are marked as potentially flaky.
+TEST_F(DicomStoreScpTest, MoveAssignment) {
+    DicomStoreSCP a;
+    DicomStoreSCP b;
+    b = std::move(a);
+    EXPECT_FALSE(b.isRunning());
+}
+
+// ============================================================================
+// Server Lifecycle Tests
+// ============================================================================
+
 TEST_F(DicomStoreScpTest, StartWithValidConfig) {
-    GTEST_SKIP() << "Network tests may be flaky in CI environments";
+    auto config = createValidConfig();
+    auto result = scp->start(config);
+
+    if (!result.has_value() && result.error().code == PacsError::NetworkError) {
+        GTEST_SKIP() << "Network binding unavailable: " << result.error().message;
+    }
+
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+    EXPECT_TRUE(scp->isRunning());
 }
 
 TEST_F(DicomStoreScpTest, StartWithInvalidConfig) {
@@ -107,7 +161,19 @@ TEST_F(DicomStoreScpTest, StartWithInvalidConfig) {
 }
 
 TEST_F(DicomStoreScpTest, DoubleStartReturnsError) {
-    GTEST_SKIP() << "Network tests may be flaky in CI environments";
+    auto config = createValidConfig();
+    auto result = scp->start(config);
+
+    if (!result.has_value() && result.error().code == PacsError::NetworkError) {
+        GTEST_SKIP() << "Network binding unavailable: " << result.error().message;
+    }
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+
+    // Second start should fail with InternalError ("already running")
+    auto result2 = scp->start(config);
+    EXPECT_FALSE(result2.has_value());
+    EXPECT_EQ(result2.error().code, PacsError::InternalError);
+    EXPECT_TRUE(scp->isRunning());  // Still running from first start
 }
 
 TEST_F(DicomStoreScpTest, StopWhenNotRunning) {
@@ -116,7 +182,66 @@ TEST_F(DicomStoreScpTest, StopWhenNotRunning) {
     EXPECT_FALSE(scp->isRunning());
 }
 
-// Status tests
+TEST_F(DicomStoreScpTest, GracefulShutdown) {
+    auto config = createValidConfig();
+    auto result = scp->start(config);
+
+    if (!result.has_value() && result.error().code == PacsError::NetworkError) {
+        GTEST_SKIP() << "Network binding unavailable: " << result.error().message;
+    }
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+    ASSERT_TRUE(scp->isRunning());
+
+    scp->stop();
+
+    EXPECT_FALSE(scp->isRunning());
+}
+
+TEST_F(DicomStoreScpTest, RestartAfterStop) {
+    auto config = createValidConfig();
+    auto result = scp->start(config);
+
+    if (!result.has_value() && result.error().code == PacsError::NetworkError) {
+        GTEST_SKIP() << "Network binding unavailable: " << result.error().message;
+    }
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+
+    scp->stop();
+    ASSERT_FALSE(scp->isRunning());
+
+    // Use a different port for restart to avoid TIME_WAIT
+    auto config2 = createValidConfig();
+    auto result2 = scp->start(config2);
+
+    if (!result2.has_value() && result2.error().code == PacsError::NetworkError) {
+        GTEST_SKIP() << "Network binding unavailable on restart: "
+                     << result2.error().message;
+    }
+    ASSERT_TRUE(result2.has_value()) << result2.error().toString();
+    EXPECT_TRUE(scp->isRunning());
+}
+
+TEST_F(DicomStoreScpTest, StopMultipleTimesIsSafe) {
+    auto config = createValidConfig();
+    auto result = scp->start(config);
+
+    if (!result.has_value() && result.error().code == PacsError::NetworkError) {
+        GTEST_SKIP() << "Network binding unavailable: " << result.error().message;
+    }
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+
+    scp->stop();
+    EXPECT_FALSE(scp->isRunning());
+
+    // Calling stop() again should be harmless
+    scp->stop();
+    EXPECT_FALSE(scp->isRunning());
+}
+
+// ============================================================================
+// Status Tests
+// ============================================================================
+
 TEST_F(DicomStoreScpTest, StatusWhenNotRunning) {
     auto status = scp->getStatus();
 
@@ -127,10 +252,59 @@ TEST_F(DicomStoreScpTest, StatusWhenNotRunning) {
 }
 
 TEST_F(DicomStoreScpTest, StatusWhenRunning) {
-    GTEST_SKIP() << "Network tests may be flaky in CI environments";
+    auto config = createValidConfig();
+    auto result = scp->start(config);
+
+    if (!result.has_value() && result.error().code == PacsError::NetworkError) {
+        GTEST_SKIP() << "Network binding unavailable: " << result.error().message;
+    }
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+
+    auto status = scp->getStatus();
+
+    EXPECT_TRUE(status.isRunning);
+    EXPECT_EQ(status.port, config.port);
+    EXPECT_EQ(status.totalImagesReceived, 0);
+    EXPECT_EQ(status.activeConnections, 0);
 }
 
-// SOP Class tests
+TEST_F(DicomStoreScpTest, StatusStartTimeIsSet) {
+    auto beforeStart = std::chrono::system_clock::now();
+
+    auto config = createValidConfig();
+    auto result = scp->start(config);
+
+    if (!result.has_value() && result.error().code == PacsError::NetworkError) {
+        GTEST_SKIP() << "Network binding unavailable: " << result.error().message;
+    }
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+
+    auto afterStart = std::chrono::system_clock::now();
+    auto status = scp->getStatus();
+
+    EXPECT_GE(status.startTime, beforeStart);
+    EXPECT_LE(status.startTime, afterStart);
+}
+
+TEST_F(DicomStoreScpTest, StatusResetAfterStop) {
+    auto config = createValidConfig();
+    auto result = scp->start(config);
+
+    if (!result.has_value() && result.error().code == PacsError::NetworkError) {
+        GTEST_SKIP() << "Network binding unavailable: " << result.error().message;
+    }
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+
+    scp->stop();
+    auto status = scp->getStatus();
+
+    EXPECT_FALSE(status.isRunning);
+}
+
+// ============================================================================
+// SOP Class Tests
+// ============================================================================
+
 TEST_F(DicomStoreScpTest, SupportedSopClasses) {
     auto sopClasses = DicomStoreSCP::getSupportedSopClasses();
 
@@ -147,36 +321,130 @@ TEST_F(DicomStoreScpTest, SupportedSopClasses) {
                         DicomStoreSCP::ENHANCED_MR_STORAGE), sopClasses.end());
 }
 
-// Callback tests
-TEST_F(DicomStoreScpTest, SetImageReceivedCallback) {
-    bool callbackCalled = false;
+TEST_F(DicomStoreScpTest, SopClassUidFormats) {
+    // All SOP Class UIDs should follow DICOM UID format (NEMA root prefix)
+    auto sopClasses = DicomStoreSCP::getSupportedSopClasses();
+    for (const auto& uid : sopClasses) {
+        EXPECT_FALSE(uid.empty());
+        EXPECT_TRUE(uid.starts_with("1.2.840.10008."))
+            << "Invalid UID prefix: " << uid;
+    }
+}
 
-    scp->setImageReceivedCallback([&callbackCalled](const ReceivedImageInfo&) {
-        callbackCalled = true;
+TEST_F(DicomStoreScpTest, SopClassesAreUnique) {
+    auto sopClasses = DicomStoreSCP::getSupportedSopClasses();
+    std::sort(sopClasses.begin(), sopClasses.end());
+    auto last = std::unique(sopClasses.begin(), sopClasses.end());
+    EXPECT_EQ(last, sopClasses.end()) << "Duplicate SOP Class UIDs found";
+}
+
+// ============================================================================
+// Callback Tests
+// ============================================================================
+
+TEST_F(DicomStoreScpTest, SetImageReceivedCallback) {
+    bool callbackSet = false;
+
+    scp->setImageReceivedCallback([&callbackSet](const ReceivedImageInfo&) {
+        callbackSet = true;
     });
 
-    // Note: Actually triggering the callback would require a real DICOM connection
-    // This test verifies that setting the callback doesn't crash
+    // Triggering the callback requires a real DICOM association.
+    // This verifies that setting the callback doesn't crash.
     SUCCEED();
 }
 
 TEST_F(DicomStoreScpTest, SetConnectionCallback) {
-    bool callbackCalled = false;
+    bool callbackSet = false;
 
-    scp->setConnectionCallback([&callbackCalled](const std::string&, bool) {
-        callbackCalled = true;
+    scp->setConnectionCallback([&callbackSet](const std::string&, bool) {
+        callbackSet = true;
     });
 
-    // This test verifies that setting the callback doesn't crash
+    // This verifies that setting the callback doesn't crash
     SUCCEED();
 }
 
-// Storage directory creation tests
-TEST_F(DicomStoreScpTest, CreatesStorageDirectoryIfNotExists) {
-    GTEST_SKIP() << "Network tests may be flaky in CI environments";
+TEST_F(DicomStoreScpTest, SetCallbackBeforeStart) {
+    scp->setImageReceivedCallback([](const ReceivedImageInfo&) {});
+    scp->setConnectionCallback([](const std::string&, bool) {});
+
+    auto config = createValidConfig();
+    auto result = scp->start(config);
+
+    if (!result.has_value() && result.error().code == PacsError::NetworkError) {
+        GTEST_SKIP() << "Network binding unavailable: " << result.error().message;
+    }
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+
+    // Server should start successfully with pre-set callbacks
+    EXPECT_TRUE(scp->isRunning());
 }
 
-// ReceivedImageInfo structure tests
+TEST_F(DicomStoreScpTest, OverwriteCallback) {
+    int firstCount = 0;
+    int secondCount = 0;
+
+    scp->setImageReceivedCallback([&firstCount](const ReceivedImageInfo&) {
+        firstCount++;
+    });
+
+    // Overwrite with new callback
+    scp->setImageReceivedCallback([&secondCount](const ReceivedImageInfo&) {
+        secondCount++;
+    });
+
+    // Setting callbacks multiple times should not crash
+    SUCCEED();
+}
+
+TEST_F(DicomStoreScpTest, NullCallbackDoesNotCrash) {
+    scp->setImageReceivedCallback(nullptr);
+    scp->setConnectionCallback(nullptr);
+
+    // Should not crash even with null callbacks
+    SUCCEED();
+}
+
+// ============================================================================
+// Storage Directory Tests
+// ============================================================================
+
+TEST_F(DicomStoreScpTest, CreatesStorageDirectoryIfNotExists) {
+    auto config = createValidConfig();
+    auto nestedDir = tempDir / "nested" / "storage" / "dir";
+    config.storageDirectory = nestedDir;
+
+    ASSERT_FALSE(std::filesystem::exists(nestedDir));
+
+    // Directory creation occurs before network binding in start(),
+    // so the directory should be created regardless of binding outcome
+    auto result = scp->start(config);
+
+    EXPECT_TRUE(std::filesystem::exists(nestedDir));
+    EXPECT_TRUE(std::filesystem::is_directory(nestedDir));
+}
+
+TEST_F(DicomStoreScpTest, ExistingStorageDirectoryNotReplaced) {
+    auto config = createValidConfig();
+
+    // tempDir already exists from SetUp; place a marker file inside
+    auto marker = tempDir / "marker.txt";
+    {
+        std::ofstream ofs(marker);
+        ofs << "test";
+    }
+
+    auto result = scp->start(config);
+
+    // Marker file should still exist (directory not replaced/cleared)
+    EXPECT_TRUE(std::filesystem::exists(marker));
+}
+
+// ============================================================================
+// ReceivedImageInfo Structure Tests
+// ============================================================================
+
 TEST_F(DicomStoreScpTest, ReceivedImageInfoDefaultConstruction) {
     ReceivedImageInfo info;
 
@@ -189,7 +457,10 @@ TEST_F(DicomStoreScpTest, ReceivedImageInfoDefaultConstruction) {
     EXPECT_TRUE(info.callingAeTitle.empty());
 }
 
-// StorageScpStatus structure tests
+// ============================================================================
+// StorageScpStatus Structure Tests
+// ============================================================================
+
 TEST_F(DicomStoreScpTest, StorageScpStatusDefaultConstruction) {
     StorageScpStatus status;
 
@@ -197,9 +468,4 @@ TEST_F(DicomStoreScpTest, StorageScpStatusDefaultConstruction) {
     EXPECT_EQ(status.port, 0);
     EXPECT_EQ(status.totalImagesReceived, 0);
     EXPECT_EQ(status.activeConnections, 0);
-}
-
-// Graceful shutdown test
-TEST_F(DicomStoreScpTest, GracefulShutdown) {
-    GTEST_SKIP() << "Network tests may be flaky in CI environments";
 }
