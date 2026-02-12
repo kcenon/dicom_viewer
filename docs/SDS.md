@@ -3168,7 +3168,7 @@ sequenceDiagram
 | FR-014.9~11 | SRS-FR-048 | SDS-MOD-007, SDS-DATA-006 | Flow (TemporalNavigator) | ⬜ Planned |
 | FR-014.12~18 | SRS-FR-047 | SDS-MOD-007, SDS-SEQ-007 | Flow (FlowQuantifier) | ⬜ Planned |
 | FR-014.19~21 | SRS-FR-047 | SDS-MOD-007, SDS-SEQ-007 | Flow (VesselAnalyzer, Export) | ⬜ Planned |
-| FR-015.1~6 | SRS-FR-049 | SDS-MOD-008 | Enhanced DICOM (EnhancedDicomParser, FrameExtractor, FunctionalGroupParser) | ⬜ Planned |
+| FR-015.1~6 | SRS-FR-049 | SDS-MOD-008 | Enhanced DICOM (EnhancedDicomParser, FrameExtractor, FunctionalGroupParser, DimensionIndexSorter) | ⬜ Planned |
 | FR-016.1~4 | SRS-FR-050 | SDS-MOD-009 | Cardiac CT (CardiacPhaseDetector) | ⬜ Planned |
 | FR-016.5~8 | SRS-FR-051 | SDS-MOD-009 | Cardiac CT (CoronaryCenterlineExtractor, CurvedPlanarReformatter) | ⬜ Planned |
 | FR-016.9~12 | SRS-FR-052 | SDS-MOD-009 | Cardiac CT (CalciumScorer) | ⬜ Planned |
