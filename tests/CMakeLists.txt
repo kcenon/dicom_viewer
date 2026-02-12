@@ -1102,3 +1102,20 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(image_converter_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for FunctionalGroupParser
+add_executable(functional_group_parser_test
+    unit/functional_group_parser_test.cpp
+)
+
+target_link_libraries(functional_group_parser_test PRIVATE
+    enhanced_dicom_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(functional_group_parser_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(functional_group_parser_test DISCOVERY_TIMEOUT 60)
