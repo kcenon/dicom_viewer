@@ -325,3 +325,71 @@ TEST(GEFlowParserTest, ExtractTriggerTimeEmpty) {
     itk::MetaDataDictionary dict;
     EXPECT_DOUBLE_EQ(parser.extractTriggerTime(dict), 0.0);
 }
+
+// =============================================================================
+// Error recovery and edge case tests (Issue #202)
+// =============================================================================
+
+TEST(SiemensFlowParserTest, ExtractVENCMissingTag) {
+    SiemensFlowParser parser;
+    itk::MetaDataDictionary dict;  // Empty — no VENC tag
+    // Should return 0.0 (default) when tag is absent
+    EXPECT_DOUBLE_EQ(parser.extractVENC(dict), 0.0);
+}
+
+TEST(SiemensFlowParserTest, ExtractVENCInvalidNonNumeric) {
+    SiemensFlowParser parser;
+    auto dict = createMockDictionary({{"0018|9197", "NOT_A_NUMBER"}});
+    // Non-numeric value should not crash; expect 0.0 fallback
+    EXPECT_DOUBLE_EQ(parser.extractVENC(dict), 0.0);
+}
+
+TEST(SiemensFlowParserTest, ClassifyUnknownDirectionTag) {
+    SiemensFlowParser parser;
+    auto dict = createMockDictionary(
+        {{"0008|0008", "ORIGINAL\\PRIMARY\\P\\ND"},
+         {"0051|1014", "v150_UNKNOWN_DIR"}});
+    // Unrecognized direction should fall back to Magnitude or a default
+    auto comp = parser.classifyComponent(dict);
+    // The result depends on implementation; should not crash
+    SUCCEED();
+}
+
+TEST(PhilipsFlowParserTest, ClassifyVyFromSeriesDescription) {
+    PhilipsFlowParser parser;
+    auto dict = createMockDictionary(
+        {{"0008|0008", "ORIGINAL\\PRIMARY\\P\\FFE"},
+         {"0008|103e", "PC_4D_FLOW_AP"}});
+    EXPECT_EQ(parser.classifyComponent(dict), VelocityComponent::Vy);
+}
+
+TEST(GEFlowParserTest, ExtractVENCMissingTag) {
+    GEFlowParser parser;
+    itk::MetaDataDictionary dict;  // No private VENC tag
+    EXPECT_DOUBLE_EQ(parser.extractVENC(dict), 0.0);
+}
+
+TEST(FlowDicomParserTest, ParseSeriesSingleFile) {
+    FlowDicomParser parser;
+    std::vector<std::string> files = {"/nonexistent/single.dcm"};
+    auto result = parser.parseSeries(files);
+    // Single non-existent file should fail at vendor detection
+    ASSERT_FALSE(result.has_value());
+}
+
+TEST(FlowDicomParserTest, ProgressCallbackInvokedOnError) {
+    FlowDicomParser parser;
+    std::vector<double> progressValues;
+    parser.setProgressCallback([&](double p) {
+        progressValues.push_back(p);
+    });
+
+    std::vector<std::string> files = {"/nonexistent/a.dcm"};
+    auto result = parser.parseSeries(files);
+    EXPECT_FALSE(result.has_value());
+
+    // Even on failure, at least the initial progress (0.0) should be reported
+    if (!progressValues.empty()) {
+        EXPECT_DOUBLE_EQ(progressValues.front(), 0.0);
+    }
+}

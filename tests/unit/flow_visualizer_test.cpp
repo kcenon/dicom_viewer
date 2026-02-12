@@ -510,3 +510,94 @@ TEST(FlowVisualizerTest, CreateLookupTable_TriggerTime) {
     EXPECT_DOUBLE_EQ(range[0], 0.0);
     EXPECT_DOUBLE_EQ(range[1], 1000.0);
 }
+
+// =============================================================================
+// Glyph orientation and edge case tests (Issue #202)
+// =============================================================================
+
+TEST(FlowVisualizerTest, GenerateGlyphs_OrientationMatchesVelocity) {
+    FlowVisualizer viz;
+    // Pure X-direction flow
+    auto phase = createUniformFlowPhase(8, 8, 8, 20.0f, 0.0f, 0.0f);
+    viz.setVelocityField(phase);
+
+    GlyphParams params;
+    params.skipFactor = 4;  // Sample every 4th voxel
+    params.minMagnitude = 0.1;
+
+    auto result = viz.generateGlyphs(params);
+    ASSERT_TRUE(result.has_value());
+
+    auto polyData = result.value();
+    EXPECT_GT(polyData->GetNumberOfCells(), 0);
+
+    // Glyph vectors should have a data array with velocity directions
+    auto* vectors = polyData->GetPointData()->GetVectors();
+    if (vectors && vectors->GetNumberOfTuples() > 0) {
+        double vec[3];
+        vectors->GetTuple(0, vec);
+        // X component should dominate for pure X-direction flow
+        double mag = std::sqrt(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2]);
+        if (mag > 0.0) {
+            EXPECT_GT(std::abs(vec[0]) / mag, 0.9)
+                << "Glyph should point primarily in X direction";
+        }
+    }
+}
+
+TEST(FlowVisualizerTest, VelocityFieldToVTK_VerySmallVelocity) {
+    // Near-zero velocity should not cause numerical instability
+    auto phase = createUniformFlowPhase(4, 4, 4, 1e-7f, 1e-7f, 1e-7f);
+    auto result = FlowVisualizer::velocityFieldToVTK(phase);
+    ASSERT_TRUE(result.has_value());
+
+    auto* scalars = result.value()->GetPointData()->GetScalars();
+    ASSERT_NE(scalars, nullptr);
+    double mag = scalars->GetTuple1(0);
+    EXPECT_GE(mag, 0.0);
+    EXPECT_FALSE(std::isnan(mag));
+    EXPECT_FALSE(std::isinf(mag));
+}
+
+TEST(FlowVisualizerTest, SetVelocityField_ReplaceExisting) {
+    FlowVisualizer viz;
+
+    // Set first field
+    auto phase1 = createUniformFlowPhase(8, 8, 8, 10.0f, 0.0f, 0.0f);
+    auto result1 = viz.setVelocityField(phase1);
+    ASSERT_TRUE(result1.has_value());
+    EXPECT_TRUE(viz.hasVelocityField());
+
+    // Replace with second field (different dimensions)
+    auto phase2 = createUniformFlowPhase(4, 4, 4, 0.0f, 20.0f, 0.0f);
+    auto result2 = viz.setVelocityField(phase2);
+    ASSERT_TRUE(result2.has_value());
+    EXPECT_TRUE(viz.hasVelocityField());
+
+    // Generate glyphs from the replaced field
+    GlyphParams params;
+    params.skipFactor = 1;
+    params.minMagnitude = 0.1;
+    auto glyphs = viz.generateGlyphs(params);
+    ASSERT_TRUE(glyphs.has_value());
+}
+
+TEST(FlowVisualizerTest, GenerateStreamlines_HighTerminalSpeed) {
+    FlowVisualizer viz;
+    // Flow with magnitude ~1.73 cm/s
+    auto phase = createUniformFlowPhase(10, 10, 10, 1.0f, 1.0f, 1.0f);
+    viz.setVelocityField(phase);
+
+    StreamlineParams params;
+    params.maxSeedPoints = 20;
+    params.maxSteps = 100;
+    params.terminalSpeed = 100.0;  // Higher than actual velocity
+
+    auto result = viz.generateStreamlines(params);
+    ASSERT_TRUE(result.has_value());
+
+    // Streamlines should terminate immediately (speed < terminalSpeed)
+    auto polyData = result.value();
+    // May have zero or very few points since all speeds are below threshold
+    SUCCEED();
+}

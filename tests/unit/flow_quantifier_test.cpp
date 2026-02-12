@@ -483,3 +483,118 @@ TEST(FlowQuantifierTest, ExportToCSV_ValidData) {
     // Clean up
     std::filesystem::remove(kTestCSVPath);
 }
+
+// =============================================================================
+// Non-perpendicular measurement plane tests (Issue #202)
+// =============================================================================
+
+TEST(FlowQuantifierTest, MeasureFlow_30DegreeAngle) {
+    FlowQuantifier q;
+
+    // Flow along Z = 10 cm/s
+    auto phase = createUniformZFlow(20, 10.0f);
+
+    // Measurement plane tilted 30° from Z axis
+    // Normal = (0, sin30°, cos30°) = (0, 0.5, 0.866)
+    MeasurementPlane plane;
+    plane.center = {10, 10, 10};
+    plane.normal = {0, std::sin(M_PI / 6.0), std::cos(M_PI / 6.0)};
+    plane.radius = 5.0;
+    plane.sampleSpacing = 1.0;
+    q.setMeasurementPlane(plane);
+
+    auto result = q.measureFlow(phase);
+    ASSERT_TRUE(result.has_value());
+
+    // Through-plane velocity = dot({0,0,10}, normalized_normal)
+    // = 10 × cos(30°) ≈ 8.66 cm/s
+    EXPECT_NEAR(result->meanVelocity, 10.0 * std::cos(M_PI / 6.0), 0.5);
+}
+
+TEST(FlowQuantifierTest, MeasureFlow_60DegreeAngle) {
+    FlowQuantifier q;
+
+    auto phase = createUniformZFlow(20, 10.0f);
+
+    // 60° tilted plane: normal = (0, sin60°, cos60°) = (0, 0.866, 0.5)
+    MeasurementPlane plane;
+    plane.center = {10, 10, 10};
+    plane.normal = {0, std::sin(M_PI / 3.0), std::cos(M_PI / 3.0)};
+    plane.radius = 5.0;
+    plane.sampleSpacing = 1.0;
+    q.setMeasurementPlane(plane);
+
+    auto result = q.measureFlow(phase);
+    ASSERT_TRUE(result.has_value());
+
+    // Through-plane = 10 × cos(60°) = 5.0 cm/s
+    EXPECT_NEAR(result->meanVelocity, 10.0 * std::cos(M_PI / 3.0), 0.5);
+}
+
+// =============================================================================
+// Temporal resolution edge case tests (Issue #202)
+// =============================================================================
+
+TEST(FlowQuantifierTest, ComputeTVC_SinglePhase) {
+    FlowQuantifier q;
+
+    MeasurementPlane plane;
+    plane.center = {5, 5, 5};
+    plane.normal = {0, 0, 1};
+    plane.radius = 3.0;
+    plane.sampleSpacing = 1.0;
+    q.setMeasurementPlane(plane);
+
+    // Single phase — edge case for integration
+    std::vector<VelocityPhase> phases;
+    phases.push_back(createUniformZFlow(10, 10.0f, 0));
+
+    auto result = q.computeTimeVelocityCurve(phases, 40.0);
+    ASSERT_TRUE(result.has_value());
+
+    EXPECT_EQ(result->timePoints.size(), 1);
+    EXPECT_EQ(result->flowRates.size(), 1);
+    // Single point: stroke volume should still be computed
+    EXPECT_GE(result->strokeVolume, 0.0);
+}
+
+TEST(FlowQuantifierTest, ComputeTVC_HighRegurgitation) {
+    FlowQuantifier q;
+
+    MeasurementPlane plane;
+    plane.center = {5, 5, 5};
+    plane.normal = {0, 0, 1};
+    plane.radius = 3.0;
+    plane.sampleSpacing = 1.0;
+    q.setMeasurementPlane(plane);
+
+    // 6 phases: 1 forward, 5 backward → high regurgitant fraction (>50%)
+    std::vector<VelocityPhase> phases;
+    phases.push_back(createUniformZFlow(10, 20.0f, 0));   // Forward
+    for (int i = 1; i <= 5; ++i) {
+        phases.push_back(createUniformZFlow(10, -10.0f, i));  // Backward
+    }
+
+    auto result = q.computeTimeVelocityCurve(phases, 40.0);
+    ASSERT_TRUE(result.has_value());
+
+    EXPECT_GT(result->regurgitantFraction, 50.0)
+        << "5 backward phases vs 1 forward should yield >50% regurgitation";
+}
+
+// =============================================================================
+// Pressure gradient edge cases (Issue #202)
+// =============================================================================
+
+TEST(FlowQuantifierTest, PressureGradient_NegativeVelocity) {
+    // Modified Bernoulli uses absolute velocity or squared
+    double p = FlowQuantifier::estimatePressureGradient(-100.0);
+    // ΔP = 4 × V²; with V = -100 cm/s = -1 m/s → ΔP = 4 × 1 = 4 mmHg
+    EXPECT_NEAR(p, 4.0, 1e-10);
+}
+
+TEST(FlowQuantifierTest, PressureGradient_VeryHighVelocity) {
+    // V = 500 cm/s = 5 m/s → ΔP = 4 × 25 = 100 mmHg (severe stenosis)
+    double p = FlowQuantifier::estimatePressureGradient(500.0);
+    EXPECT_NEAR(p, 100.0, 1e-10);
+}

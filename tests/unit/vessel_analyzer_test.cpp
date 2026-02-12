@@ -494,3 +494,132 @@ TEST(VesselAnalyzerTKE, OutputImageDimensionsMatch) {
     EXPECT_EQ(size[1], static_cast<unsigned>(kDim));
     EXPECT_EQ(size[2], static_cast<unsigned>(kDim));
 }
+
+// =============================================================================
+// WSS edge cases (Issue #202)
+// =============================================================================
+
+TEST(VesselAnalyzerWSS, ZeroVelocityFieldProducesZeroWSS) {
+    // Completely static flow → WSS should be 0
+    constexpr int kDim = 32;
+    auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+    // All velocities are zero (default from createVectorImage)
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+    phase.magnitudeImage = phantom::createScalarImage(kDim, kDim, kDim);
+
+    double center = (kDim - 1) / 2.0;
+    auto wallMesh = createCylindricalWallMesh(8.0, 20.0, 16, 4, center, center, 5.0);
+
+    VesselAnalyzer analyzer;
+    auto result = analyzer.computeWSS(phase, wallMesh);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    // Zero velocity → zero wall shear stress
+    EXPECT_NEAR(result->meanWSS, 0.0, 0.01);
+}
+
+// =============================================================================
+// OSI bidirectional flow test (Issue #202)
+// =============================================================================
+
+TEST(VesselAnalyzerOSI, BidirectionalFlowHasHighOSI) {
+    // Alternating forward/backward flow → high OSI (approaches 0.5)
+    constexpr int kDim = 32;
+    constexpr double kRadius = 8.0;
+
+    std::vector<VelocityPhase> phases;
+    for (int p = 0; p < 6; ++p) {
+        // Alternate positive/negative velocity
+        double vmax = (p % 2 == 0) ? 50.0 : -50.0;
+        auto [phase, truth] = phantom::generatePoiseuillePipe(kDim, vmax, kRadius, p);
+        phases.push_back(std::move(phase));
+    }
+
+    double center = (kDim - 1) / 2.0;
+    auto wallMesh = createCylindricalWallMesh(kRadius, 20.0, 16, 4, center, center, 5.0);
+
+    VesselAnalyzer analyzer;
+    auto result = analyzer.computeOSI(phases, wallMesh);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    // Perfectly alternating flow should yield OSI close to 0.5
+    // OSI = 0.5 * (1 - |sum(WSS_i)| / sum(|WSS_i|))
+    // For equal opposite WSS: sum ≈ 0, sum(|.|) > 0 → OSI ≈ 0.5
+    EXPECT_GT(result->meanOSI, 0.3)
+        << "Bidirectional flow should have high OSI";
+    EXPECT_LE(result->meanOSI, 0.5)
+        << "OSI is bounded by 0.5";
+
+    EXPECT_NE(result->wallMesh->GetPointData()->GetArray("OSI"), nullptr);
+}
+
+// =============================================================================
+// TKE density scaling test (Issue #202)
+// =============================================================================
+
+TEST(VesselAnalyzerTKE, TKEScalesWithDensity) {
+    // TKE = 0.5 * rho * var(V)
+    // Doubling density should double TKE
+    constexpr int kDim = 16;
+    std::vector<VelocityPhase> phases;
+    for (int p = 0; p < 5; ++p) {
+        auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+        auto* buf = velocity->GetBufferPointer();
+        float vz = 30.0f + p * 20.0f;  // 30, 50, 70, 90, 110
+        for (int i = 0; i < kDim * kDim * kDim; ++i) {
+            buf[i * 3 + 2] = vz;
+        }
+        VelocityPhase phase;
+        phase.velocityField = velocity;
+        phase.phaseIndex = p;
+        phases.push_back(std::move(phase));
+    }
+
+    int center = kDim / 2;
+    int idx = center * kDim * kDim + center * kDim + center;
+
+    // Default density (1060 kg/m³)
+    VesselAnalyzer analyzer1;
+    auto result1 = analyzer1.computeTKE(phases);
+    ASSERT_TRUE(result1.has_value());
+    float tke1 = result1.value()->GetBufferPointer()[idx];
+
+    // Recreate phases for second test (move consumes them)
+    std::vector<VelocityPhase> phases2;
+    for (int p = 0; p < 5; ++p) {
+        auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+        auto* buf = velocity->GetBufferPointer();
+        float vz = 30.0f + p * 20.0f;
+        for (int i = 0; i < kDim * kDim * kDim; ++i) {
+            buf[i * 3 + 2] = vz;
+        }
+        VelocityPhase phase;
+        phase.velocityField = velocity;
+        phase.phaseIndex = p;
+        phases2.push_back(std::move(phase));
+    }
+
+    // Double density (2120 kg/m³)
+    VesselAnalyzer analyzer2;
+    analyzer2.setBloodDensity(2120.0);
+    auto result2 = analyzer2.computeTKE(phases2);
+    ASSERT_TRUE(result2.has_value());
+    float tke2 = result2.value()->GetBufferPointer()[idx];
+
+    // TKE should scale linearly with density
+    EXPECT_NEAR(tke2 / tke1, 2.0, 0.01)
+        << "Doubling density should double TKE";
+}
+
+// =============================================================================
+// Property setter edge cases (Issue #202)
+// =============================================================================
+
+TEST(VesselAnalyzerTest, SetLowWSSThreshold) {
+    VesselAnalyzer analyzer;
+    analyzer.setLowWSSThreshold(0.4);
+    // Should not crash; threshold used in computeWSS for lowWSSArea
+    SUCCEED();
+}

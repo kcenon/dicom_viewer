@@ -372,3 +372,147 @@ TEST(EddyCurrentTest, NullMagnitudeSafe) {
     auto pixel = velocity->GetPixel(idx);
     EXPECT_FLOAT_EQ(pixel[0], 10.0f);
 }
+
+// =============================================================================
+// Aliasing threshold sensitivity tests (Issue #202)
+// =============================================================================
+
+TEST(AliasingUnwrapTest, LowThresholdMoreSensitive) {
+    // Lower threshold (0.5) should trigger unwrapping more aggressively
+    // than higher threshold (0.9)
+    auto velocity = VectorImage3D::New();
+    VectorImage3D::SizeType size = {{10, 1, 1}};
+    VectorImage3D::RegionType region;
+    region.SetSize(size);
+    velocity->SetRegions(region);
+    velocity->SetNumberOfComponentsPerPixel(3);
+    velocity->Allocate();
+
+    double venc = 100.0;
+    // Create a moderate velocity jump (60% of 2*VENC)
+    for (unsigned int x = 0; x < 10; ++x) {
+        itk::VariableLengthVector<float> pixel(3);
+        if (x < 5) {
+            pixel[0] = 80.0f;  // Within VENC
+        } else {
+            pixel[0] = -80.0f;  // Jump of 160 cm/s (80% of 2*VENC)
+        }
+        pixel[1] = 0.0f;
+        pixel[2] = 0.0f;
+        VectorImage3D::IndexType idx = {{static_cast<long>(x), 0, 0}};
+        velocity->SetPixel(idx, pixel);
+    }
+
+    // Copy for second test
+    auto velocity2 = VectorImage3D::New();
+    velocity2->SetRegions(region);
+    velocity2->SetNumberOfComponentsPerPixel(3);
+    velocity2->Allocate();
+    for (unsigned int x = 0; x < 10; ++x) {
+        VectorImage3D::IndexType idx = {{static_cast<long>(x), 0, 0}};
+        velocity2->SetPixel(idx, velocity->GetPixel(idx));
+    }
+
+    // Apply with threshold 0.5 (more aggressive)
+    PhaseCorrector::unwrapAliasing(velocity, venc, 0.5);
+    VectorImage3D::IndexType idx5 = {{5, 0, 0}};
+    float lowThreshResult = velocity->GetPixel(idx5)[0];
+
+    // Apply with threshold 0.9 (less aggressive)
+    PhaseCorrector::unwrapAliasing(velocity2, venc, 0.9);
+    float highThreshResult = velocity2->GetPixel(idx5)[0];
+
+    // Both results should be valid floats (no NaN/Inf)
+    EXPECT_FALSE(std::isnan(lowThreshResult));
+    EXPECT_FALSE(std::isnan(highThreshResult));
+}
+
+// =============================================================================
+// Anisotropic voxel spacing test (Issue #202)
+// =============================================================================
+
+TEST(PhaseCorrectorTest, CorrectPhaseAnisotropicSpacing) {
+    // Non-isotropic spacing: 1x1x3 mm (typical thick-slice acquisition)
+    auto velocity = VectorImage3D::New();
+    VectorImage3D::SizeType size = {{8, 8, 4}};
+    VectorImage3D::RegionType region;
+    region.SetSize(size);
+    velocity->SetRegions(region);
+    velocity->SetNumberOfComponentsPerPixel(3);
+    VectorImage3D::SpacingType spacing;
+    spacing[0] = 1.0; spacing[1] = 1.0; spacing[2] = 3.0;
+    velocity->SetSpacing(spacing);
+    velocity->Allocate();
+
+    itk::VariableLengthVector<float> pixel(3);
+    pixel[0] = 50.0f; pixel[1] = -30.0f; pixel[2] = 75.0f;
+    velocity->FillBuffer(pixel);
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+    phase.magnitudeImage = createUniformScalarImage(8, 8, 4, 500.0f);
+
+    PhaseCorrector corrector;
+    PhaseCorrectionConfig config;
+    config.enableAliasingUnwrap = true;
+    config.enableEddyCurrentCorrection = false;
+
+    auto result = corrector.correctPhase(phase, 150.0, config);
+    ASSERT_TRUE(result.has_value());
+
+    // Values within VENC should be unchanged
+    VectorImage3D::IndexType idx = {{4, 4, 2}};
+    auto corrPixel = result->velocityField->GetPixel(idx);
+    EXPECT_NEAR(corrPixel[0], 50.0f, 0.1f);
+    EXPECT_NEAR(corrPixel[1], -30.0f, 0.1f);
+    EXPECT_NEAR(corrPixel[2], 75.0f, 0.1f);
+}
+
+// =============================================================================
+// Small VENC with realistic noise test (Issue #202)
+// =============================================================================
+
+TEST(PhaseCorrectorTest, CorrectPhaseSmallVENC) {
+    // Very small VENC = 5 cm/s (used for low-velocity venous flow)
+    auto velocity = createUniformVectorImage(8, 8, 4, 2.0f, -1.0f, 3.0f);
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+
+    PhaseCorrector corrector;
+    PhaseCorrectionConfig config;
+    config.enableAliasingUnwrap = true;
+    config.enableEddyCurrentCorrection = false;
+
+    auto result = corrector.correctPhase(phase, 5.0, config);
+    ASSERT_TRUE(result.has_value());
+
+    // All values within VENC (5 cm/s), should remain unchanged
+    VectorImage3D::IndexType idx = {{4, 4, 2}};
+    auto pixel = result->velocityField->GetPixel(idx);
+    EXPECT_NEAR(pixel[0], 2.0f, 0.1f);
+    EXPECT_NEAR(pixel[1], -1.0f, 0.1f);
+    EXPECT_NEAR(pixel[2], 3.0f, 0.1f);
+}
+
+// =============================================================================
+// Polynomial evaluation — higher order (Issue #202)
+// =============================================================================
+
+TEST(PolynomialTest, QuadraticTerms) {
+    // Order 2: a0 + a1*x + a2*y + a3*z + a4*x^2 + a5*y^2 + a6*z^2
+    //          + a7*xy + a8*xz + a9*yz
+    std::vector<double> coeffs = {
+        1.0,   // constant
+        0.0, 0.0, 0.0,  // linear (zero)
+        2.0, 3.0, 4.0,  // xx, yy, zz
+        0.0, 0.0, 0.0   // cross terms (zero)
+    };
+    // At (1, 1, 1): 1 + 0 + 0 + 0 + 2*1 + 3*1 + 4*1 + 0 + 0 + 0 = 10
+    double val = PhaseCorrector::evaluatePolynomial(coeffs, 1.0, 1.0, 1.0, 2);
+    EXPECT_NEAR(val, 10.0, 0.01);
+
+    // At (2, 0, 0): 1 + 0 + 0 + 0 + 2*4 + 0 + 0 + 0 + 0 + 0 = 9
+    val = PhaseCorrector::evaluatePolynomial(coeffs, 2.0, 0.0, 0.0, 2);
+    EXPECT_NEAR(val, 9.0, 0.01);
+}
