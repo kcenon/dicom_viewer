@@ -1,0 +1,169 @@
+#pragma once
+
+#include <array>
+#include <cstdint>
+#include <map>
+#include <optional>
+#include <string>
+#include <vector>
+
+namespace dicom_viewer::services {
+
+/**
+ * @brief Error information for Enhanced DICOM operations
+ *
+ * @trace SRS-FR-049
+ */
+struct EnhancedDicomError {
+    enum class Code {
+        Success,
+        InvalidInput,
+        NotEnhancedIOD,
+        ParseFailed,
+        MissingTag,
+        UnsupportedPixelFormat,
+        FrameExtractionFailed,
+        InconsistentData,
+        InternalError
+    };
+
+    Code code = Code::Success;
+    std::string message;
+
+    [[nodiscard]] bool isSuccess() const noexcept {
+        return code == Code::Success;
+    }
+
+    [[nodiscard]] std::string toString() const {
+        switch (code) {
+            case Code::Success: return "Success";
+            case Code::InvalidInput: return "Invalid input: " + message;
+            case Code::NotEnhancedIOD: return "Not an Enhanced IOD: " + message;
+            case Code::ParseFailed: return "Parse failed: " + message;
+            case Code::MissingTag: return "Missing DICOM tag: " + message;
+            case Code::UnsupportedPixelFormat:
+                return "Unsupported pixel format: " + message;
+            case Code::FrameExtractionFailed:
+                return "Frame extraction failed: " + message;
+            case Code::InconsistentData:
+                return "Inconsistent data: " + message;
+            case Code::InternalError: return "Internal error: " + message;
+        }
+        return "Unknown error";
+    }
+};
+
+/**
+ * @brief Known Enhanced DICOM SOP Class UIDs
+ *
+ * @trace SRS-FR-049
+ */
+namespace enhanced_sop_class {
+    inline constexpr const char* EnhancedCTImageStorage =
+        "1.2.840.10008.5.1.4.1.1.2.1";
+    inline constexpr const char* EnhancedMRImageStorage =
+        "1.2.840.10008.5.1.4.1.1.4.1";
+    inline constexpr const char* EnhancedXAImageStorage =
+        "1.2.840.10008.5.1.4.1.1.12.1.1";
+}  // namespace enhanced_sop_class
+
+/**
+ * @brief Per-frame metadata extracted from PerFrameFunctionalGroupsSequence
+ *
+ * Each frame in an Enhanced DICOM file has its own spatial position,
+ * orientation, and pixel transformation parameters. These are extracted
+ * from the per-frame functional groups and optionally the shared groups.
+ *
+ * @trace SRS-FR-049
+ */
+struct EnhancedFrameInfo {
+    int frameIndex = 0;
+
+    // Spatial information (from PlanePositionSequence / PlaneOrientationSequence)
+    std::array<double, 3> imagePosition = {0.0, 0.0, 0.0};
+    std::array<double, 6> imageOrientation = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0};
+    double sliceThickness = 1.0;
+
+    // Pixel value transformation (from PixelValueTransformationSequence)
+    double rescaleSlope = 1.0;
+    double rescaleIntercept = 0.0;
+
+    // Temporal information (optional, for multi-phase datasets)
+    std::optional<double> triggerTime;
+    std::optional<int> temporalPositionIndex;
+
+    // DimensionIndex values: dimension tag → index value
+    std::map<uint32_t, int> dimensionIndices;
+};
+
+/**
+ * @brief Series-level metadata for Enhanced DICOM multi-frame files
+ *
+ * Represents the complete parsed result of an Enhanced DICOM file,
+ * including shared metadata and per-frame information.
+ *
+ * @trace SRS-FR-049
+ */
+struct EnhancedSeriesInfo {
+    std::string sopClassUid;
+    std::string sopInstanceUid;
+    int numberOfFrames = 0;
+
+    // Image dimensions (common to all frames)
+    int rows = 0;
+    int columns = 0;
+    int bitsAllocated = 0;
+    int bitsStored = 0;
+    int highBit = 0;
+    int pixelRepresentation = 0;  // 0 = unsigned, 1 = signed
+
+    // Shared spatial metadata (from SharedFunctionalGroupsSequence)
+    double pixelSpacingX = 1.0;
+    double pixelSpacingY = 1.0;
+
+    // Per-frame metadata
+    std::vector<EnhancedFrameInfo> frames;
+
+    // Patient/Study/Series metadata (inherited from top-level dataset)
+    std::string patientId;
+    std::string patientName;
+    std::string studyInstanceUid;
+    std::string seriesInstanceUid;
+    std::string seriesDescription;
+    std::string modality;
+
+    // Transfer syntax for pixel data handling
+    std::string transferSyntaxUid;
+
+    // Source file path
+    std::string filePath;
+};
+
+/**
+ * @brief Check if a SOP Class UID is an Enhanced multi-frame IOD
+ */
+[[nodiscard]] inline bool isEnhancedSopClass(const std::string& sopClassUid) {
+    return sopClassUid == enhanced_sop_class::EnhancedCTImageStorage
+        || sopClassUid == enhanced_sop_class::EnhancedMRImageStorage
+        || sopClassUid == enhanced_sop_class::EnhancedXAImageStorage;
+}
+
+/**
+ * @brief Convert SOP Class UID to human-readable name
+ */
+[[nodiscard]] inline std::string enhancedSopClassName(
+    const std::string& sopClassUid)
+{
+    if (sopClassUid == enhanced_sop_class::EnhancedCTImageStorage) {
+        return "Enhanced CT Image Storage";
+    }
+    if (sopClassUid == enhanced_sop_class::EnhancedMRImageStorage) {
+        return "Enhanced MR Image Storage";
+    }
+    if (sopClassUid == enhanced_sop_class::EnhancedXAImageStorage) {
+        return "Enhanced XA Image Storage";
+    }
+    return "Unknown";
+}
+
+}  // namespace dicom_viewer::services
