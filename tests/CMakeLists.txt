@@ -1216,3 +1216,28 @@ target_include_directories(slice_ordering_integration_test PRIVATE
 )
 
 gtest_discover_tests(slice_ordering_integration_test DISCOVERY_TIMEOUT 60)
+
+# Performance benchmark tests (infrastructure for regression testing)
+add_executable(performance_benchmark_test
+    unit/performance_benchmark_test.cpp
+)
+
+target_link_directories(performance_benchmark_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(performance_benchmark_test PRIVATE
+    dicom_viewer_core
+    preprocessing_service
+    segmentation_service
+    cardiac_service
+    flow_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(performance_benchmark_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(performance_benchmark_test DISCOVERY_TIMEOUT 120)
