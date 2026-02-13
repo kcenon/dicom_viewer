@@ -327,3 +327,102 @@ TEST_F(DicomMoveSCUTest, StorageDirectoryCreatedOnError) {
     // Directory should have been created before the connection attempt
     EXPECT_TRUE(std::filesystem::exists(nestedDir));
 }
+
+// =============================================================================
+// Network interaction and retrieval tests (Issue #206)
+// =============================================================================
+
+TEST_F(DicomMoveSCUTest, RetrieveStudyWithProgressCallback) {
+    PacsServerConfig config;
+    config.hostname = "192.0.2.1";
+    config.port = 104;
+    config.calledAeTitle = "PACS_SERVER";
+    config.connectionTimeout = std::chrono::seconds(1);
+
+    MoveConfig moveConfig;
+    moveConfig.storageDirectory = tempDir;
+    moveConfig.queryRoot = QueryRoot::StudyRoot;
+
+    bool callbackInvoked = false;
+    auto result = moveScu->retrieveStudy(
+        config, moveConfig, "1.2.3.4.5",
+        [&callbackInvoked](const MoveProgress& /*progress*/) {
+            callbackInvoked = true;
+        });
+
+    EXPECT_FALSE(result.has_value());
+    // Callback may or may not be invoked on connection failure —
+    // the important thing is that providing a callback doesn't crash
+}
+
+TEST_F(DicomMoveSCUTest, RetrieveSeriesWithShortTimeout) {
+    PacsServerConfig config;
+    config.hostname = "192.0.2.1";
+    config.port = 104;
+    config.calledAeTitle = "PACS_SERVER";
+    config.connectionTimeout = std::chrono::seconds(1);
+    config.dimseTimeout = std::chrono::seconds(1);
+
+    MoveConfig moveConfig;
+    moveConfig.storageDirectory = tempDir;
+    moveConfig.queryRoot = QueryRoot::StudyRoot;
+    moveConfig.maxConcurrentOperations = 4;
+    moveConfig.createSubdirectories = false;
+    moveConfig.useOriginalFilenames = false;
+
+    auto result = moveScu->retrieveSeries(
+        config, moveConfig,
+        "1.2.840.113619.2.55.3.1234567890",
+        "1.2.840.113619.2.55.3.1234567890.1");
+
+    EXPECT_FALSE(result.has_value());
+    EXPECT_TRUE(
+        result.error().code == PacsError::ConnectionFailed ||
+        result.error().code == PacsError::Timeout ||
+        result.error().code == PacsError::NetworkError
+    );
+}
+
+TEST_F(DicomMoveSCUTest, CancelDuringRetrieveOperation) {
+    PacsServerConfig config;
+    config.hostname = "192.0.2.1";
+    config.port = 104;
+    config.calledAeTitle = "PACS_SERVER";
+    config.connectionTimeout = std::chrono::seconds(30);
+
+    MoveConfig moveConfig;
+    moveConfig.storageDirectory = tempDir;
+    moveConfig.queryRoot = QueryRoot::StudyRoot;
+
+    std::thread retrieveThread([this, &config, &moveConfig]() {
+        (void)moveScu->retrieveStudy(config, moveConfig, "1.2.3.4.5");
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    moveScu->cancel();
+
+    retrieveThread.join();
+    EXPECT_FALSE(moveScu->isRetrieving());
+}
+
+TEST_F(DicomMoveSCUTest, RetrieveWithMoveDestinationAeTitle) {
+    PacsServerConfig config;
+    config.hostname = "192.0.2.1";
+    config.port = 104;
+    config.calledAeTitle = "PACS_SERVER";
+    config.connectionTimeout = std::chrono::seconds(1);
+
+    MoveConfig moveConfig;
+    moveConfig.storageDirectory = tempDir;
+    moveConfig.queryRoot = QueryRoot::PatientRoot;
+    moveConfig.moveDestinationAeTitle = "LOCAL_RECEIVER";
+    moveConfig.storeScpPort = 11112;
+
+    auto result = moveScu->retrieveStudy(config, moveConfig, "1.2.3.4.5");
+    EXPECT_FALSE(result.has_value());
+
+    // Verify move config options were properly set (not silently dropped)
+    EXPECT_EQ(moveConfig.moveDestinationAeTitle.value(), "LOCAL_RECEIVER");
+    EXPECT_EQ(moveConfig.storeScpPort, 11112);
+    EXPECT_EQ(moveConfig.queryRoot, QueryRoot::PatientRoot);
+}

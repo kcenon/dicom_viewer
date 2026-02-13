@@ -1,7 +1,13 @@
 #include <gtest/gtest.h>
 
 #include "services/dicom_echo_scu.hpp"
+#include "services/dicom_store_scp.hpp"
 #include "services/pacs_config.hpp"
+
+#include <chrono>
+#include <filesystem>
+#include <random>
+#include <thread>
 
 using namespace dicom_viewer::services;
 
@@ -172,4 +178,127 @@ TEST(EchoResultTest, DefaultValues) {
 // Test Verification SOP Class UID constant
 TEST(DicomEchoSCUConstantsTest, VerificationSOPClassUID) {
     EXPECT_STREQ(DicomEchoSCU::VERIFICATION_SOP_CLASS_UID, "1.2.840.10008.1.1");
+}
+
+// =============================================================================
+// Network interaction tests (Issue #206)
+// =============================================================================
+
+namespace {
+
+uint16_t randomEphemeralPort() {
+    static std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<uint16_t> dist(49152, 65535);
+    return dist(gen);
+}
+
+} // namespace
+
+class DicomEchoSCUNetworkTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        echoScu_ = std::make_unique<DicomEchoSCU>();
+        scp_ = std::make_unique<DicomStoreSCP>();
+        tempDir_ = std::filesystem::temp_directory_path() / "dicom_echo_net_test";
+        std::filesystem::create_directories(tempDir_);
+    }
+
+    void TearDown() override {
+        if (scp_ && scp_->isRunning()) {
+            scp_->stop();
+        }
+        scp_.reset();
+        echoScu_.reset();
+        std::error_code ec;
+        std::filesystem::remove_all(tempDir_, ec);
+    }
+
+    bool startLocalScp() {
+        StorageScpConfig config;
+        config.port = randomEphemeralPort();
+        config.aeTitle = "ECHO_TEST_SCP";
+        config.storageDirectory = tempDir_;
+        config.connectionTimeout = std::chrono::seconds(10);
+        auto result = scp_->start(config);
+        if (!result.has_value()) {
+            return false;
+        }
+        scpPort_ = config.port;
+        return true;
+    }
+
+    PacsServerConfig createLocalScuConfig() {
+        PacsServerConfig config;
+        config.hostname = "127.0.0.1";
+        config.port = scpPort_;
+        config.calledAeTitle = "ECHO_TEST_SCP";
+        config.callingAeTitle = "DICOM_VIEWER";
+        config.connectionTimeout = std::chrono::seconds(5);
+        return config;
+    }
+
+    std::unique_ptr<DicomEchoSCU> echoScu_;
+    std::unique_ptr<DicomStoreSCP> scp_;
+    std::filesystem::path tempDir_;
+    uint16_t scpPort_ = 0;
+};
+
+TEST_F(DicomEchoSCUNetworkTest, VerifyAgainstLocalSCP) {
+    if (!startLocalScp()) {
+        GTEST_SKIP() << "Cannot start local SCP for echo network test";
+    }
+
+    auto config = createLocalScuConfig();
+    auto result = echoScu_->verify(config);
+
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+    EXPECT_TRUE(result->success);
+}
+
+TEST_F(DicomEchoSCUNetworkTest, EchoLatencyIsPositive) {
+    if (!startLocalScp()) {
+        GTEST_SKIP() << "Cannot start local SCP for echo network test";
+    }
+
+    auto config = createLocalScuConfig();
+    auto result = echoScu_->verify(config);
+
+    ASSERT_TRUE(result.has_value()) << result.error().toString();
+    EXPECT_GT(result->latency.count(), 0)
+        << "Echo latency should be positive on localhost";
+    EXPECT_LT(result->latency.count(), 5000)
+        << "Echo latency should be under 5 seconds on localhost";
+}
+
+TEST_F(DicomEchoSCUNetworkTest, MultipleSuccessiveEchoCalls) {
+    if (!startLocalScp()) {
+        GTEST_SKIP() << "Cannot start local SCP for echo network test";
+    }
+
+    auto config = createLocalScuConfig();
+
+    for (int i = 0; i < 5; ++i) {
+        auto result = echoScu_->verify(config);
+        ASSERT_TRUE(result.has_value())
+            << "Echo #" << i << " failed: " << result.error().toString();
+        EXPECT_TRUE(result->success);
+    }
+}
+
+TEST_F(DicomEchoSCUNetworkTest, CancelDuringEchoOperation) {
+    PacsServerConfig config;
+    config.hostname = "192.0.2.1";  // Non-routable address
+    config.port = 104;
+    config.calledAeTitle = "PACS_SERVER";
+    config.connectionTimeout = std::chrono::seconds(30);
+
+    std::thread echoThread([this, &config]() {
+        (void)echoScu_->verify(config);
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    echoScu_->cancel();
+
+    echoThread.join();
+    EXPECT_FALSE(echoScu_->isVerifying());
 }

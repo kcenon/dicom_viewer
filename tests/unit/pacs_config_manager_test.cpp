@@ -297,3 +297,72 @@ TEST_F(PacsConfigManagerTest, LoadEmitsSignal) {
     manager->load();
     EXPECT_EQ(spy.count(), 1);
 }
+
+// =============================================================================
+// Concurrency and edge case tests (Issue #206)
+// =============================================================================
+
+TEST_F(PacsConfigManagerTest, RapidAddRemoveSequence) {
+    // Rapidly add and remove servers to test robustness
+    for (int i = 0; i < 20; ++i) {
+        auto config = createValidConfig("host" + std::to_string(i) + ".com");
+        QUuid id = manager->addServer(
+            QString("Server %1").arg(i), config);
+        EXPECT_FALSE(id.isNull());
+
+        // Remove every 3rd server (i = 0, 3, 6, 9, 12, 15, 18)
+        if (i % 3 == 0) {
+            bool removed = manager->removeServer(id);
+            EXPECT_TRUE(removed);
+        }
+    }
+
+    // 20 added, 7 removed → 13 remaining
+    EXPECT_EQ(manager->count(), 13);
+}
+
+TEST_F(PacsConfigManagerTest, DuplicateServerConfigAllowed) {
+    auto config = createValidConfig("same.hospital.com");
+
+    QUuid id1 = manager->addServer("PACS Primary", config);
+    QUuid id2 = manager->addServer("PACS Backup", config);
+
+    // Same config, different entries with unique IDs
+    EXPECT_NE(id1, id2);
+    EXPECT_EQ(manager->count(), 2);
+
+    auto entry1 = manager->getServer(id1);
+    auto entry2 = manager->getServer(id2);
+    ASSERT_TRUE(entry1.has_value());
+    ASSERT_TRUE(entry2.has_value());
+    EXPECT_EQ(entry1->config.hostname, entry2->config.hostname);
+    EXPECT_NE(entry1->displayName, entry2->displayName);
+}
+
+TEST_F(PacsConfigManagerTest, SpecialCharactersInDisplayName) {
+    auto config = createValidConfig();
+
+    QUuid id1 = manager->addServer(
+        "Hospital (Main) - PACS/RIS #1", config);
+    QUuid id2 = manager->addServer(
+        "Dr. Smith's Clinic & Lab [v2.0]", config);
+    QUuid id3 = manager->addServer(
+        "PACS <Test> @Emergency Room", config);
+
+    EXPECT_FALSE(id1.isNull());
+    EXPECT_FALSE(id2.isNull());
+    EXPECT_FALSE(id3.isNull());
+    EXPECT_EQ(manager->count(), 3);
+
+    auto entry1 = manager->getServer(id1);
+    ASSERT_TRUE(entry1.has_value());
+    EXPECT_EQ(entry1->displayName, "Hospital (Main) - PACS/RIS #1");
+
+    auto entry2 = manager->getServer(id2);
+    ASSERT_TRUE(entry2.has_value());
+    EXPECT_EQ(entry2->displayName, "Dr. Smith's Clinic & Lab [v2.0]");
+
+    auto entry3 = manager->getServer(id3);
+    ASSERT_TRUE(entry3.has_value());
+    EXPECT_EQ(entry3->displayName, "PACS <Test> @Emergency Room");
+}
