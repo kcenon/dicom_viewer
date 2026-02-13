@@ -694,3 +694,154 @@ TEST(CardiacPhaseDetectorTest, MixedTemporalAndDimensionIndex) {
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(result.value().phaseCount(), numPhases);
 }
+
+// =============================================================================
+// Tolerance validation and artifact handling tests (Issue #208)
+// =============================================================================
+
+TEST(CardiacPhaseDetectorTest, ArrhythmiaIrregularPhaseSpacing) {
+    CardiacPhaseDetector detector;
+    EnhancedSeriesInfo series;
+
+    // Simulate irregular R-R intervals (arrhythmia)
+    // Normal phases at 0, 80, 160ms but with irregular spacing
+    // Phase 0: ~0ms, Phase 1: ~90ms (long), Phase 2: ~150ms (short)
+    double irregularTriggers[] = {0.0, 90.0, 150.0, 240.0, 340.0};
+    int numPhases = 5;
+    int slicesPerPhase = 4;
+
+    for (int phase = 0; phase < numPhases; ++phase) {
+        for (int slice = 0; slice < slicesPerPhase; ++slice) {
+            EnhancedFrameInfo frame;
+            frame.frameIndex = phase * slicesPerPhase + slice;
+            frame.triggerTime = irregularTriggers[phase];
+            frame.imagePosition = {0.0, 0.0, static_cast<double>(slice) * 3.0};
+            series.frames.push_back(frame);
+        }
+    }
+    series.numberOfFrames = numPhases * slicesPerPhase;
+
+    auto result = detector.separatePhases(series);
+    ASSERT_TRUE(result.has_value())
+        << "Phase separation should succeed despite irregular R-R intervals";
+    EXPECT_EQ(result.value().phaseCount(), numPhases);
+}
+
+TEST(CardiacPhaseDetectorTest, VeryFastHeartRateNarrowPhases) {
+    CardiacPhaseDetector detector;
+    EnhancedSeriesInfo series;
+
+    // HR ~150 bpm → R-R ~400ms, 10 phases → 40ms spacing
+    int numPhases = 10;
+    int slicesPerPhase = 3;
+    double phaseInterval = 40.0;  // Very narrow phase spacing
+
+    for (int phase = 0; phase < numPhases; ++phase) {
+        for (int slice = 0; slice < slicesPerPhase; ++slice) {
+            EnhancedFrameInfo frame;
+            frame.frameIndex = phase * slicesPerPhase + slice;
+            frame.triggerTime = phase * phaseInterval;
+            frame.imagePosition = {0.0, 0.0, static_cast<double>(slice) * 3.0};
+            series.frames.push_back(frame);
+        }
+    }
+    series.numberOfFrames = numPhases * slicesPerPhase;
+
+    auto result = detector.separatePhases(series);
+    ASSERT_TRUE(result.has_value())
+        << "Phase separation should handle fast heart rates (>120 bpm)";
+    EXPECT_EQ(result.value().phaseCount(), numPhases);
+    EXPECT_NEAR(result.value().rrInterval, 400.0, 50.0);
+}
+
+TEST(CardiacPhaseDetectorTest, VerySlowHeartRateWidePhases) {
+    CardiacPhaseDetector detector;
+    EnhancedSeriesInfo series;
+
+    // HR ~35 bpm → R-R ~1714ms, 8 phases → ~214ms spacing
+    int numPhases = 8;
+    int slicesPerPhase = 3;
+    double phaseInterval = 214.0;
+
+    for (int phase = 0; phase < numPhases; ++phase) {
+        for (int slice = 0; slice < slicesPerPhase; ++slice) {
+            EnhancedFrameInfo frame;
+            frame.frameIndex = phase * slicesPerPhase + slice;
+            frame.triggerTime = phase * phaseInterval;
+            frame.imagePosition = {0.0, 0.0, static_cast<double>(slice) * 3.0};
+            series.frames.push_back(frame);
+        }
+    }
+    series.numberOfFrames = numPhases * slicesPerPhase;
+
+    auto result = detector.separatePhases(series);
+    ASSERT_TRUE(result.has_value())
+        << "Phase separation should handle slow heart rates (<40 bpm)";
+    EXPECT_EQ(result.value().phaseCount(), numPhases);
+    EXPECT_GT(result.value().rrInterval, 1500.0);
+}
+
+TEST(CardiacPhaseDetectorTest, IncompletePhaseWithFewFrames) {
+    CardiacPhaseDetector detector;
+    EnhancedSeriesInfo series;
+
+    // Phase 0 and 1 have 5 slices, Phase 2 has only 1 slice (incomplete)
+    int fullPhaseSlices = 5;
+    for (int phase = 0; phase < 2; ++phase) {
+        for (int slice = 0; slice < fullPhaseSlices; ++slice) {
+            EnhancedFrameInfo frame;
+            frame.frameIndex = static_cast<int>(series.frames.size());
+            frame.triggerTime = phase * 400.0;
+            frame.imagePosition = {0.0, 0.0, static_cast<double>(slice) * 3.0};
+            series.frames.push_back(frame);
+        }
+    }
+    // Incomplete phase with only 1 frame
+    {
+        EnhancedFrameInfo frame;
+        frame.frameIndex = static_cast<int>(series.frames.size());
+        frame.triggerTime = 800.0;
+        frame.imagePosition = {0.0, 0.0, 0.0};
+        series.frames.push_back(frame);
+    }
+    series.numberOfFrames = static_cast<int>(series.frames.size());
+
+    // Should either succeed with variable frame counts or fail gracefully
+    auto result = detector.separatePhases(series);
+    if (result.has_value()) {
+        EXPECT_GE(result.value().phaseCount(), 2);
+    } else {
+        EXPECT_EQ(result.error().code,
+                  CardiacError::Code::InconsistentFrameCount);
+    }
+}
+
+TEST(CardiacPhaseDetectorTest, PhaseBoundaryNearZeroAndHundredPercent) {
+    CardiacPhaseDetector detector;
+    CardiacPhaseResult phaseResult;
+
+    // Create phases at boundary percentages: 0%, 50%, and 99%
+    CardiacPhaseInfo p0;
+    p0.phaseIndex = 0;
+    p0.nominalPercentage = 0.0;
+    phaseResult.phases.push_back(p0);
+
+    CardiacPhaseInfo p1;
+    p1.phaseIndex = 1;
+    p1.nominalPercentage = 50.0;
+    phaseResult.phases.push_back(p1);
+
+    CardiacPhaseInfo p2;
+    p2.phaseIndex = 2;
+    p2.nominalPercentage = 99.0;
+    phaseResult.phases.push_back(p2);
+
+    // Diastole optimal ~75% → closest is 50% (index 1) or 99% (index 2)
+    int bestDiastole = detector.selectBestPhase(phaseResult, PhaseTarget::Diastole);
+    EXPECT_GE(bestDiastole, 0);
+    EXPECT_LT(bestDiastole, 3);
+
+    // Systole optimal ~40% → closest is 50% (index 1)
+    int bestSystole = detector.selectBestPhase(phaseResult, PhaseTarget::Systole);
+    EXPECT_EQ(bestSystole, 1);
+}
