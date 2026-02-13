@@ -476,3 +476,132 @@ TEST_F(RegionGrowingSegmenterTest, ProgressCallbackIsCalledForConfidenceConnecte
     ASSERT_TRUE(result.has_value());
     // Note: Progress callback may not be called for very fast operations
 }
+
+// =============================================================================
+// Edge case and algorithmic correctness tests (Issue #204)
+// =============================================================================
+
+TEST_F(RegionGrowingSegmenterTest, SeedOrderIndependence) {
+    // Placing seeds in different orders should produce the same mask
+    auto image = createTestImageWithRegion();
+
+    std::vector<SeedPoint> seedsA = {{10, 10, 10}, {12, 12, 12}};
+    std::vector<SeedPoint> seedsB = {{12, 12, 12}, {10, 10, 10}};
+
+    auto resultA = segmenter_->connectedThreshold(image, seedsA, 400.0, 600.0);
+    auto resultB = segmenter_->connectedThreshold(image, seedsB, 400.0, 600.0);
+
+    ASSERT_TRUE(resultA.has_value());
+    ASSERT_TRUE(resultB.has_value());
+
+    int countA = countNonZeroPixels(resultA.value());
+    int countB = countNonZeroPixels(resultB.value());
+
+    EXPECT_EQ(countA, countB) << "Seed order should not affect result";
+}
+
+TEST_F(RegionGrowingSegmenterTest, DisconnectedRegionsWithSeparateSeeds) {
+    // Create image with two disconnected regions
+    auto image = ImageType::New();
+    ImageType::SizeType size = {{30, 30, 30}};
+    ImageType::RegionType region;
+    region.SetSize(size);
+    region.SetIndex({{0, 0, 0}});
+    image->SetRegions(region);
+    image->Allocate();
+    image->FillBuffer(0);
+
+    // Region 1: indices [3,12] in all dims
+    // Region 2: indices [18,27] in all dims (gap of 6 voxels)
+    itk::ImageRegionIterator<ImageType> it(image, region);
+    for (it.GoToBegin(); !it.IsAtEnd(); ++it) {
+        auto idx = it.GetIndex();
+        bool inRegion1 = (idx[0] >= 3 && idx[0] < 13 &&
+                          idx[1] >= 3 && idx[1] < 13 &&
+                          idx[2] >= 3 && idx[2] < 13);
+        bool inRegion2 = (idx[0] >= 18 && idx[0] < 28 &&
+                          idx[1] >= 18 && idx[1] < 28 &&
+                          idx[2] >= 18 && idx[2] < 28);
+        if (inRegion1 || inRegion2) {
+            it.Set(500);
+        }
+    }
+
+    // Seed in region 1 only — should NOT grow into region 2
+    std::vector<SeedPoint> seeds = {{8, 8, 8}};
+    auto result = segmenter_->connectedThreshold(image, seeds, 400.0, 600.0);
+
+    ASSERT_TRUE(result.has_value());
+    int count = countNonZeroPixels(result.value());
+
+    // Should capture approximately region 1 (10³ = 1000 voxels) but not region 2
+    EXPECT_GT(count, 0);
+    EXPECT_LE(count, 1500) << "Should not leak into disconnected region 2";
+}
+
+TEST_F(RegionGrowingSegmenterTest, ThinStructureOnVoxelWide) {
+    // Create image with 1-voxel-wide bridge between two regions
+    auto image = ImageType::New();
+    ImageType::SizeType size = {{30, 30, 10}};
+    ImageType::RegionType region;
+    region.SetSize(size);
+    region.SetIndex({{0, 0, 0}});
+    image->SetRegions(region);
+    image->Allocate();
+    image->FillBuffer(0);
+
+    itk::ImageRegionIterator<ImageType> it(image, region);
+    for (it.GoToBegin(); !it.IsAtEnd(); ++it) {
+        auto idx = it.GetIndex();
+        // Left block: x=[2,9], y=[10,19], z=[2,7]
+        bool inLeft = (idx[0] >= 2 && idx[0] < 10 &&
+                       idx[1] >= 10 && idx[1] < 20 &&
+                       idx[2] >= 2 && idx[2] < 8);
+        // Right block: x=[20,27], y=[10,19], z=[2,7]
+        bool inRight = (idx[0] >= 20 && idx[0] < 28 &&
+                        idx[1] >= 10 && idx[1] < 20 &&
+                        idx[2] >= 2 && idx[2] < 8);
+        // 1-voxel-wide bridge: x=[10,19], y=14, z=5
+        bool inBridge = (idx[0] >= 10 && idx[0] < 20 &&
+                         idx[1] == 14 && idx[2] == 5);
+        if (inLeft || inRight || inBridge) {
+            it.Set(500);
+        }
+    }
+
+    // Seed in left block — should reach right block via bridge
+    std::vector<SeedPoint> seeds = {{5, 15, 5}};
+    auto result = segmenter_->connectedThreshold(image, seeds, 400.0, 600.0);
+
+    ASSERT_TRUE(result.has_value());
+    int count = countNonZeroPixels(result.value());
+
+    // Must include voxels from both blocks and bridge
+    int leftVoxels = 8 * 10 * 6;   // 480
+    int rightVoxels = 8 * 10 * 6;  // 480
+    int bridgeVoxels = 10;
+    int totalExpected = leftVoxels + rightVoxels + bridgeVoxels;
+
+    EXPECT_NEAR(count, totalExpected, totalExpected * 0.05);
+}
+
+TEST_F(RegionGrowingSegmenterTest, ConfidenceConnectedOnHomogeneousRegion) {
+    // Confidence-connected with tight multiplier on a uniform-valued region
+    auto image = ImageType::New();
+    ImageType::SizeType size = {{20, 20, 20}};
+    ImageType::RegionType region;
+    region.SetSize(size);
+    region.SetIndex({{0, 0, 0}});
+    image->SetRegions(region);
+    image->Allocate();
+    image->FillBuffer(100);  // Entirely homogeneous
+
+    std::vector<SeedPoint> seeds = {{10, 10, 10}};
+    auto result = segmenter_->confidenceConnected(image, seeds);
+
+    ASSERT_TRUE(result.has_value());
+    int count = countNonZeroPixels(result.value());
+
+    // Entire image is homogeneous → all voxels should be captured
+    EXPECT_EQ(count, 20 * 20 * 20);
+}

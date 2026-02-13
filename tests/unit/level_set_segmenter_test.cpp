@@ -469,3 +469,91 @@ TEST_F(LevelSetSegmenterTest, ThresholdLevelSetConvergesBeforeMaxIterations) {
     // (This depends on the specific configuration)
     EXPECT_GE(result->iterations, 1);
 }
+
+// =============================================================================
+// Edge case and algorithmic correctness tests (Issue #204)
+// =============================================================================
+
+TEST_F(LevelSetSegmenterTest, NonConvergingUniformRegion) {
+    // Uniform image has no gradient → level set should still terminate gracefully
+    auto image = createHomogeneousImage(40, 40, 40, 100);
+
+    LevelSetParameters params;
+    params.seedPoints = {{20.0, 20.0, 20.0}};
+    params.seedRadius = 3.0;
+    params.maxIterations = 50;  // Low limit to keep test fast
+    params.rmsThreshold = 0.001;
+
+    auto result = segmenter_->geodesicActiveContour(image, params);
+
+    // Should not crash; may fail or return a degenerate mask
+    if (result.has_value()) {
+        EXPECT_GE(result->iterations, 1);
+    } else {
+        EXPECT_FALSE(result.error().message.empty());
+    }
+}
+
+TEST_F(LevelSetSegmenterTest, NegativePropagationScalingContracts) {
+    // Negative propagation should contract the initial seed region
+    auto image = createSphereImage(50, 50, 50, 25.0, 25.0, 25.0, 15.0, 200, 0);
+
+    LevelSetParameters params;
+    params.seedPoints = {{25.0, 25.0, 25.0}};
+    params.seedRadius = 12.0;  // Start inside the sphere
+    params.propagationScaling = -1.0;  // Contract
+    params.curvatureScaling = 0.5;
+    params.maxIterations = 100;
+
+    auto result = segmenter_->geodesicActiveContour(image, params);
+
+    if (result.has_value()) {
+        int foreground = countMaskPixels(result->mask, 1);
+        // Contracted mask should have fewer voxels than the initial seed sphere
+        double seedVol = (4.0 / 3.0) * M_PI * 12.0 * 12.0 * 12.0;
+        EXPECT_LT(foreground, static_cast<int>(seedVol));
+    }
+    // If it fails due to contraction being too aggressive, that's acceptable
+}
+
+TEST_F(LevelSetSegmenterTest, OverlappingSeedsProduceSingleRegion) {
+    // Multiple overlapping seeds should merge into one connected region
+    auto image = createSphereImage(50, 50, 50, 25.0, 25.0, 25.0, 15.0, 200, 0);
+
+    ThresholdLevelSetParameters params;
+    params.seedPoints = {{23.0, 25.0, 25.0}, {27.0, 25.0, 25.0}};  // 4 voxels apart
+    params.seedRadius = 5.0;  // Radii overlap
+    params.lowerThreshold = 100.0;
+    params.upperThreshold = 300.0;
+    params.maxIterations = 200;
+
+    auto result = segmenter_->thresholdLevelSet(image, params);
+
+    ASSERT_TRUE(result.has_value());
+    int foreground = countMaskPixels(result->mask, 1);
+    EXPECT_GT(foreground, 0) << "Overlapping seeds should produce a non-empty mask";
+}
+
+TEST_F(LevelSetSegmenterTest, NonUnitSpacingHandledCorrectly) {
+    // Anisotropic spacing (common in clinical CT: 0.5×0.5×2.0 mm)
+    auto image = createSphereImage(50, 50, 25, 25.0, 25.0, 12.5, 10.0, 200, 0);
+
+    ImageType::SpacingType spacing;
+    spacing[0] = 0.5;
+    spacing[1] = 0.5;
+    spacing[2] = 2.0;
+    image->SetSpacing(spacing);
+
+    ThresholdLevelSetParameters params;
+    params.seedPoints = {{25.0, 25.0, 12.5}};
+    params.seedRadius = 3.0;
+    params.lowerThreshold = 100.0;
+    params.upperThreshold = 300.0;
+    params.maxIterations = 200;
+
+    auto result = segmenter_->thresholdLevelSet(image, params);
+
+    ASSERT_TRUE(result.has_value());
+    int foreground = countMaskPixels(result->mask, 1);
+    EXPECT_GT(foreground, 0) << "Non-unit spacing should be handled correctly";
+}

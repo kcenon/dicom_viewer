@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <fstream>
 
+#include <itkImageRegionIterator.h>
+
 namespace dicom_viewer::services::test {
 
 // ============================================================================
@@ -488,6 +490,91 @@ TEST_F(LabelManagerIOTest, ExportWithoutLabelMapFails) {
     );
 
     EXPECT_FALSE(result.has_value());
+}
+
+// ============================================================================
+// Edge case and algorithmic correctness tests (Issue #204)
+// ============================================================================
+
+TEST_F(LabelManagerTest, ComputeLabelStatisticsWithSourceImage) {
+    // Initialize label map and source image
+    ASSERT_TRUE(manager_->initializeLabelMap(10, 10, 10).has_value());
+    (void)manager_->addLabel("Liver");
+
+    // Create a source image with known HU values
+    auto sourceImage = LabelManager::SourceImageType::New();
+    LabelManager::SourceImageType::SizeType size = {{10, 10, 10}};
+    LabelManager::SourceImageType::RegionType region;
+    region.SetSize(size);
+    region.SetIndex({{0, 0, 0}});
+    sourceImage->SetRegions(region);
+    sourceImage->Allocate();
+
+    // Fill source with value 50 HU everywhere
+    itk::ImageRegionIterator<LabelManager::SourceImageType> srcIt(sourceImage, region);
+    for (srcIt.GoToBegin(); !srcIt.IsAtEnd(); ++srcIt) {
+        srcIt.Set(50);
+    }
+
+    // Paint label 1 into some voxels
+    auto labelMap = manager_->getLabelMap();
+    itk::ImageRegionIterator<LabelManager::LabelMapType> lblIt(labelMap, region);
+    int painted = 0;
+    for (lblIt.GoToBegin(); !lblIt.IsAtEnd(); ++lblIt) {
+        auto idx = lblIt.GetIndex();
+        if (idx[0] >= 2 && idx[0] < 8 && idx[1] >= 2 && idx[1] < 8 && idx[2] >= 2 && idx[2] < 8) {
+            lblIt.Set(1);
+            ++painted;
+        }
+    }
+
+    auto result = manager_->computeLabelStatistics(1, sourceImage);
+    ASSERT_TRUE(result.has_value());
+
+    // Verify the label now has statistics populated
+    auto label = manager_->getLabel(1);
+    ASSERT_TRUE(label.has_value());
+    EXPECT_TRUE(label->get().voxelCount.has_value());
+    if (label->get().voxelCount.has_value()) {
+        EXPECT_EQ(label->get().voxelCount.value(), painted);
+    }
+    if (label->get().meanHU.has_value()) {
+        EXPECT_NEAR(label->get().meanHU.value(), 50.0, 1.0);
+    }
+}
+
+TEST_F(LabelManagerTest, MaxLabelsCapacity255) {
+    // Verify LabelManager can hold up to 255 labels (MAX_LABELS)
+    int addedCount = 0;
+    for (int i = 1; i <= 255; ++i) {
+        auto result = manager_->addLabel("Label_" + std::to_string(i));
+        if (result.has_value()) {
+            ++addedCount;
+        } else {
+            break;
+        }
+    }
+
+    EXPECT_EQ(addedCount, 255) << "Should support exactly 255 labels";
+    EXPECT_EQ(manager_->getLabelCount(), 255);
+
+    // Attempting to add label 256 should fail
+    auto overflow = manager_->addLabel("Overflow");
+    EXPECT_FALSE(overflow.has_value())
+        << "Adding label beyond 255 should fail";
+}
+
+TEST_F(LabelManagerIOTest, ImportCorruptedJsonFails) {
+    // Write invalid JSON to file
+    auto path = tempDir_ / "corrupt.json";
+    {
+        std::ofstream file(path);
+        file << "{ this is not valid json !!!";
+    }
+
+    auto result = manager_->importLabelMetadata(path);
+    EXPECT_FALSE(result.has_value())
+        << "Corrupted JSON should fail gracefully";
 }
 
 }  // namespace dicom_viewer::services::test

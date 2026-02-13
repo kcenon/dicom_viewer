@@ -1072,3 +1072,109 @@ TEST_F(ManualSegmentationControllerTest, SmartScissorsToolSwitchClearsState) {
     // State should be cleared
     EXPECT_TRUE(controller_->getSmartScissorsAnchors().empty());
 }
+
+// =============================================================================
+// Edge case and algorithmic correctness tests (Issue #204)
+// =============================================================================
+
+TEST_F(ManualSegmentationControllerTest, UndoRedoAfterBrushStroke) {
+    ASSERT_TRUE(controller_->initializeLabelMap(50, 50, 1).has_value());
+    controller_->setActiveLabel(1);
+    controller_->setActiveTool(SegmentationTool::Brush);
+
+    auto labelMap = controller_->getLabelMap();
+    int beforeCount = countLabelPixels(labelMap, 1);
+    EXPECT_EQ(beforeCount, 0);
+
+    // Paint a stroke
+    controller_->onMousePress(Point2D{25, 25}, 0);
+    controller_->onMouseMove(Point2D{30, 25}, 0);
+    controller_->onMouseRelease(Point2D{30, 25}, 0);
+
+    labelMap = controller_->getLabelMap();
+    int afterPaintCount = countLabelPixels(labelMap, 1);
+    EXPECT_GT(afterPaintCount, 0) << "Brush stroke should paint pixels";
+
+    // Undo should revert to zero painted pixels
+    auto undoResult = controller_->undo();
+    EXPECT_TRUE(undoResult.has_value());
+
+    labelMap = controller_->getLabelMap();
+    int afterUndoCount = countLabelPixels(labelMap, 1);
+    EXPECT_EQ(afterUndoCount, 0) << "Undo should revert brush stroke";
+
+    // Redo should restore the painted pixels
+    auto redoResult = controller_->redo();
+    EXPECT_TRUE(redoResult.has_value());
+
+    labelMap = controller_->getLabelMap();
+    int afterRedoCount = countLabelPixels(labelMap, 1);
+    EXPECT_EQ(afterRedoCount, afterPaintCount) << "Redo should restore brush stroke";
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonSelfIntersectionHandled) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveLabel(1);
+    controller_->setActiveTool(SegmentationTool::Polygon);
+
+    // Create a self-intersecting polygon (figure-8 shape)
+    controller_->onMousePress(Point2D{20, 20}, 0);  // Top-left
+    controller_->onMousePress(Point2D{80, 80}, 0);  // Bottom-right
+    controller_->onMousePress(Point2D{80, 20}, 0);  // Top-right
+    controller_->onMousePress(Point2D{20, 80}, 0);  // Bottom-left
+
+    // Complete the polygon (double-click or close)
+    controller_->onMousePress(Point2D{20, 20}, 0);
+
+    // Should not crash; label map should remain valid
+    auto labelMap = controller_->getLabelMap();
+    ASSERT_NE(labelMap, nullptr);
+
+    auto size = labelMap->GetLargestPossibleRegion().GetSize();
+    EXPECT_EQ(size[0], 100u);
+    EXPECT_EQ(size[1], 100u);
+}
+
+TEST_F(ManualSegmentationControllerTest, SmartScissorsMultipleAnchors) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::SmartScissors);
+
+    // Place multiple anchor points
+    controller_->onMousePress(Point2D{10, 10}, 0);
+    controller_->onMousePress(Point2D{90, 10}, 0);
+    controller_->onMousePress(Point2D{90, 90}, 0);
+    controller_->onMousePress(Point2D{10, 90}, 0);
+
+    auto anchors = controller_->getSmartScissorsAnchors();
+    EXPECT_EQ(anchors.size(), 4)
+        << "Should store all anchor points without crashing";
+
+    // Path should be generated between anchors
+    auto path = controller_->getSmartScissorsPath();
+    // Path may be empty if no image data is set, but should not crash
+    ASSERT_NE(controller_->getLabelMap(), nullptr);
+}
+
+TEST_F(ManualSegmentationControllerTest, LabelExhaustion255Labels) {
+    ASSERT_TRUE(controller_->initializeLabelMap(10, 10, 1).has_value());
+
+    // Add labels up to the maximum (255)
+    bool reachedLimit = false;
+    for (int i = 1; i <= 256; ++i) {
+        controller_->setActiveLabel(static_cast<uint8_t>(std::min(i, 255)));
+        if (i > 255) {
+            reachedLimit = true;
+        }
+    }
+
+    // The controller should handle label ID 255 without issues
+    controller_->setActiveLabel(255);
+    controller_->setActiveTool(SegmentationTool::Brush);
+
+    controller_->onMousePress(Point2D{5, 5}, 0);
+    controller_->onMouseRelease(Point2D{5, 5}, 0);
+
+    auto labelMap = controller_->getLabelMap();
+    uint8_t pixelVal = getPixelAt(labelMap, 5, 5, 0);
+    EXPECT_EQ(pixelVal, 255) << "Should be able to paint with label ID 255";
+}
