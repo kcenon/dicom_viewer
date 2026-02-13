@@ -75,7 +75,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/../pacs_system/build
-          key: pacs-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('../pacs_system/CMakeLists.txt') }}
+          key: pacs-build-${{ runner.os }}-${{ runner.arch }}-v1
           restore-keys: |
             pacs-build-${{ runner.os }}-${{ runner.arch }}-
 
