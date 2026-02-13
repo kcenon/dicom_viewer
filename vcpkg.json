@@ -26,5 +26,5 @@
         "nlohmann-json",
         "gtest"
     ],
-    "builtin-baseline": "2024.01.12"
+    "builtin-baseline": "53bef8994c541b6561884a8395ea35715ece75db"
 }
