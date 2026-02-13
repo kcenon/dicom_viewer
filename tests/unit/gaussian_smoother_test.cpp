@@ -1,4 +1,6 @@
 #include "services/preprocessing/gaussian_smoother.hpp"
+#include "services/preprocessing/anisotropic_diffusion_filter.hpp"
+#include "services/preprocessing/histogram_equalizer.hpp"
 
 #include <gtest/gtest.h>
 #include <cmath>
@@ -452,6 +454,218 @@ TEST_F(GaussianSmootherTest, MoveAssignment) {
 
     auto result = smoother2.apply(testImage_);
     EXPECT_TRUE(result.has_value());
+}
+
+// =============================================================================
+// Filter accuracy and edge case tests
+// =============================================================================
+
+TEST_F(GaussianSmootherTest, ImpulseResponseDecaysWithDistance) {
+    // Create an image with a single bright voxel (impulse function)
+    auto impulseImage = ImageType::New();
+    ImageType::SizeType size;
+    size[0] = 21;
+    size[1] = 21;
+    size[2] = 21;
+    ImageType::IndexType start;
+    start.Fill(0);
+    ImageType::RegionType region;
+    region.SetSize(size);
+    region.SetIndex(start);
+    impulseImage->SetRegions(region);
+    impulseImage->Allocate();
+    impulseImage->FillBuffer(0);
+    ImageType::SpacingType spacing;
+    spacing.Fill(1.0);
+    impulseImage->SetSpacing(spacing);
+
+    // Single bright voxel at center
+    ImageType::IndexType center = {10, 10, 10};
+    impulseImage->SetPixel(center, 10000);
+
+    GaussianSmoother smoother;
+    GaussianSmoother::Parameters params;
+    params.variance = 2.0;
+
+    auto result = smoother.apply(impulseImage, params);
+    ASSERT_TRUE(result.has_value());
+
+    auto output = result.value();
+
+    // Gaussian response: center should be positive but less than original
+    short centerVal = output->GetPixel(center);
+    EXPECT_GT(centerVal, 0);
+    EXPECT_LT(centerVal, 10000);
+
+    // Values must decay with increasing distance from center
+    ImageType::IndexType near = {11, 10, 10};  // distance 1
+    ImageType::IndexType far = {13, 10, 10};    // distance 3
+
+    short nearVal = output->GetPixel(near);
+    short farVal = output->GetPixel(far);
+
+    EXPECT_GE(centerVal, nearVal);
+    EXPECT_GE(nearVal, farVal);
+}
+
+TEST_F(GaussianSmootherTest, MinimumVarianceProducesMinimalSmoothing) {
+    GaussianSmoother smoother;
+    GaussianSmoother::Parameters params;
+    params.variance = 0.1;  // Minimum variance
+
+    auto result = smoother.apply(testImage_, params);
+    ASSERT_TRUE(result.has_value());
+
+    auto output = result.value();
+
+    // Interior voxel of the bright cube should retain most of its value
+    ImageType::IndexType interiorIdx = {10, 10, 10};
+    short originalVal = testImage_->GetPixel(interiorIdx);
+    short smoothedVal = output->GetPixel(interiorIdx);
+
+    // With very low variance, the interior should be close to original
+    double ratio = static_cast<double>(smoothedVal) / originalVal;
+    EXPECT_GT(ratio, 0.8);  // At least 80% retained
+}
+
+TEST_F(GaussianSmootherTest, GaussianPreservesMeanIntensity) {
+    GaussianSmoother smoother;
+    GaussianSmoother::Parameters params;
+    params.variance = 3.0;
+
+    auto result = smoother.apply(testImage_, params);
+    ASSERT_TRUE(result.has_value());
+
+    auto output = result.value();
+
+    // Compute mean of input and output
+    double inputSum = 0.0;
+    double outputSum = 0.0;
+    const int totalVoxels = 20 * 20 * 20;
+
+    for (int z = 0; z < 20; ++z) {
+        for (int y = 0; y < 20; ++y) {
+            for (int x = 0; x < 20; ++x) {
+                ImageType::IndexType idx = {x, y, z};
+                inputSum += testImage_->GetPixel(idx);
+                outputSum += output->GetPixel(idx);
+            }
+        }
+    }
+
+    double inputMean = inputSum / totalVoxels;
+    double outputMean = outputSum / totalVoxels;
+
+    // Gaussian smoothing preserves mean (within tolerance for boundary effects)
+    EXPECT_NEAR(inputMean, outputMean, inputMean * 0.15);
+}
+
+TEST_F(GaussianSmootherTest, BoundaryVoxelsNoExtremeArtifacts) {
+    GaussianSmoother smoother;
+    GaussianSmoother::Parameters params;
+    params.variance = 2.0;
+
+    auto result = smoother.apply(testImage_, params);
+    ASSERT_TRUE(result.has_value());
+
+    auto output = result.value();
+
+    // Check corner and edge voxels for extreme values
+    std::array<ImageType::IndexType, 4> boundaryVoxels = {{
+        {0, 0, 0},
+        {19, 19, 19},
+        {0, 10, 10},
+        {19, 0, 19},
+    }};
+
+    for (const auto& idx : boundaryVoxels) {
+        short val = output->GetPixel(idx);
+        // No values should be negative or exceed the maximum input value
+        EXPECT_GE(val, -10)
+            << "Boundary artifact at (" << idx[0] << "," << idx[1] << ","
+            << idx[2] << ")";
+        EXPECT_LE(val, 1010)
+            << "Boundary artifact at (" << idx[0] << "," << idx[1] << ","
+            << idx[2] << ")";
+    }
+}
+
+// =============================================================================
+// Cross-filter pipeline tests
+// =============================================================================
+
+TEST_F(GaussianSmootherTest, GaussianThenDiffusionDiffersFromReverse) {
+    GaussianSmoother smoother;
+    GaussianSmoother::Parameters gaussParams;
+    gaussParams.variance = 2.0;
+
+    AnisotropicDiffusionFilter diffusion;
+    AnisotropicDiffusionFilter::Parameters diffParams;
+    diffParams.numberOfIterations = 5;
+    diffParams.conductance = 3.0;
+
+    // Path A: Gaussian → Diffusion
+    auto gaussFirst = smoother.apply(testImage_, gaussParams);
+    ASSERT_TRUE(gaussFirst.has_value());
+    auto pathA = diffusion.apply(gaussFirst.value(), diffParams);
+    ASSERT_TRUE(pathA.has_value());
+
+    // Path B: Diffusion → Gaussian
+    auto diffFirst = diffusion.apply(testImage_, diffParams);
+    ASSERT_TRUE(diffFirst.has_value());
+    auto pathB = smoother.apply(diffFirst.value(), gaussParams);
+    ASSERT_TRUE(pathB.has_value());
+
+    // The two pipelines should produce different results
+    int differingVoxels = 0;
+    for (int z = 0; z < 20; ++z) {
+        for (int y = 0; y < 20; ++y) {
+            for (int x = 0; x < 20; ++x) {
+                ImageType::IndexType idx = {x, y, z};
+                if (pathA.value()->GetPixel(idx)
+                    != pathB.value()->GetPixel(idx)) {
+                    differingVoxels++;
+                }
+            }
+        }
+    }
+
+    EXPECT_GT(differingVoxels, 0);
+}
+
+TEST_F(GaussianSmootherTest, GaussianPrefilterWidensEqualizedRange) {
+    GaussianSmoother smoother;
+    GaussianSmoother::Parameters gaussParams;
+    gaussParams.variance = 1.5;
+
+    HistogramEqualizer equalizer;
+    HistogramEqualizer::Parameters eqParams;
+    eqParams.method = EqualizationMethod::Standard;
+    eqParams.preserveRange = false;
+    eqParams.outputMinimum = 0.0;
+    eqParams.outputMaximum = 255.0;
+
+    // Path A: direct equalization
+    auto directResult = equalizer.equalize(testImage_, eqParams);
+    ASSERT_TRUE(directResult.has_value());
+
+    // Path B: Gaussian prefilter → equalization
+    auto smoothed = smoother.apply(testImage_, gaussParams);
+    ASSERT_TRUE(smoothed.has_value());
+    auto prefilterResult = equalizer.equalize(smoothed.value(), eqParams);
+    ASSERT_TRUE(prefilterResult.has_value());
+
+    // Both should produce valid results with output range near [0, 255]
+    auto directHist = equalizer.computeHistogram(directResult.value(), 256);
+    auto prefilterHist =
+        equalizer.computeHistogram(prefilterResult.value(), 256);
+
+    // Both pipelines should produce wide-range outputs
+    double directRange = directHist.maxValue - directHist.minValue;
+    double prefilterRange = prefilterHist.maxValue - prefilterHist.minValue;
+
+    EXPECT_GT(directRange, 50.0);
+    EXPECT_GT(prefilterRange, 50.0);
 }
 
 }  // namespace

@@ -513,5 +513,159 @@ TEST_F(AnisotropicDiffusionFilterTest, MoveAssignment) {
     EXPECT_TRUE(result.has_value());
 }
 
+// =============================================================================
+// Filter accuracy and edge case tests
+// =============================================================================
+
+TEST_F(AnisotropicDiffusionFilterTest, StepEdgeContrastPreservedAfterDiffusion) {
+    AnisotropicDiffusionFilter filter;
+    AnisotropicDiffusionFilter::Parameters params;
+    params.numberOfIterations = 5;
+    params.conductance = 3.0;
+
+    auto result = filter.apply(testImage_, params);
+    ASSERT_TRUE(result.has_value());
+
+    auto output = result.value();
+
+    // The step edge between background (0) and cube (1000) should be preserved
+    InputImageType::IndexType insideCube = {10, 10, 10};
+    InputImageType::IndexType outsideCube = {2, 2, 2};
+
+    short insideVal = output->GetPixel(insideCube);
+    short outsideVal = output->GetPixel(outsideCube);
+
+    // Edge-preserving: contrast should remain significant
+    double contrast = static_cast<double>(insideVal - outsideVal);
+    EXPECT_GT(contrast, 500.0);  // Original contrast 1000, expect >50% preserved
+}
+
+TEST_F(AnisotropicDiffusionFilterTest, HomogeneousRegionNoiseReduced) {
+    AnisotropicDiffusionFilter filter;
+    AnisotropicDiffusionFilter::Parameters params;
+    params.numberOfIterations = 10;
+    params.conductance = 3.0;
+
+    auto result = filter.apply(testImage_, params);
+    ASSERT_TRUE(result.has_value());
+
+    auto output = result.value();
+
+    // Compute variance in the noisy region (z < 6, outside the cube area)
+    auto computeVariance = [](InputImageType::Pointer image) {
+        double sum = 0.0;
+        int count = 0;
+        for (int z = 0; z < 6; ++z) {
+            for (int y = 0; y < 6; ++y) {
+                for (int x = 0; x < 6; ++x) {
+                    InputImageType::IndexType idx = {x, y, z};
+                    sum += image->GetPixel(idx);
+                    count++;
+                }
+            }
+        }
+        double mean = sum / count;
+        double variance = 0.0;
+        for (int z = 0; z < 6; ++z) {
+            for (int y = 0; y < 6; ++y) {
+                for (int x = 0; x < 6; ++x) {
+                    InputImageType::IndexType idx = {x, y, z};
+                    double diff = image->GetPixel(idx) - mean;
+                    variance += diff * diff;
+                }
+            }
+        }
+        return variance / count;
+    };
+
+    double inputVariance = computeVariance(testImage_);
+    double outputVariance = computeVariance(output);
+
+    // Diffusion should reduce noise (lower variance in homogeneous region)
+    EXPECT_LT(outputVariance, inputVariance);
+}
+
+TEST_F(AnisotropicDiffusionFilterTest, MoreIterationsProducesSmootherResult) {
+    AnisotropicDiffusionFilter filter;
+
+    auto computeVariance = [](InputImageType::Pointer image) {
+        double sum = 0.0;
+        int count = 0;
+        for (int z = 0; z < 6; ++z) {
+            for (int y = 0; y < 6; ++y) {
+                for (int x = 0; x < 6; ++x) {
+                    InputImageType::IndexType idx = {x, y, z};
+                    sum += image->GetPixel(idx);
+                    count++;
+                }
+            }
+        }
+        double mean = sum / count;
+        double variance = 0.0;
+        for (int z = 0; z < 6; ++z) {
+            for (int y = 0; y < 6; ++y) {
+                for (int x = 0; x < 6; ++x) {
+                    InputImageType::IndexType idx = {x, y, z};
+                    double diff = image->GetPixel(idx) - mean;
+                    variance += diff * diff;
+                }
+            }
+        }
+        return variance / count;
+    };
+
+    // Apply with 3 iterations
+    AnisotropicDiffusionFilter::Parameters paramsLow;
+    paramsLow.numberOfIterations = 3;
+    paramsLow.conductance = 3.0;
+    auto resultLow = filter.apply(testImage_, paramsLow);
+    ASSERT_TRUE(resultLow.has_value());
+
+    // Apply with 20 iterations
+    AnisotropicDiffusionFilter::Parameters paramsHigh;
+    paramsHigh.numberOfIterations = 20;
+    paramsHigh.conductance = 3.0;
+    auto resultHigh = filter.apply(testImage_, paramsHigh);
+    ASSERT_TRUE(resultHigh.has_value());
+
+    double varianceLow = computeVariance(resultLow.value());
+    double varianceHigh = computeVariance(resultHigh.value());
+
+    // More iterations should produce smoother result (lower variance)
+    EXPECT_LE(varianceHigh, varianceLow);
+}
+
+TEST_F(AnisotropicDiffusionFilterTest, LowConductancePreservesEdgesBetter) {
+    AnisotropicDiffusionFilter filter;
+
+    // Low conductance (strong edge preservation)
+    AnisotropicDiffusionFilter::Parameters paramsLow;
+    paramsLow.numberOfIterations = 10;
+    paramsLow.conductance = 0.5;
+    auto resultLow = filter.apply(testImage_, paramsLow);
+    ASSERT_TRUE(resultLow.has_value());
+
+    // High conductance (weaker edge preservation)
+    AnisotropicDiffusionFilter::Parameters paramsHigh;
+    paramsHigh.numberOfIterations = 10;
+    paramsHigh.conductance = 10.0;
+    auto resultHigh = filter.apply(testImage_, paramsHigh);
+    ASSERT_TRUE(resultHigh.has_value());
+
+    // Measure edge contrast: inside cube vs just outside
+    InputImageType::IndexType inside = {10, 10, 10};
+    InputImageType::IndexType outside = {7, 10, 10};
+
+    double contrastLow = std::abs(
+        static_cast<double>(resultLow.value()->GetPixel(inside))
+        - resultLow.value()->GetPixel(outside));
+    double contrastHigh = std::abs(
+        static_cast<double>(resultHigh.value()->GetPixel(inside))
+        - resultHigh.value()->GetPixel(outside));
+
+    // Low conductance should preserve edges better (higher contrast)
+    EXPECT_GE(contrastLow, contrastHigh);
+}
+
 }  // namespace
 }  // namespace dicom_viewer::services

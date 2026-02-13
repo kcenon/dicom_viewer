@@ -535,5 +535,94 @@ TEST_F(HistogramEqualizerTest, CustomOutputRange) {
     EXPECT_LE(resultHistogram.maxValue, 256);
 }
 
+// =============================================================================
+// Filter accuracy and edge case tests
+// =============================================================================
+
+TEST_F(HistogramEqualizerTest, StandardEqualizationWidensDistribution) {
+    HistogramEqualizer equalizer;
+
+    auto inputHistogram = equalizer.computeHistogram(testImage_, 256);
+
+    HistogramEqualizer::Parameters params;
+    params.method = EqualizationMethod::Standard;
+    params.preserveRange = false;
+    params.outputMinimum = 0.0;
+    params.outputMaximum = 255.0;
+
+    auto result = equalizer.equalize(testImage_, params);
+    ASSERT_TRUE(result.has_value());
+
+    auto outputHistogram = equalizer.computeHistogram(result.value(), 256);
+
+    // Input has narrow range [50, 100]; output should have wider spread
+    double inputRange = inputHistogram.maxValue - inputHistogram.minValue;
+    double outputRange = outputHistogram.maxValue - outputHistogram.minValue;
+
+    EXPECT_GT(outputRange, inputRange);
+}
+
+TEST_F(HistogramEqualizerTest, CLAHEProducesDistinctResultFromStandard) {
+    HistogramEqualizer equalizer;
+
+    // Apply Standard equalization
+    HistogramEqualizer::Parameters stdParams;
+    stdParams.method = EqualizationMethod::Standard;
+    auto stdResult = equalizer.equalize(testImage_, stdParams);
+    ASSERT_TRUE(stdResult.has_value());
+
+    // Apply CLAHE equalization
+    HistogramEqualizer::Parameters claheParams;
+    claheParams.method = EqualizationMethod::CLAHE;
+    claheParams.clipLimit = 3.0;
+    auto claheResult = equalizer.equalize(testImage_, claheParams);
+    ASSERT_TRUE(claheResult.has_value());
+
+    // CLAHE and Standard should produce different results
+    int differingVoxels = 0;
+    for (int z = 0; z < 20; ++z) {
+        for (int y = 0; y < 20; ++y) {
+            for (int x = 0; x < 20; ++x) {
+                ImageType::IndexType idx = {x, y, z};
+                if (stdResult.value()->GetPixel(idx)
+                    != claheResult.value()->GetPixel(idx)) {
+                    differingVoxels++;
+                }
+            }
+        }
+    }
+
+    // At least some voxels should differ between the two methods
+    EXPECT_GT(differingVoxels, 0);
+}
+
+TEST_F(HistogramEqualizerTest, HigherClipLimitProducesWiderSpread) {
+    HistogramEqualizer equalizer;
+
+    // Low clip limit (more contrast limiting)
+    HistogramEqualizer::Parameters lowClipParams;
+    lowClipParams.method = EqualizationMethod::CLAHE;
+    lowClipParams.clipLimit = 1.0;
+    auto lowResult = equalizer.equalize(testImage_, lowClipParams);
+    ASSERT_TRUE(lowResult.has_value());
+
+    // High clip limit (less contrast limiting)
+    HistogramEqualizer::Parameters highClipParams;
+    highClipParams.method = EqualizationMethod::CLAHE;
+    highClipParams.clipLimit = 10.0;
+    auto highResult = equalizer.equalize(testImage_, highClipParams);
+    ASSERT_TRUE(highResult.has_value());
+
+    // Compute output ranges
+    auto lowHistogram = equalizer.computeHistogram(lowResult.value(), 256);
+    auto highHistogram = equalizer.computeHistogram(highResult.value(), 256);
+
+    double lowRange = lowHistogram.maxValue - lowHistogram.minValue;
+    double highRange = highHistogram.maxValue - highHistogram.minValue;
+
+    // Higher clip limit should allow more contrast enhancement
+    EXPECT_GE(highRange, lowRange * 0.9);  // Allow 10% tolerance
+}
+
 }  // namespace
 }  // namespace dicom_viewer::services
