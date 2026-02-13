@@ -4,6 +4,7 @@
 #include "services/preprocessing/gaussian_smoother.hpp"
 #include "services/segmentation/label_manager.hpp"
 #include "services/segmentation/manual_segmentation_controller.hpp"
+#include "services/segmentation/morphological_processor.hpp"
 #include "services/segmentation/region_growing_segmenter.hpp"
 
 #include "../test_utils/flow_phantom_generator.hpp"
@@ -19,6 +20,7 @@
 namespace dicom_viewer::services {
 namespace {
 
+using test_utils::createBinaryMaskVolume;
 using test_utils::createSyntheticCTVolume;
 using test_utils::createVolume;
 
@@ -303,6 +305,52 @@ TEST_F(SegmentationConcurrencyTest, ConcurrentSegmentationOnSeparateVolumes) {
 
     for (auto& t : threads) t.join();
     EXPECT_EQ(successCount.load(), kThreadCount);
+}
+
+TEST_F(SegmentationConcurrencyTest, MorphologicalProcessingWhileReadingLabels) {
+    // Pre-populate labels for concurrent reading
+    for (int i = 0; i < 10; ++i) {
+        auto result = manager_.addLabel("morph_" + std::to_string(i));
+        ASSERT_TRUE(result.has_value());
+    }
+
+    auto mask = createBinaryMaskVolume(64, 20.0);
+
+    std::latch startLatch(2);
+    std::atomic<bool> morphDone{false};
+    std::atomic<int> readCount{0};
+
+    // Thread 1: Run morphological processing
+    std::thread morphThread([&] {
+        MorphologicalProcessor processor;
+
+        startLatch.arrive_and_wait();
+
+        [[maybe_unused]] auto dilated = processor.apply(
+            mask, MorphologicalOperation::Dilation, 2);
+        [[maybe_unused]] auto eroded = processor.apply(
+            mask, MorphologicalOperation::Erosion, 2);
+
+        morphDone.store(true);
+    });
+
+    // Thread 2: Read label manager state concurrently
+    std::thread readerThread([&] {
+        startLatch.arrive_and_wait();
+
+        while (!morphDone.load()) {
+            [[maybe_unused]] auto count = manager_.getLabelCount();
+            [[maybe_unused]] auto labels = manager_.getAllLabels();
+            readCount.fetch_add(1);
+            std::this_thread::yield();
+        }
+    });
+
+    morphThread.join();
+    readerThread.join();
+
+    EXPECT_GT(readCount.load(), 0);
+    EXPECT_EQ(manager_.getLabelCount(), 10u);
 }
 
 // =============================================================================
@@ -591,7 +639,7 @@ TEST_F(StressConcurrencyTest, HighContentionLabelManager) {
             for (int j = 0; j < kOpsPerThread; ++j) {
                 switch (j % 4) {
                     case 0: {
-                        manager.addLabel(
+                        [[maybe_unused]] auto r = manager.addLabel(
                             "t" + std::to_string(i) + "_" +
                             std::to_string(j));
                         break;
@@ -599,19 +647,21 @@ TEST_F(StressConcurrencyTest, HighContentionLabelManager) {
                     case 1: {
                         auto labels = manager.getAllLabels();
                         if (!labels.empty()) {
-                            manager.removeLabel(labels.front().id, false);
+                            [[maybe_unused]] auto r =
+                                manager.removeLabel(labels.front().id, false);
                         }
                         break;
                     }
                     case 2: {
-                        manager.getLabelCount();
-                        manager.getActiveLabel();
+                        [[maybe_unused]] auto c = manager.getLabelCount();
+                        [[maybe_unused]] auto a = manager.getActiveLabel();
                         break;
                     }
                     case 3: {
                         auto labels = manager.getAllLabels();
                         if (!labels.empty()) {
-                            manager.setActiveLabel(labels.back().id);
+                            [[maybe_unused]] auto r =
+                                manager.setActiveLabel(labels.back().id);
                         }
                         break;
                     }
