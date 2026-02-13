@@ -171,20 +171,23 @@ TEST(DRModalityTest, EmptyModalityIsNotDR) {
     EXPECT_FALSE(isDRorCRModality("US"));
 }
 
-TEST(DRViewerOptionsTest, ExtremeZoomValues) {
+TEST(DRViewerOptionsTest, ManualPixelSpacingEdgeCases) {
     DRViewerOptions options;
 
-    // Very small zoom (near zero)
-    options.defaultZoom = 0.01;
-    EXPECT_GT(options.defaultZoom, 0.0);
+    // Default should be negative (auto-detect)
+    EXPECT_LT(options.manualPixelSpacing, 0.0);
 
-    // Very large zoom
-    options.defaultZoom = 100.0;
-    EXPECT_EQ(options.defaultZoom, 100.0);
+    // Very small pixel spacing (high resolution DR)
+    options.manualPixelSpacing = 0.05;
+    EXPECT_DOUBLE_EQ(options.manualPixelSpacing, 0.05);
 
-    // Negative zoom — structure should store it (validation happens elsewhere)
-    options.defaultZoom = -1.0;
-    EXPECT_EQ(options.defaultZoom, -1.0);
+    // Typical CR spacing
+    options.manualPixelSpacing = 0.2;
+    EXPECT_DOUBLE_EQ(options.manualPixelSpacing, 0.2);
+
+    // Large spacing (low resolution)
+    options.manualPixelSpacing = 1.0;
+    EXPECT_DOUBLE_EQ(options.manualPixelSpacing, 1.0);
 }
 
 } // anonymous namespace
