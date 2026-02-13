@@ -4,6 +4,8 @@
 #include "services/dicom_echo_scu.hpp"
 #include "services/pacs_config.hpp"
 
+#include <thread>
+
 using namespace dicom_viewer::services;
 
 class DicomFindSCUTest : public ::testing::Test {
@@ -241,4 +243,96 @@ TEST(FindQueryTest, AllFieldsSet) {
     EXPECT_EQ(query.accessionNumber.value(), "ACC001");
     EXPECT_EQ(query.studyInstanceUid.value(), "1.2.3.4.5");
     EXPECT_EQ(query.seriesNumber.value(), 1);
+}
+
+// =============================================================================
+// Network interaction and query edge case tests (Issue #206)
+// =============================================================================
+
+TEST_F(DicomFindSCUTest, FindWithPatientLevelQuery) {
+    PacsServerConfig config;
+    config.hostname = "192.0.2.1";  // Non-routable
+    config.port = 104;
+    config.calledAeTitle = "PACS_SERVER";
+    config.connectionTimeout = std::chrono::seconds(1);
+
+    FindQuery query;
+    query.level = QueryLevel::Patient;
+    query.root = QueryRoot::PatientRoot;
+    query.patientName = "DOE*";
+    query.patientId = "12345";
+
+    auto result = findScu->find(config, query);
+    EXPECT_FALSE(result.has_value());
+    EXPECT_TRUE(
+        result.error().code == PacsError::ConnectionFailed ||
+        result.error().code == PacsError::Timeout ||
+        result.error().code == PacsError::NetworkError
+    );
+}
+
+TEST_F(DicomFindSCUTest, FindWithSeriesLevelAndStudyRoot) {
+    PacsServerConfig config;
+    config.hostname = "192.0.2.1";
+    config.port = 104;
+    config.calledAeTitle = "PACS_SERVER";
+    config.connectionTimeout = std::chrono::seconds(1);
+
+    FindQuery query;
+    query.level = QueryLevel::Series;
+    query.root = QueryRoot::StudyRoot;
+    query.studyInstanceUid = "1.2.840.113619.2.55.3.604688119.969.1234567890.123";
+    query.modality = "CT";
+
+    auto result = findScu->find(config, query);
+    EXPECT_FALSE(result.has_value());
+    EXPECT_TRUE(
+        result.error().code == PacsError::ConnectionFailed ||
+        result.error().code == PacsError::Timeout ||
+        result.error().code == PacsError::NetworkError
+    );
+}
+
+TEST_F(DicomFindSCUTest, CancelDuringFindOperation) {
+    PacsServerConfig config;
+    config.hostname = "192.0.2.1";
+    config.port = 104;
+    config.calledAeTitle = "PACS_SERVER";
+    config.connectionTimeout = std::chrono::seconds(30);
+
+    FindQuery query;
+    query.patientName = "SMITH*";
+
+    std::thread findThread([this, &config, &query]() {
+        (void)findScu->find(config, query);
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    findScu->cancel();
+
+    findThread.join();
+    EXPECT_FALSE(findScu->isQuerying());
+}
+
+TEST(FindQueryTest, WildcardPatternFields) {
+    FindQuery query;
+    query.patientName = "SM?TH*";
+    query.patientId = "123*";
+    query.studyDescription = "*CHEST*";
+    query.accessionNumber = "ACC*";
+
+    EXPECT_EQ(query.patientName.value(), "SM?TH*");
+    EXPECT_EQ(query.patientId.value(), "123*");
+    EXPECT_EQ(query.studyDescription.value(), "*CHEST*");
+    EXPECT_EQ(query.accessionNumber.value(), "ACC*");
+}
+
+TEST(FindResultTest, TotalCountMixedResultTypes) {
+    FindResult result;
+    result.patients.resize(3);
+    result.studies.resize(5);
+    result.series.resize(10);
+    result.images.resize(25);
+
+    EXPECT_EQ(result.totalCount(), 43);
 }
