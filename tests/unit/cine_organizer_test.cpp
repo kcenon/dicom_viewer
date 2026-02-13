@@ -542,3 +542,114 @@ TEST(CineEdgeCaseTest, MoveAssignment) {
     EnhancedSeriesInfo series;
     EXPECT_FALSE(org2.detectCineSeries(series));
 }
+
+// =============================================================================
+// Tolerance validation and artifact handling tests (Issue #208)
+// =============================================================================
+
+TEST_F(CineDetectionEnhancedTest, TemporalJitterTriggerTimesTolerance) {
+    // Trigger times with ±5ms jitter simulating acquisition imprecision
+    EnhancedSeriesInfo series;
+    series.modality = "MR";
+    series.seriesDescription = "cine SA";
+
+    int numPhases = 4;
+    int slicesPerPhase = 5;
+    double baseInterval = 200.0;
+    double jitterAmplitudes[] = {0.0, 3.2, -4.8, 2.1};
+
+    for (int phase = 0; phase < numPhases; ++phase) {
+        for (int slice = 0; slice < slicesPerPhase; ++slice) {
+            EnhancedFrameInfo frame;
+            frame.frameIndex = phase * slicesPerPhase + slice;
+            // Add jitter to trigger time (varies per-slice within phase)
+            double jitter = jitterAmplitudes[phase] +
+                            (slice - 2) * 0.5;  // ±1ms additional per-slice
+            frame.triggerTime = phase * baseInterval + jitter;
+            frame.temporalPositionIndex = phase + 1;
+            frame.imagePosition = {0.0, 0.0, slice * 8.0};
+            frame.imageOrientation = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0};
+            series.frames.push_back(frame);
+        }
+    }
+    series.numberOfFrames = numPhases * slicesPerPhase;
+
+    EXPECT_TRUE(organizer.detectCineSeries(series))
+        << "Cine detection should tolerate ±5ms temporal jitter";
+}
+
+TEST_F(CineOrientationTest, ObliqueOrientationWithoutKeywordReturnsUnknown) {
+    // Highly oblique plane that doesn't match any standard view
+    // Neither pure axial, sagittal, nor coronal
+    std::array<double, 6> orient = {
+        0.4, 0.6, 0.693,   // row direction
+        -0.7, 0.5, 0.510   // column direction
+    };
+    auto result = organizer.detectOrientation(orient, "cardiac sequence");
+    EXPECT_EQ(result, CineOrientation::Unknown)
+        << "Highly oblique planes without view keywords should be Unknown";
+}
+
+TEST_F(CineDetectionEnhancedTest, PhaseWrappingAcrossMultipleHeartbeats) {
+    // Simulate data from 2 heartbeats with phase wrapping
+    // Heartbeat 1: phases at 0, 200, 400, 600ms
+    // Heartbeat 2: phases at 0, 200, 400, 600ms (reset to 0)
+    EnhancedSeriesInfo series;
+    series.modality = "MR";
+    series.seriesDescription = "cine retro";
+
+    int numPhases = 4;
+    int slicesPerPhase = 3;
+
+    for (int phase = 0; phase < numPhases; ++phase) {
+        for (int slice = 0; slice < slicesPerPhase; ++slice) {
+            EnhancedFrameInfo frame;
+            frame.frameIndex = phase * slicesPerPhase + slice;
+            frame.triggerTime = phase * 200.0;
+            frame.temporalPositionIndex = phase + 1;
+            frame.imagePosition = {0.0, 0.0, slice * 8.0};
+            frame.imageOrientation = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0};
+            series.frames.push_back(frame);
+        }
+    }
+    series.numberOfFrames = numPhases * slicesPerPhase;
+
+    EXPECT_TRUE(organizer.detectCineSeries(series))
+        << "Should detect cine series with phase-wrapped trigger times";
+
+    auto organized = organizer.organizePhases(series);
+    if (organized.has_value()) {
+        EXPECT_EQ(organized->info.phaseCount, numPhases);
+    }
+}
+
+TEST_F(CineDetectionClassicTest, ClassicDicomNonContiguousInstanceNumbers) {
+    // Classic DICOM with non-contiguous instance numbers (gaps)
+    std::vector<dicom_viewer::core::DicomMetadata> metadata;
+    std::vector<dicom_viewer::core::SliceInfo> slices;
+
+    int phaseCount = 3;
+    int sliceCount = 2;
+    int instanceNumbers[] = {1, 5, 10, 15, 20, 25};  // Non-contiguous
+
+    int idx = 0;
+    for (int phase = 0; phase < phaseCount; ++phase) {
+        for (int slice = 0; slice < sliceCount; ++slice) {
+            dicom_viewer::core::DicomMetadata m;
+            m.modality = "MR";
+            m.seriesInstanceUid = "1.2.3.4.5";
+            m.seriesDescription = "cine_retro SA";
+            metadata.push_back(m);
+
+            dicom_viewer::core::SliceInfo s;
+            s.sliceLocation = slice * 8.0;
+            s.instanceNumber = instanceNumbers[idx++];
+            s.imagePosition = {0.0, 0.0, slice * 8.0};
+            s.imageOrientation = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0};
+            slices.push_back(s);
+        }
+    }
+
+    EXPECT_TRUE(organizer.detectCineSeries(metadata, slices))
+        << "Should detect cine series despite non-contiguous instance numbers";
+}

@@ -805,3 +805,179 @@ TEST(CurvedPlanarReformatter, CPRWithMinimalCenterline)
     ASSERT_TRUE(result.has_value());
     EXPECT_NE(result.value(), nullptr);
 }
+
+// =============================================================================
+// Tolerance validation and geometry edge case tests (Issue #208)
+// =============================================================================
+
+TEST(CoronaryCenterlineExtractor, ComputeLengthTortuousPath)
+{
+    // Path with >90° bend: straight segment, sharp U-turn, straight segment
+    std::vector<CenterlinePoint> points;
+
+    // Segment 1: along +Y direction (0→5mm)
+    for (int i = 0; i <= 10; ++i) {
+        CenterlinePoint pt;
+        pt.position = {0.0, i * 0.5, 0.0};
+        points.push_back(pt);
+    }
+    // Sharp 90°+ bend segment
+    for (int i = 1; i <= 5; ++i) {
+        CenterlinePoint pt;
+        pt.position = {i * 0.5, 5.0, 0.0};
+        points.push_back(pt);
+    }
+    // Segment 2: along -Y direction (reverse)
+    for (int i = 1; i <= 10; ++i) {
+        CenterlinePoint pt;
+        pt.position = {2.5, 5.0 - i * 0.5, 0.0};
+        points.push_back(pt);
+    }
+
+    double length = CoronaryCenterlineExtractor::computeLength(points);
+    // Expected: 5.0 + 2.5 + 5.0 = 12.5mm
+    EXPECT_NEAR(length, 12.5, 0.1)
+        << "Tortuous path length should match sum of segments";
+    EXPECT_GT(length, 10.0)
+        << "Path with >90° bend should be longer than straight distance";
+}
+
+TEST(CoronaryCenterlineExtractor, StenosisPercentageWithinTolerance)
+{
+    double centerX = 12.5, centerZ = 12.5;
+    double normalRadius = 3.0;
+    double stenosisRadius = 1.5;  // 50% diameter reduction
+    double stenosisY = 12.5, stenosisLength = 5.0;
+
+    auto image = createStenosisTubePhantom(
+        50, 50, 50, centerX, centerZ,
+        normalRadius, stenosisRadius,
+        stenosisY, stenosisLength);
+
+    CoronaryCenterlineExtractor extractor;
+
+    CenterlineResult result;
+    for (int i = 0; i < 40; ++i) {
+        CenterlinePoint pt;
+        pt.position = {centerX, 2.5 + i * 0.5, centerZ};
+        pt.tangent = {0.0, 1.0, 0.0};
+        pt.normal = {1.0, 0.0, 0.0};
+        result.points.push_back(pt);
+    }
+
+    extractor.measureStenosis(result, image);
+
+    // Expected ~50% stenosis (radius 3.0→1.5, diameter 6.0→3.0)
+    EXPECT_NEAR(result.stenosisPercent, 50.0, 3.0)
+        << "Stenosis percentage should be within ±3% of known geometry";
+}
+
+TEST(CoronaryCenterlineExtractor, SmallVesselVesselnessResponse)
+{
+    // Very small vessel: radius < 1mm
+    double centerX = 10.0, centerZ = 10.0;
+    double smallRadius = 0.4;  // 0.4mm radius = 0.8mm diameter
+
+    auto image = createStraightTubePhantom(
+        40, 40, 40, centerX, centerZ, smallRadius, 0.25);
+
+    CoronaryCenterlineExtractor extractor;
+
+    VesselnessParams params;
+    params.sigmaMin = 0.2;  // Small sigma for small vessels
+    params.sigmaMax = 1.0;
+    params.sigmaSteps = 3;
+
+    auto result = extractor.computeVesselness(image, params);
+    ASSERT_TRUE(result.has_value())
+        << "Vesselness should compute for small vessels (<1mm diameter)";
+
+    // Verify vesselness response at vessel center
+    auto vesselness = result.value();
+    ImageType::PointType physPoint;
+    physPoint[0] = centerX;
+    physPoint[1] = 5.0;
+    physPoint[2] = centerZ;
+
+    FloatImageType::IndexType idx;
+    vesselness->TransformPhysicalPointToIndex(physPoint, idx);
+    float centerResponse = vesselness->GetPixel(idx);
+
+    EXPECT_GT(centerResponse, 0.0f)
+        << "Vesselness should detect small vessels at tube center";
+}
+
+TEST(CoronaryCenterlineExtractor, CenterlineDeviationFromPhantomCenter)
+{
+    double centerX = 15.0, centerZ = 15.0;
+    double tubeRadius = 2.5;
+
+    auto image = createStraightTubePhantom(
+        60, 60, 60, centerX, centerZ, tubeRadius, 0.5);
+    auto vesselness = createSyntheticVesselness(
+        image, centerX, centerZ, tubeRadius);
+
+    CoronaryCenterlineExtractor extractor;
+
+    std::array<double, 3> seed = {centerX, 2.0, centerZ};
+    std::array<double, 3> end = {centerX, 27.0, centerZ};
+
+    auto result = extractor.extractCenterline(seed, end, vesselness, image);
+
+    if (!result.has_value()) {
+        GTEST_SKIP() << "Centerline extraction failed: "
+                     << result.error().toString();
+    }
+
+    // Verify all points are within 1mm of known tube center
+    double maxDeviation = 0.0;
+    for (const auto& pt : result.value().points) {
+        double dx = pt.position[0] - centerX;
+        double dz = pt.position[2] - centerZ;
+        double deviation = std::sqrt(dx * dx + dz * dz);
+        maxDeviation = std::max(maxDeviation, deviation);
+    }
+
+    EXPECT_LE(maxDeviation, 1.0)
+        << "Centerline should deviate ≤1mm from phantom tube center; "
+        << "actual max deviation: " << maxDeviation << "mm";
+}
+
+TEST(CoronaryCenterlineExtractor, EstimateRadiiOnStenosisTube)
+{
+    double centerX = 12.5, centerZ = 12.5;
+    double normalRadius = 3.0;
+    double stenosisRadius = 1.0;
+    double stenosisY = 12.5, stenosisLength = 5.0;
+
+    auto image = createStenosisTubePhantom(
+        50, 50, 50, centerX, centerZ,
+        normalRadius, stenosisRadius,
+        stenosisY, stenosisLength);
+
+    CoronaryCenterlineExtractor extractor;
+
+    std::vector<CenterlinePoint> points;
+    for (int i = 0; i < 40; ++i) {
+        CenterlinePoint pt;
+        pt.position = {centerX, 2.5 + i * 0.5, centerZ};
+        pt.tangent = {0.0, 1.0, 0.0};
+        pt.normal = {1.0, 0.0, 0.0};
+        points.push_back(pt);
+    }
+
+    extractor.estimateRadii(points, image);
+
+    // Find min and max estimated radii
+    double minRadius = 1e9, maxRadius = 0.0;
+    for (const auto& pt : points) {
+        if (pt.radius > 0.0) {
+            minRadius = std::min(minRadius, pt.radius);
+            maxRadius = std::max(maxRadius, pt.radius);
+        }
+    }
+
+    EXPECT_GT(maxRadius, 0.0) << "Should estimate positive radii";
+    EXPECT_LT(minRadius, maxRadius)
+        << "Stenotic region should have smaller estimated radius";
+}

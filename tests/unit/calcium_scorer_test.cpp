@@ -523,3 +523,107 @@ TEST(CalciumScorerTest, MixedDensityLesion) {
     // Peak HU for the lesion overall should be 350
     EXPECT_NEAR(result.value().lesions[0].peakHU, 350.0, 1.0);
 }
+
+// =============================================================================
+// Tolerance validation and artifact handling tests (Issue #208)
+// =============================================================================
+
+TEST(CalciumScorerTest, ThresholdBoundaryExactly130HU) {
+    CalciumScorer scorer;
+    // 1mm isotropic spacing, slice thickness = 1mm
+    auto image = createTestImage(20, 20, 5, 1.0, 1.0, 1.0);
+
+    // 4x4 block at exactly 130 HU (the Agatston threshold)
+    setBlock(image, 8, 8, 2, 11, 11, 2, 130);
+
+    auto result = scorer.computeAgatston(image, 1.0);
+    ASSERT_TRUE(result.has_value());
+
+    // Voxels at exactly 130 HU should be included (threshold is ≥130)
+    EXPECT_TRUE(result.value().hasCalcium())
+        << "Voxels at exactly 130 HU should be counted as calcium";
+    EXPECT_EQ(result.value().lesionCount, 1);
+    EXPECT_EQ(result.value().lesions[0].weightFactor, 1);
+}
+
+TEST(CalciumScorerTest, ThresholdBoundaryBelow130HU) {
+    CalciumScorer scorer;
+    auto image = createTestImage(20, 20, 5, 1.0, 1.0, 1.0);
+
+    // 4x4 block at 129 HU (just below threshold)
+    setBlock(image, 8, 8, 2, 11, 11, 2, 129);
+
+    auto result = scorer.computeAgatston(image, 1.0);
+    ASSERT_TRUE(result.has_value());
+
+    // 129 HU should NOT be counted as calcium
+    EXPECT_FALSE(result.value().hasCalcium())
+        << "Voxels at 129 HU should not be counted as calcium";
+    EXPECT_DOUBLE_EQ(result.value().totalAgatston, 0.0);
+}
+
+TEST(CalciumScorerTest, SubMinimumAreaLesionFiltered) {
+    CalciumScorer scorer;
+    // Large pixels: 2.0mm spacing → single voxel area = 4.0mm²
+    // Small pixels: 0.3mm spacing → single voxel area = 0.09mm² (<1mm²)
+    auto image = createTestImage(20, 20, 5, 0.3, 0.3, 3.0);
+
+    // Single voxel at 200 HU — area = 0.3 × 0.3 = 0.09 mm² < 1mm²
+    setBlock(image, 10, 10, 2, 10, 10, 2, 200);
+
+    auto result = scorer.computeAgatston(image, 3.0);
+    ASSERT_TRUE(result.has_value());
+
+    // Sub-minimum area lesion should be filtered out
+    EXPECT_EQ(result.value().lesionCount, 0)
+        << "Lesion with area < 1mm² should be filtered";
+    EXPECT_DOUBLE_EQ(result.value().totalAgatston, 0.0);
+}
+
+TEST(CalciumScorerTest, AgatstonScoreWithinToleranceForKnownPhantom) {
+    CalciumScorer scorer;
+    // 0.5mm in-plane, 3mm slice thickness — standard cardiac CT protocol
+    auto image = createTestImage(40, 40, 5, 0.5, 0.5, 3.0);
+
+    // Known lesion: 6×6 pixels at 200 HU on slice 2
+    // Area = 6 × 0.5 × 6 × 0.5 = 9.0 mm²
+    // Peak HU = 200 → weight factor = 2
+    // Expected Agatston per slice = area × weight = 9.0 × 2 = 18.0
+    setBlock(image, 10, 10, 2, 15, 15, 2, 200);
+
+    auto result = scorer.computeAgatston(image, 3.0);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result.value().hasCalcium());
+
+    // Verify within ±5% tolerance of expected score
+    double expectedScore = 18.0;
+    EXPECT_NEAR(result.value().totalAgatston, expectedScore,
+                expectedScore * 0.05)
+        << "Agatston score should be within 5% of phantom ground truth";
+}
+
+TEST(CalciumScorerTest, VolumeMassScoreConsistency) {
+    CalciumScorer scorer;
+    auto image = createTestImage(40, 40, 5, 0.5, 0.5, 3.0);
+
+    // 8×8 block at 300 HU on slices 1-3
+    setBlock(image, 10, 10, 1, 17, 17, 3, 300);
+
+    auto agatston = scorer.computeAgatston(image, 3.0);
+    ASSERT_TRUE(agatston.has_value());
+
+    auto volume = scorer.computeVolumeScore(image);
+    ASSERT_TRUE(volume.has_value());
+    EXPECT_GT(volume.value(), 0.0);
+
+    double calibrationFactor = 1.0;
+    auto mass = scorer.computeMassScore(image, calibrationFactor);
+    ASSERT_TRUE(mass.has_value());
+    EXPECT_GT(mass.value(), 0.0);
+
+    // Mass should be proportional to volume
+    // mass ≈ volume × mean_density × calibration
+    // Both should be positive and mass should not exceed volume × max_HU
+    EXPECT_LE(mass.value(), volume.value() * 400.0 * calibrationFactor)
+        << "Mass score should be bounded by volume × max density";
+}
