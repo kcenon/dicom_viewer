@@ -1241,3 +1241,32 @@ target_include_directories(performance_benchmark_test PRIVATE
 )
 
 gtest_discover_tests(performance_benchmark_test DISCOVERY_TIMEOUT 120)
+
+# Rendering and VTK-dependent benchmark tests
+add_executable(rendering_benchmark_test
+    unit/rendering_benchmark_test.cpp
+)
+
+target_link_directories(rendering_benchmark_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(rendering_benchmark_test PRIVATE
+    dicom_viewer_core
+    render_service
+    flow_service
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(rendering_benchmark_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS rendering_benchmark_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(rendering_benchmark_test DISCOVERY_TIMEOUT 120)
