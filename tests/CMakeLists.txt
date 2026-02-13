@@ -1270,3 +1270,27 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(rendering_benchmark_test DISCOVERY_TIMEOUT 120)
+
+# Concurrency and thread-safety tests
+add_executable(concurrency_test
+    unit/concurrency_test.cpp
+)
+
+target_link_directories(concurrency_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(concurrency_test PRIVATE
+    segmentation_service
+    preprocessing_service
+    flow_service
+    pacs_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(concurrency_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(concurrency_test DISCOVERY_TIMEOUT 120)
