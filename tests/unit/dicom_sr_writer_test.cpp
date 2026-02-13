@@ -533,6 +533,96 @@ TEST_F(DicomSRWriterTest, ValidationResultMethods) {
     EXPECT_TRUE(result.hasWarnings());
 }
 
+// =============================================================================
+// Output validation and format verification tests (Issue #207)
+// =============================================================================
+
+TEST_F(DicomSRWriterTest, DicomFileHasValidPreamble) {
+    DicomSRWriter writer;
+
+    SRContent content = sampleContent_;
+    addSampleDistances(content);
+
+    auto outputPath = testDir_ / "preamble_check.dcm";
+    auto result = writer.saveToFile(content, outputPath);
+
+    if (!result.has_value()) {
+        GTEST_SKIP() << "SR file creation not available: "
+                     << result.error().toString();
+    }
+
+    // DICOM file format: 128 bytes preamble + "DICM" magic at offset 128
+    std::ifstream file(outputPath, std::ios::binary);
+    ASSERT_TRUE(file.is_open());
+
+    // Skip 128-byte preamble
+    file.seekg(128);
+    char magic[4] = {};
+    file.read(magic, 4);
+    ASSERT_EQ(file.gcount(), 4);
+
+    EXPECT_EQ(std::string(magic, 4), "DICM")
+        << "DICOM file must have 'DICM' magic at offset 128";
+}
+
+TEST_F(DicomSRWriterTest, SRCreationResultMeasurementCountMatchesInput) {
+    DicomSRWriter writer;
+
+    SRContent content = sampleContent_;
+    addSampleDistances(content);   // +2
+    addSampleAngles(content);      // +1
+    addSampleAreas(content);       // +1
+    addSampleVolumes(content);     // +2
+    addSampleROIStatistics(content); // +1
+    // Total: 7 measurements
+
+    auto result = writer.createSR(content);
+
+    if (!result.has_value()) {
+        GTEST_SKIP() << "SR creation not available: "
+                     << result.error().toString();
+    }
+
+    EXPECT_EQ(result->measurementCount, 7u)
+        << "Measurement count should match: 2 distances + 1 angle + "
+           "1 area + 2 volumes + 1 ROI stat = 7";
+}
+
+TEST_F(DicomSRWriterTest, SavedFileUidFieldsAreWellFormed) {
+    DicomSRWriter writer;
+
+    SRContent content = sampleContent_;
+    addSampleDistances(content);
+
+    auto outputPath = testDir_ / "uid_check.dcm";
+    auto result = writer.saveToFile(content, outputPath);
+
+    if (!result.has_value()) {
+        GTEST_SKIP() << "SR file creation not available: "
+                     << result.error().toString();
+    }
+
+    // Verify UIDs follow DICOM format: digits and dots, max 64 chars
+    auto isValidDicomUid = [](const std::string& uid) {
+        if (uid.empty() || uid.size() > 64) return false;
+        for (char c : uid) {
+            if (c != '.' && (c < '0' || c > '9')) return false;
+        }
+        // Must not start or end with dot
+        if (uid.front() == '.' || uid.back() == '.') return false;
+        return true;
+    };
+
+    EXPECT_TRUE(isValidDicomUid(result->sopInstanceUid))
+        << "SOP Instance UID is not well-formed: " << result->sopInstanceUid;
+    EXPECT_TRUE(isValidDicomUid(result->seriesInstanceUid))
+        << "Series Instance UID is not well-formed: " << result->seriesInstanceUid;
+
+    // UIDs should be unique
+    EXPECT_NE(result->sopInstanceUid, result->seriesInstanceUid)
+        << "SOP Instance UID and Series Instance UID must be different";
+}
+
 }  // namespace
 }  // namespace dicom_viewer::services
 

@@ -696,6 +696,78 @@ TEST_F(ReportGeneratorTest, GenerateHtmlMultipleVolumes) {
     }
 }
 
+// =============================================================================
+// Output content validation tests (Issue #207)
+// =============================================================================
+
+TEST_F(ReportGeneratorTest, HtmlOutputContainsSectionHeaders) {
+    ReportGenerator generator;
+    ReportOptions options;
+    auto result = generator.generateHTML(testData_, options);
+    ASSERT_TRUE(result.has_value());
+
+    QString html = *result;
+    EXPECT_TRUE(html.contains("<table"))
+        << "HTML should contain table elements for measurements";
+    EXPECT_TRUE(html.contains("Patient"))
+        << "HTML should contain Patient section";
+    EXPECT_TRUE(html.contains("Measurement") || html.contains("Distance"))
+        << "HTML should contain measurement section header";
+}
+
+TEST_F(ReportGeneratorTest, HtmlMeasurementValuesMatchInput) {
+    ReportGenerator generator;
+    ReportOptions options;
+    auto result = generator.generateHTML(testData_, options);
+    ASSERT_TRUE(result.has_value());
+
+    QString html = *result;
+    // Verify specific measurement values from testData_ appear in HTML
+    EXPECT_TRUE(html.contains("45.67"))
+        << "Distance value 45.67 mm should appear in HTML";
+    EXPECT_TRUE(html.contains("90.5"))
+        << "Angle value 90.5 degrees should appear in HTML";
+    EXPECT_TRUE(html.contains("5.0") || html.contains("5000"))
+        << "Volume result should appear in HTML";
+}
+
+TEST_F(ReportGeneratorTest, HtmlEntityEscapingForAmpersand) {
+    ReportData data = testData_;
+    data.patientInfo.name = "Smith & Jones";
+    data.patientInfo.studyDate = "20260101";
+
+    ReportGenerator generator;
+    auto result = generator.generateHTML(data, ReportOptions{});
+    ASSERT_TRUE(result.has_value());
+
+    QString html = *result;
+    // Ampersand in patient name should be escaped as &amp; in HTML
+    EXPECT_TRUE(html.contains("&amp;"))
+        << "Ampersand should be HTML-escaped as &amp;";
+    EXPECT_FALSE(html.contains("Smith & Jones"))
+        << "Raw ampersand should not appear unescaped in HTML text";
+}
+
+TEST_F(ReportGeneratorTest, PdfFileHasValidHeader) {
+    ReportGenerator generator;
+    ReportOptions options;
+    auto result = generator.generatePDF(testData_, testPdfPath_, options);
+
+    if (!result.has_value()) {
+        GTEST_SKIP() << "PDF generation not available: "
+                     << result.error().toString();
+    }
+
+    // Read first bytes of PDF file
+    std::ifstream file(testPdfPath_, std::ios::binary);
+    ASSERT_TRUE(file.is_open());
+
+    char header[5] = {};
+    file.read(header, 5);
+    EXPECT_EQ(std::string(header, 5), "%PDF-")
+        << "PDF file should start with %PDF- magic number";
+}
+
 }  // namespace
 }  // namespace dicom_viewer::services
 
