@@ -677,6 +677,147 @@ TEST_F(MeshExporterTest, BinarySTL_SmallerThanASCII) {
     EXPECT_LT(binarySize, asciiSize);
 }
 
+// =============================================================================
+// Output validation and format verification tests (Issue #207)
+// =============================================================================
+
+TEST_F(MeshExporterTest, StlBinaryHeaderFormatValid) {
+    MeshExporter exporter;
+    auto outputPath = testDir_ / "header_check.stl";
+
+    MeshExportOptions options;
+    options.stlFormat = STLFormat::Binary;
+    options.smooth = false;
+    options.decimate = false;
+
+    auto result = exporter.exportPolyData(
+        polyData_, outputPath, MeshFormat::STL, options);
+    ASSERT_TRUE(result.has_value());
+
+    // STL binary format: 80-byte header + 4-byte triangle count (uint32_t LE)
+    std::ifstream file(outputPath, std::ios::binary);
+    ASSERT_TRUE(file.is_open());
+
+    // Read and verify 80-byte header exists
+    char header[80] = {};
+    file.read(header, 80);
+    ASSERT_EQ(file.gcount(), 80);
+
+    // Read 4-byte triangle count
+    uint32_t triangleCount = 0;
+    file.read(reinterpret_cast<char*>(&triangleCount), sizeof(uint32_t));
+    ASSERT_EQ(file.gcount(), 4);
+
+    EXPECT_GT(triangleCount, 0u) << "STL file should contain triangles";
+}
+
+TEST_F(MeshExporterTest, StlTriangleCountMatchesResult) {
+    MeshExporter exporter;
+    auto outputPath = testDir_ / "tricount_check.stl";
+
+    MeshExportOptions options;
+    options.stlFormat = STLFormat::Binary;
+    options.smooth = false;
+    options.decimate = false;
+
+    auto result = exporter.exportPolyData(
+        polyData_, outputPath, MeshFormat::STL, options);
+    ASSERT_TRUE(result.has_value());
+
+    // Read triangle count from binary STL (at offset 80)
+    std::ifstream file(outputPath, std::ios::binary);
+    ASSERT_TRUE(file.is_open());
+
+    file.seekg(80);  // Skip header
+    uint32_t fileTriangleCount = 0;
+    file.read(reinterpret_cast<char*>(&fileTriangleCount), sizeof(uint32_t));
+
+    // Triangle count in file should match the result struct
+    EXPECT_EQ(static_cast<size_t>(fileTriangleCount), result->triangleCount)
+        << "STL binary triangle count should match MeshExportResult";
+}
+
+TEST_F(MeshExporterTest, PlyContainsVertexAndFaceDeclarations) {
+    MeshExporter exporter;
+    auto outputPath = testDir_ / "format_check.ply";
+
+    MeshExportOptions options;
+    options.smooth = false;
+    options.decimate = false;
+
+    auto result = exporter.exportPolyData(
+        polyData_, outputPath, MeshFormat::PLY, options);
+    ASSERT_TRUE(result.has_value());
+
+    std::string content = readFileContent(outputPath, 4096);
+
+    // PLY header must contain these declarations
+    EXPECT_NE(content.find("ply"), std::string::npos)
+        << "PLY file must start with 'ply' magic";
+    EXPECT_NE(content.find("element vertex"), std::string::npos)
+        << "PLY file must declare vertex elements";
+    EXPECT_NE(content.find("element face"), std::string::npos)
+        << "PLY file must declare face elements";
+    EXPECT_NE(content.find("end_header"), std::string::npos)
+        << "PLY file must have end_header marker";
+}
+
+TEST_F(MeshExporterTest, ObjContainsVertexAndFaceLines) {
+    MeshExporter exporter;
+    auto outputPath = testDir_ / "format_check.obj";
+
+    MeshExportOptions options;
+    options.smooth = false;
+    options.decimate = false;
+
+    auto result = exporter.exportPolyData(
+        polyData_, outputPath, MeshFormat::OBJ, options);
+    ASSERT_TRUE(result.has_value());
+
+    std::string content = readFileContent(outputPath, 8192);
+
+    // OBJ format: 'v' lines for vertices, 'f' lines for faces
+    EXPECT_NE(content.find("\nv "), std::string::npos)
+        << "OBJ file must contain vertex lines (v x y z)";
+    EXPECT_NE(content.find("\nf "), std::string::npos)
+        << "OBJ file must contain face lines (f v1 v2 v3)";
+}
+
+TEST_F(MeshExporterTest, CoordinateSystemAffectsVertexPositions) {
+    MeshExporter exporter;
+    auto rasPath = testDir_ / "ras_coords.obj";
+    auto lpsPath = testDir_ / "lps_coords.obj";
+
+    MeshExportOptions rasOptions;
+    rasOptions.coordSystem = CoordinateSystem::RAS;
+    rasOptions.smooth = false;
+    rasOptions.decimate = false;
+
+    MeshExportOptions lpsOptions;
+    lpsOptions.coordSystem = CoordinateSystem::LPS;
+    lpsOptions.smooth = false;
+    lpsOptions.decimate = false;
+
+    auto rasResult = exporter.exportPolyData(
+        polyData_, rasPath, MeshFormat::OBJ, rasOptions);
+    auto lpsResult = exporter.exportPolyData(
+        polyData_, lpsPath, MeshFormat::OBJ, lpsOptions);
+
+    ASSERT_TRUE(rasResult.has_value());
+    ASSERT_TRUE(lpsResult.has_value());
+
+    // Both should have same triangle count
+    EXPECT_EQ(rasResult->triangleCount, lpsResult->triangleCount);
+
+    // But file contents should differ due to coordinate transformation
+    // RAS and LPS differ in the sign of X and Y axes
+    std::string rasContent = readFileContent(rasPath, 8192);
+    std::string lpsContent = readFileContent(lpsPath, 8192);
+
+    EXPECT_NE(rasContent, lpsContent)
+        << "RAS and LPS coordinate systems should produce different vertex data";
+}
+
 }  // namespace
 }  // namespace dicom_viewer::services
 

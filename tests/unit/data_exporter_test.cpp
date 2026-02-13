@@ -4,8 +4,10 @@
 #include <QApplication>
 #include <QFile>
 #include <QTextStream>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 
 namespace dicom_viewer::services {
 namespace {
@@ -695,6 +697,117 @@ TEST_F(DataExporterTest, ExportLargeDataset) {
     // Verify file size is reasonable
     auto fileSize = std::filesystem::file_size(outputPath);
     EXPECT_GT(fileSize, 50000);  // At least 50KB for 1000 entries
+}
+
+// =============================================================================
+// Output validation and format verification tests (Issue #207)
+// =============================================================================
+
+TEST_F(DataExporterTest, CsvRoundTripValuesMatch) {
+    DataExporter exporter;
+    auto outputPath = testDir_ / "distances_roundtrip.csv";
+
+    auto result = exporter.exportDistancesToCSV(
+        distanceMeasurements_, outputPath);
+    ASSERT_TRUE(result.has_value());
+
+    std::string content = readFile(outputPath);
+
+    // Verify exact measurement values survive round-trip
+    EXPECT_NE(content.find("55.9"), std::string::npos);
+    EXPECT_NE(content.find("70.71"), std::string::npos);
+
+    // Verify point coordinates are present
+    EXPECT_NE(content.find("100"), std::string::npos);   // dm1.point1.x
+    EXPECT_NE(content.find("150"), std::string::npos);   // dm1.point2.x
+
+    // Verify labels are intact
+    EXPECT_NE(content.find("D1"), std::string::npos);
+}
+
+TEST_F(DataExporterTest, CsvColumnCountMatchesHeader) {
+    DataExporter exporter;
+    auto outputPath = testDir_ / "distances_colcount.csv";
+
+    ExportOptions options;
+    options.includeMetadata = false;
+
+    auto result = exporter.exportDistancesToCSV(
+        distanceMeasurements_, outputPath, options);
+    ASSERT_TRUE(result.has_value());
+
+    std::string content = readFile(outputPath);
+    std::istringstream stream(content);
+    std::string line;
+
+    // Count columns in header row (number of commas + 1)
+    ASSERT_TRUE(std::getline(stream, line));
+    size_t headerCommas = std::count(line.begin(), line.end(), ',');
+    EXPECT_GT(headerCommas, 0u);
+
+    // Verify each data row has the same number of columns
+    while (std::getline(stream, line)) {
+        if (line.empty()) continue;
+        // Skip BOM or metadata lines
+        if (line[0] == '#' || line[0] == '\xEF') continue;
+        size_t dataCommas = std::count(line.begin(), line.end(), ',');
+        EXPECT_EQ(dataCommas, headerCommas)
+            << "Column mismatch in data row: " << line;
+    }
+}
+
+TEST_F(DataExporterTest, ExcelOutputContainsXmlDeclaration) {
+    DataExporter exporter;
+    auto outputPath = testDir_ / "report_xml_decl.xml";
+
+    ReportData data;
+    data.patientInfo = patientInfo_;
+    data.distanceMeasurements = distanceMeasurements_;
+
+    auto result = exporter.exportToExcel(data, outputPath);
+    ASSERT_TRUE(result.has_value());
+
+    // Read first bytes of file to verify XML declaration
+    std::ifstream file(outputPath);
+    ASSERT_TRUE(file.is_open());
+
+    std::string firstLine;
+    std::getline(file, firstLine);
+
+    // XML declaration must start with <?xml
+    // Account for possible UTF-8 BOM prefix
+    auto xmlPos = firstLine.find("<?xml");
+    EXPECT_NE(xmlPos, std::string::npos)
+        << "Excel XML file must start with <?xml declaration";
+
+    // Verify it contains version attribute
+    std::string content = readFile(outputPath);
+    EXPECT_NE(content.find("version="), std::string::npos);
+    EXPECT_NE(content.find("</Workbook>"), std::string::npos);
+}
+
+TEST_F(DataExporterTest, CsvContainsUtf8BOM) {
+    DataExporter exporter;
+    auto outputPath = testDir_ / "distances_bom.csv";
+
+    ExportOptions options;
+    options.includeUtf8Bom = true;
+
+    auto result = exporter.exportDistancesToCSV(
+        distanceMeasurements_, outputPath, options);
+    ASSERT_TRUE(result.has_value());
+
+    // Read raw bytes to check for UTF-8 BOM (0xEF 0xBB 0xBF)
+    std::ifstream file(outputPath, std::ios::binary);
+    ASSERT_TRUE(file.is_open());
+
+    char bom[3] = {};
+    file.read(bom, 3);
+    ASSERT_EQ(file.gcount(), 3);
+
+    EXPECT_EQ(static_cast<unsigned char>(bom[0]), 0xEF);
+    EXPECT_EQ(static_cast<unsigned char>(bom[1]), 0xBB);
+    EXPECT_EQ(static_cast<unsigned char>(bom[2]), 0xBF);
 }
 
 }  // namespace

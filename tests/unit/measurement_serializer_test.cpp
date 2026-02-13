@@ -665,6 +665,94 @@ TEST_F(MeasurementSerializerTest, RoundtripLargeSession) {
     EXPECT_EQ(loaded.distances.size(), 500);
 }
 
+// =============================================================================
+// Output validation and format verification tests (Issue #207)
+// =============================================================================
+
+TEST_F(MeasurementSerializerTest, SavedJsonContainsAllMeasurementTypes) {
+    MeasurementSerializer serializer;
+    auto filePath = testDir_ / "all_types.dvmeas";
+
+    auto saveResult = serializer.save(session_, filePath);
+    ASSERT_TRUE(saveResult.has_value());
+
+    // Read raw file content and verify JSON contains all measurement type keys
+    std::ifstream file(filePath);
+    ASSERT_TRUE(file.is_open());
+
+    std::string content((std::istreambuf_iterator<char>(file)),
+                         std::istreambuf_iterator<char>());
+
+    EXPECT_NE(content.find("distances"), std::string::npos)
+        << "JSON should contain distances array";
+    EXPECT_NE(content.find("angles"), std::string::npos)
+        << "JSON should contain angles array";
+    EXPECT_NE(content.find("areas"), std::string::npos)
+        << "JSON should contain areas array";
+}
+
+TEST_F(MeasurementSerializerTest, JsonSchemaHasRequiredFields) {
+    MeasurementSerializer serializer;
+    auto filePath = testDir_ / "schema_check.dvmeas";
+
+    auto saveResult = serializer.save(session_, filePath);
+    ASSERT_TRUE(saveResult.has_value());
+
+    // Read file and verify required schema fields
+    std::ifstream file(filePath);
+    ASSERT_TRUE(file.is_open());
+
+    std::string content((std::istreambuf_iterator<char>(file)),
+                         std::istreambuf_iterator<char>());
+
+    // Version field
+    EXPECT_NE(content.find("version"), std::string::npos)
+        << "JSON should contain version field";
+
+    // Study UID
+    EXPECT_NE(content.find("1.2.840.113619.2.1.1.1"), std::string::npos)
+        << "JSON should contain studyInstanceUID value";
+
+    // Patient data
+    EXPECT_NE(content.find("Test Patient"), std::string::npos)
+        << "JSON should contain patient name";
+    EXPECT_NE(content.find("12345"), std::string::npos)
+        << "JSON should contain patient ID";
+}
+
+TEST_F(MeasurementSerializerTest, FileSizeScalesWithMeasurementCount) {
+    MeasurementSerializer serializer;
+    auto smallPath = testDir_ / "small.dvmeas";
+    auto largePath = testDir_ / "large.dvmeas";
+
+    // Save session with 2 distances (from fixture)
+    auto smallResult = serializer.save(session_, smallPath);
+    ASSERT_TRUE(smallResult.has_value());
+
+    // Create larger session with 50 distances
+    SessionData largeSession = session_;
+    for (int i = 10; i < 60; ++i) {
+        DistanceMeasurement dm;
+        dm.id = i;
+        dm.label = "D" + std::to_string(i);
+        dm.point1 = {static_cast<double>(i), static_cast<double>(i), 0.0};
+        dm.point2 = {static_cast<double>(i + 10), static_cast<double>(i + 10), 0.0};
+        dm.distanceMm = 14.14 * (i + 1);
+        dm.sliceIndex = i;
+        largeSession.distances.push_back(dm);
+    }
+
+    auto largeResult = serializer.save(largeSession, largePath);
+    ASSERT_TRUE(largeResult.has_value());
+
+    auto smallSize = std::filesystem::file_size(smallPath);
+    auto largeSize = std::filesystem::file_size(largePath);
+
+    EXPECT_GT(smallSize, 0u);
+    EXPECT_GT(largeSize, smallSize)
+        << "File with more measurements should be larger";
+}
+
 }  // namespace
 
 // =============================================================================
