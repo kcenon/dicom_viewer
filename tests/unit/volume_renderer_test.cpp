@@ -205,3 +205,68 @@ TEST_F(VolumeRendererTest, ApplyPresetEmptyPoints) {
     };
     EXPECT_NO_THROW(renderer->applyPreset(preset));
 }
+
+// =============================================================================
+// Error recovery and boundary tests (Issue #205)
+// =============================================================================
+
+TEST_F(VolumeRendererTest, ZeroSizeVolumeHandledGracefully) {
+    auto zeroVolume = vtkSmartPointer<vtkImageData>::New();
+    zeroVolume->SetDimensions(0, 0, 0);
+    zeroVolume->AllocateScalars(VTK_SHORT, 1);
+
+    EXPECT_NO_THROW(renderer->setInputData(zeroVolume));
+    EXPECT_NO_THROW(renderer->update());
+}
+
+TEST_F(VolumeRendererTest, LargeVolume512CubedDoesNotCrash) {
+    auto largeVolume = createTestVolume(512);
+
+    EXPECT_NO_THROW(renderer->setInputData(largeVolume));
+    EXPECT_NO_THROW(renderer->update());
+}
+
+TEST_F(VolumeRendererTest, ExtremeWindowLevelValues) {
+    auto volume = createTestVolume();
+    renderer->setInputData(volume);
+
+    // Minimal window width (1) — should not crash
+    EXPECT_NO_THROW(renderer->setWindowLevel(1.0, 0.0));
+    EXPECT_NO_THROW(renderer->update());
+
+    // Zero window width — edge case
+    EXPECT_NO_THROW(renderer->setWindowLevel(0.0, 0.0));
+    EXPECT_NO_THROW(renderer->update());
+
+    // Very large values
+    EXPECT_NO_THROW(renderer->setWindowLevel(100000.0, -50000.0));
+    EXPECT_NO_THROW(renderer->update());
+}
+
+TEST_F(VolumeRendererTest, NullTransferFunctionHandled) {
+    auto volume = createTestVolume();
+    renderer->setInputData(volume);
+
+    // Apply preset with null/empty gradient opacity
+    TransferFunctionPreset preset{
+        .name = "NullGradient",
+        .windowWidth = 400,
+        .windowCenter = 40,
+        .colorPoints = {{0, 0, 0, 0}, {400, 1, 1, 1}},
+        .opacityPoints = {{0, 0}, {400, 1}},
+        .gradientOpacityPoints = {}
+    };
+    EXPECT_NO_THROW(renderer->applyPreset(preset));
+    EXPECT_NO_THROW(renderer->update());
+
+    // Apply preset with single point (degenerate)
+    TransferFunctionPreset singlePoint{
+        .name = "SinglePoint",
+        .windowWidth = 1,
+        .windowCenter = 0,
+        .colorPoints = {{0, 0.5, 0.5, 0.5}},
+        .opacityPoints = {{0, 0.5}}
+    };
+    EXPECT_NO_THROW(renderer->applyPreset(singlePoint));
+    EXPECT_NO_THROW(renderer->update());
+}

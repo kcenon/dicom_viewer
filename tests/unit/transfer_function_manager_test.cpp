@@ -325,3 +325,79 @@ TEST_F(TransferFunctionManagerTest, GetPresetNamesIncludesAll) {
     // Should be sorted
     EXPECT_TRUE(std::is_sorted(names.begin(), names.end()));
 }
+
+// =============================================================================
+// Error recovery and boundary tests (Issue #205)
+// =============================================================================
+
+TEST_F(TransferFunctionManagerTest, PresetWithZeroControlPointsIsValid) {
+    // Creating a preset with no color/opacity points — should not crash
+    auto preset = TransferFunctionManager::createPreset(
+        "EmptyPreset", 400.0, 40.0,
+        {},  // No color points
+        {},  // No opacity points
+        {}   // No gradient opacity points
+    );
+
+    EXPECT_EQ(preset.name, "EmptyPreset");
+    EXPECT_TRUE(preset.colorPoints.empty());
+    EXPECT_TRUE(preset.opacityPoints.empty());
+
+    // Adding it should succeed
+    auto result = manager->addCustomPreset(preset);
+    EXPECT_TRUE(result.has_value());
+
+    // Retrieving should return same empty points
+    auto retrieved = manager->getPreset("EmptyPreset");
+    ASSERT_TRUE(retrieved.has_value());
+    EXPECT_TRUE(retrieved->colorPoints.empty());
+}
+
+TEST_F(TransferFunctionManagerTest, DuplicateControlPointsAtSamePosition) {
+    // Two color points at the same scalar position — degenerate but valid
+    auto preset = TransferFunctionManager::createPreset(
+        "DuplicatePoints", 400.0, 40.0,
+        {{100, 1, 0, 0}, {100, 0, 1, 0}, {200, 0, 0, 1}},
+        {{0, 0.0}, {0, 1.0}, {100, 0.5}},
+        {}
+    );
+
+    auto result = manager->addCustomPreset(preset);
+    EXPECT_TRUE(result.has_value())
+        << "Duplicate control point positions should be accepted";
+
+    auto retrieved = manager->getPreset("DuplicatePoints");
+    ASSERT_TRUE(retrieved.has_value());
+    EXPECT_EQ(retrieved->colorPoints.size(), 3u);
+}
+
+TEST_F(TransferFunctionManagerTest, SaveLoadRoundTripWithSpecialCharacters) {
+    // Preset with special characters in name
+    auto preset = TransferFunctionManager::createPreset(
+        "CT Abdomen (Liver/Spleen) [v2.0]", 500.0, 100.0,
+        {{0, 0, 0, 0}, {500, 1, 1, 1}},
+        {{0, 0}, {500, 1}},
+        {}
+    );
+
+    auto addResult = manager->addCustomPreset(preset);
+    ASSERT_TRUE(addResult.has_value());
+
+    // Save to file
+    auto savePath = testDir / "special_chars.json";
+    auto saveResult = manager->saveCustomPresets(savePath);
+    ASSERT_TRUE(saveResult.has_value());
+
+    // Load into fresh manager
+    TransferFunctionManager newManager;
+    auto loadResult = newManager.loadCustomPresets(savePath);
+    ASSERT_TRUE(loadResult.has_value());
+    EXPECT_EQ(loadResult.value(), 1u);
+
+    // Verify round-trip preserves special characters
+    auto loaded = newManager.getPreset("CT Abdomen (Liver/Spleen) [v2.0]");
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->name, "CT Abdomen (Liver/Spleen) [v2.0]");
+    EXPECT_DOUBLE_EQ(loaded->windowWidth, 500.0);
+    EXPECT_DOUBLE_EQ(loaded->windowCenter, 100.0);
+}

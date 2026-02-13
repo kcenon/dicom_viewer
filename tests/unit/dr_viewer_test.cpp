@@ -151,5 +151,44 @@ TEST(DRPresetTest, PresetStructure) {
     EXPECT_EQ(preset.description, "Test description");
 }
 
+// =============================================================================
+// Error recovery and boundary tests (Issue #205)
+// =============================================================================
+
+TEST(DRPresetsTest, PresetWindowValuesArePositive) {
+    auto presets = getStandardDRPresets();
+    for (const auto& preset : presets) {
+        EXPECT_GT(preset.windowWidth, 0.0)
+            << "Preset '" << preset.name.toStdString()
+            << "' has non-positive window width";
+    }
+}
+
+TEST(DRModalityTest, EmptyModalityIsNotDR) {
+    EXPECT_FALSE(isDRorCRModality(""));
+    EXPECT_FALSE(isDRorCRModality("CT"));
+    EXPECT_FALSE(isDRorCRModality("MR"));
+    EXPECT_FALSE(isDRorCRModality("US"));
+}
+
+TEST(DRViewerOptionsTest, ManualPixelSpacingEdgeCases) {
+    DRViewerOptions options;
+
+    // Default should be negative (auto-detect)
+    EXPECT_LT(options.manualPixelSpacing, 0.0);
+
+    // Very small pixel spacing (high resolution DR)
+    options.manualPixelSpacing = 0.05;
+    EXPECT_DOUBLE_EQ(options.manualPixelSpacing, 0.05);
+
+    // Typical CR spacing
+    options.manualPixelSpacing = 0.2;
+    EXPECT_DOUBLE_EQ(options.manualPixelSpacing, 0.2);
+
+    // Large spacing (low resolution)
+    options.manualPixelSpacing = 1.0;
+    EXPECT_DOUBLE_EQ(options.manualPixelSpacing, 1.0);
+}
+
 } // anonymous namespace
 } // namespace dicom_viewer::ui

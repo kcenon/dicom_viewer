@@ -450,3 +450,59 @@ TEST_F(SurfaceRendererTest, SurfaceWithAllProcessingDisabled) {
 
     EXPECT_NO_THROW(renderer->extractSurfaces());
 }
+
+// =============================================================================
+// Error recovery and boundary tests (Issue #205)
+// =============================================================================
+
+TEST_F(SurfaceRendererTest, EmptyMeshInputDoesNotCrash) {
+    // No input data set — extractSurfaces should handle gracefully
+    EXPECT_NO_THROW(renderer->extractSurfaces());
+    EXPECT_EQ(renderer->getSurfaceCount(), 0u);
+
+    // Set null input then try extraction
+    renderer->setInputData(nullptr);
+    SurfaceConfig config = SurfaceRenderer::getPresetBone();
+    renderer->addSurface(config);
+    EXPECT_NO_THROW(renderer->extractSurfaces());
+}
+
+TEST_F(SurfaceRendererTest, LargeVolumeExtraction) {
+    // 128³ volume — tests memory handling with larger marching cubes mesh
+    auto largeVolume = createTestVolume(128);
+    renderer->setInputData(largeVolume);
+
+    SurfaceConfig config = SurfaceRenderer::getPresetBone();
+    renderer->addSurface(config);
+
+    EXPECT_NO_THROW(renderer->extractSurfaces());
+
+    auto data = renderer->getSurfaceData(0);
+    EXPECT_GT(data.triangleCount, 0u)
+        << "128³ volume with sphere should generate triangles";
+}
+
+TEST_F(SurfaceRendererTest, SurfaceNormalsAfterModification) {
+    auto volume = createTestVolume();
+    renderer->setInputData(volume);
+
+    SurfaceConfig config = SurfaceRenderer::getPresetBone();
+    renderer->addSurface(config);
+    renderer->extractSurfaces();
+
+    auto dataBefore = renderer->getSurfaceData(0);
+    size_t trianglesBefore = dataBefore.triangleCount;
+
+    // Modify surface config (change isovalue) and re-extract
+    config.isovalue = 100.0;  // Different threshold
+    renderer->updateSurface(0, config);
+    renderer->extractSurfaces();
+
+    auto dataAfter = renderer->getSurfaceData(0);
+    // Different isovalue should produce different mesh
+    // (may have different triangle count)
+    EXPECT_GT(dataAfter.triangleCount, 0u);
+    // The mesh was re-extracted, so surface normals are recomputed
+    EXPECT_NE(dataBefore.triangleCount, dataAfter.triangleCount)
+        << "Different isovalue should produce different mesh";
+}
