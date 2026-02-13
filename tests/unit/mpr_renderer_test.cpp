@@ -528,3 +528,89 @@ TEST_F(MPRRendererTest, SlabModePersistsAfterSliceChange) {
     EXPECT_EQ(renderer->getSlabMode(), SlabMode::MIP);
     EXPECT_DOUBLE_EQ(renderer->getSlabThickness(), 12.0);
 }
+
+// =============================================================================
+// Error recovery and boundary tests (Issue #205)
+// =============================================================================
+
+TEST_F(MPRRendererTest, SingleSliceVolumeHandledGracefully) {
+    // Single-slice volume (1 pixel in Z) — common for scout images
+    auto singleSlice = vtkSmartPointer<vtkImageData>::New();
+    singleSlice->SetDimensions(64, 64, 1);
+    singleSlice->SetSpacing(1.0, 1.0, 1.0);
+    singleSlice->SetOrigin(0.0, 0.0, 0.0);
+    singleSlice->AllocateScalars(VTK_SHORT, 1);
+
+    short* ptr = static_cast<short*>(singleSlice->GetScalarPointer());
+    for (int i = 0; i < 64 * 64; ++i) {
+        ptr[i] = static_cast<short>(i % 1000);
+    }
+
+    EXPECT_NO_THROW(renderer->setInputData(singleSlice));
+
+    // Axial plane should still work
+    auto range = renderer->getSliceRange(MPRPlane::Axial);
+    EXPECT_LE(range.first, range.second);
+
+    // Scrolling should not crash
+    EXPECT_NO_THROW(renderer->scrollSlice(MPRPlane::Axial, 100));
+    EXPECT_NO_THROW(renderer->update());
+}
+
+TEST_F(MPRRendererTest, WindowLevelAtDataTypeBoundaries) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    // INT16 boundaries
+    EXPECT_NO_THROW(renderer->setWindowLevel(65535.0, -32768.0));
+    EXPECT_NO_THROW(renderer->update());
+
+    auto wl = renderer->getWindowLevel();
+    EXPECT_GT(wl.first, 0.0) << "Window width should be positive";
+
+    // Very narrow window at extreme center
+    EXPECT_NO_THROW(renderer->setWindowLevel(1.0, 32767.0));
+    EXPECT_NO_THROW(renderer->update());
+}
+
+TEST_F(MPRRendererTest, NonIsotropicSpacingDisplay) {
+    // Clinical CT spacing: 0.5×0.5×5.0 mm (highly anisotropic)
+    auto aniso = vtkSmartPointer<vtkImageData>::New();
+    aniso->SetDimensions(64, 64, 20);
+    aniso->SetSpacing(0.5, 0.5, 5.0);
+    aniso->SetOrigin(0.0, 0.0, 0.0);
+    aniso->AllocateScalars(VTK_SHORT, 1);
+
+    short* ptr = static_cast<short*>(aniso->GetScalarPointer());
+    for (int i = 0; i < 64 * 64 * 20; ++i) {
+        ptr[i] = static_cast<short>(i % 500);
+    }
+
+    EXPECT_NO_THROW(renderer->setInputData(aniso));
+
+    // Axial, coronal, sagittal all should handle non-isotropic spacing
+    for (auto plane : {MPRPlane::Axial, MPRPlane::Coronal, MPRPlane::Sagittal}) {
+        auto range = renderer->getSliceRange(plane);
+        EXPECT_LE(range.first, range.second);
+        EXPECT_NO_THROW(renderer->setSlicePosition(plane,
+            (range.first + range.second) / 2.0));
+    }
+    EXPECT_NO_THROW(renderer->update());
+}
+
+TEST_F(MPRRendererTest, ExtremeSlicePositionsClamped) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    auto range = renderer->getSliceRange(MPRPlane::Axial);
+
+    // Position far beyond range — should clamp, not crash
+    EXPECT_NO_THROW(renderer->setSlicePosition(MPRPlane::Axial, range.second + 1000.0));
+    EXPECT_NO_THROW(renderer->setSlicePosition(MPRPlane::Axial, range.first - 1000.0));
+    EXPECT_NO_THROW(renderer->update());
+
+    // Massive scroll delta — should clamp
+    EXPECT_NO_THROW(renderer->scrollSlice(MPRPlane::Coronal, 999999));
+    EXPECT_NO_THROW(renderer->scrollSlice(MPRPlane::Sagittal, -999999));
+    EXPECT_NO_THROW(renderer->update());
+}

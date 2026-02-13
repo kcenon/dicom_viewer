@@ -535,3 +535,64 @@ TEST_F(ObliqueResliceRendererTest, SmallVolume) {
     EXPECT_NO_THROW(renderer->setInputData(imageData));
     EXPECT_NO_THROW(renderer->setPlaneByRotation(45.0, 45.0, 0.0));
 }
+
+// =============================================================================
+// Error recovery and boundary tests (Issue #205)
+// =============================================================================
+
+TEST_F(ObliqueResliceRendererTest, ReslicePlaneEntirelyOutsideVolume) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    // Move center far outside the volume extent
+    Point3D farCenter(1000.0, 1000.0, 1000.0);
+    EXPECT_NO_THROW(renderer->setCenter(farCenter));
+    EXPECT_NO_THROW(renderer->update());
+
+    // Set plane by normal pointing away from volume
+    Vector3D normal(0.0, 0.0, 1.0);
+    EXPECT_NO_THROW(renderer->setPlaneByNormal(normal, farCenter));
+    EXPECT_NO_THROW(renderer->update());
+}
+
+TEST_F(ObliqueResliceRendererTest, ResliceAtVolumeCornerMinimalOverlap) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    // Position at volume corner (origin)
+    Point3D corner(0.0, 0.0, 0.0);
+    renderer->setCenter(corner);
+
+    // Oblique plane at 45° — only a tiny corner of the volume intersects
+    EXPECT_NO_THROW(renderer->setPlaneByRotation(45.0, 45.0, 45.0));
+    EXPECT_NO_THROW(renderer->update());
+
+    // Verify plane state is valid
+    auto plane = renderer->getCurrentPlane();
+    EXPECT_NEAR(plane.center.x, 0.0, 0.1);
+    EXPECT_NEAR(plane.center.y, 0.0, 0.1);
+    EXPECT_NEAR(plane.center.z, 0.0, 0.1);
+}
+
+TEST_F(ObliqueResliceRendererTest, InterpolationModeSwitch) {
+    auto volume = createTestVolume(64);
+    renderer->setInputData(volume);
+
+    // Test all interpolation modes
+    ObliqueResliceOptions opts;
+
+    opts.interpolation = InterpolationMode::NearestNeighbor;
+    EXPECT_NO_THROW(renderer->setOptions(opts));
+    EXPECT_NO_THROW(renderer->update());
+    EXPECT_EQ(renderer->getOptions().interpolation, InterpolationMode::NearestNeighbor);
+
+    opts.interpolation = InterpolationMode::Linear;
+    EXPECT_NO_THROW(renderer->setOptions(opts));
+    EXPECT_NO_THROW(renderer->update());
+    EXPECT_EQ(renderer->getOptions().interpolation, InterpolationMode::Linear);
+
+    opts.interpolation = InterpolationMode::Cubic;
+    EXPECT_NO_THROW(renderer->setOptions(opts));
+    EXPECT_NO_THROW(renderer->update());
+    EXPECT_EQ(renderer->getOptions().interpolation, InterpolationMode::Cubic);
+}

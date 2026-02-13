@@ -151,5 +151,41 @@ TEST(DRPresetTest, PresetStructure) {
     EXPECT_EQ(preset.description, "Test description");
 }
 
+// =============================================================================
+// Error recovery and boundary tests (Issue #205)
+// =============================================================================
+
+TEST(DRPresetsTest, PresetWindowValuesArePositive) {
+    auto presets = getStandardDRPresets();
+    for (const auto& preset : presets) {
+        EXPECT_GT(preset.windowWidth, 0.0)
+            << "Preset '" << preset.name.toStdString()
+            << "' has non-positive window width";
+    }
+}
+
+TEST(DRModalityTest, EmptyModalityIsNotDR) {
+    EXPECT_FALSE(isDRorCRModality(""));
+    EXPECT_FALSE(isDRorCRModality("CT"));
+    EXPECT_FALSE(isDRorCRModality("MR"));
+    EXPECT_FALSE(isDRorCRModality("US"));
+}
+
+TEST(DRViewerOptionsTest, ExtremeZoomValues) {
+    DRViewerOptions options;
+
+    // Very small zoom (near zero)
+    options.defaultZoom = 0.01;
+    EXPECT_GT(options.defaultZoom, 0.0);
+
+    // Very large zoom
+    options.defaultZoom = 100.0;
+    EXPECT_EQ(options.defaultZoom, 100.0);
+
+    // Negative zoom — structure should store it (validation happens elsewhere)
+    options.defaultZoom = -1.0;
+    EXPECT_EQ(options.defaultZoom, -1.0);
+}
+
 } // anonymous namespace
 } // namespace dicom_viewer::ui
