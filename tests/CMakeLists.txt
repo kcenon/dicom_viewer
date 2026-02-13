@@ -1182,3 +1182,37 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(label_map_overlay_test DISCOVERY_TIMEOUT 60)
+
+# Integration tests for series loading pipeline (converted from manual CLI)
+add_executable(series_loading_integration_test
+    integration/test_series_loading.cpp
+)
+
+target_link_libraries(series_loading_integration_test PRIVATE
+    dicom_viewer_core
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(series_loading_integration_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(series_loading_integration_test DISCOVERY_TIMEOUT 60)
+
+# Integration tests for slice ordering pipeline (converted from manual CLI)
+add_executable(slice_ordering_integration_test
+    integration/test_slice_ordering.cpp
+)
+
+target_link_libraries(slice_ordering_integration_test PRIVATE
+    dicom_viewer_core
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(slice_ordering_integration_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(slice_ordering_integration_test DISCOVERY_TIMEOUT 60)
