@@ -4,6 +4,7 @@
 #include "services/segmentation/threshold_segmenter.hpp"
 
 #include <itkImageRegionIterator.h>
+#include <random>
 
 using namespace dicom_viewer::services;
 
@@ -505,4 +506,83 @@ TEST_F(WatershedSegmenterTest, HandlesLargerVolume) {
 
     ASSERT_TRUE(result.has_value());
     EXPECT_GE(result->regionCount, 1u);
+}
+
+// =============================================================================
+// Edge case and algorithmic correctness tests (Issue #204)
+// =============================================================================
+
+TEST_F(WatershedSegmenterTest, BoundaryLinePlacementBetweenRegions) {
+    // Verify watershed boundary falls near the intensity transition
+    auto image = createTwoRegionImage();  // left=100, right=200, boundary at x=10
+
+    WatershedParameters params;
+    params.level = 0.3;
+    params.gradientSigma = 1.0;
+
+    auto result = segmenter_->segment(image, params);
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_GE(result->regionCount, 2u)
+        << "Two-region image should produce at least 2 watershed regions";
+
+    // Verify voxels far from boundary are consistently labeled
+    if (result->labelMap) {
+        auto label_left = result->labelMap->GetPixel({{2, 10, 5}});
+        auto label_right = result->labelMap->GetPixel({{17, 10, 5}});
+        EXPECT_NE(label_left, label_right)
+            << "Voxels on opposite sides of boundary should have different labels";
+    }
+}
+
+TEST_F(WatershedSegmenterTest, RegionMergingWithHighLevel) {
+    // Higher level parameter should merge more regions
+    auto image = createGradientImage();
+
+    WatershedParameters paramsLow;
+    paramsLow.level = 0.1;
+    paramsLow.gradientSigma = 1.0;
+
+    WatershedParameters paramsHigh;
+    paramsHigh.level = 0.9;
+    paramsHigh.gradientSigma = 1.0;
+
+    auto resultLow = segmenter_->segment(image, paramsLow);
+    auto resultHigh = segmenter_->segment(image, paramsHigh);
+
+    ASSERT_TRUE(resultLow.has_value());
+    ASSERT_TRUE(resultHigh.has_value());
+
+    // Higher level should produce fewer (or equal) regions
+    EXPECT_LE(resultHigh->regionCount, resultLow->regionCount)
+        << "Higher level should merge more regions";
+}
+
+TEST_F(WatershedSegmenterTest, SaltAndPepperNoiseDoesNotCrash) {
+    // Image with random noise should not crash or produce zero regions
+    auto image = ImageType::New();
+    ImageType::SizeType size = {{20, 20, 10}};
+    ImageType::RegionType region;
+    region.SetSize(size);
+    region.SetIndex({{0, 0, 0}});
+    image->SetRegions(region);
+    image->Allocate();
+
+    // Salt-and-pepper noise pattern
+    std::mt19937 rng(42);
+    std::uniform_int_distribution<short> dist(0, 255);
+    itk::ImageRegionIterator<ImageType> it(image, region);
+    for (it.GoToBegin(); !it.IsAtEnd(); ++it) {
+        it.Set(dist(rng));
+    }
+
+    WatershedParameters params;
+    params.level = 0.5;
+    params.gradientSigma = 2.0;  // Smooth heavily to handle noise
+
+    auto result = segmenter_->segment(image, params);
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_GE(result->regionCount, 1u)
+        << "Noisy image should still produce at least one region";
 }

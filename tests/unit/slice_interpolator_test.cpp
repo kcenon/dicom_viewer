@@ -426,3 +426,102 @@ TEST_F(SliceInterpolatorTest, ProgressCallback_IsCalled) {
     EXPECT_TRUE(result.has_value());
     // Progress callback may or may not be called depending on ITK's behavior
 }
+
+// =============================================================================
+// Edge case and algorithmic correctness tests (Issue #204)
+// =============================================================================
+
+TEST_F(SliceInterpolatorTest, VolumeConservationBetweenIdenticalSlices) {
+    // Two identical circular annotations → interpolated volume should equal
+    // the original volume (no gain, no loss)
+    auto labelMap = createSparseLabelMap(64, 64, 20, {5, 15}, 1, 32.0, 32.0, 10.0);
+
+    size_t beforeCount = countLabelVoxels(labelMap, 1);
+    // 2 slices × ~π×10² ≈ 628 voxels
+    EXPECT_GT(beforeCount, 0u);
+
+    InterpolationParameters params;
+    params.labelIds = {1};
+
+    auto result = interpolator_->interpolate(labelMap, params);
+    ASSERT_TRUE(result.has_value());
+
+    size_t afterCount = countLabelVoxels(result.value(), 1);
+
+    // Interpolated volume should be >= original (fills in-between slices)
+    EXPECT_GE(afterCount, beforeCount)
+        << "Interpolation should not lose existing annotations";
+
+    // For identical circles, interpolation should fill uniformly
+    // Expected: ~10 slices × ~314 voxels ≈ 3140 (slices 5-15)
+    size_t perSliceArea = beforeCount / 2;
+    size_t expectedFilled = perSliceArea * 11;  // 11 slices from 5 to 15 inclusive
+    EXPECT_NEAR(static_cast<double>(afterCount),
+                static_cast<double>(expectedFilled),
+                expectedFilled * 0.15);
+}
+
+TEST_F(SliceInterpolatorTest, NonConvexRegionInterpolation) {
+    // Create an L-shaped region to test non-convex interpolation
+    auto labelMap = LabelMapType::New();
+    LabelMapType::SizeType size = {{32, 32, 20}};
+    LabelMapType::RegionType region;
+    region.SetSize(size);
+    region.SetIndex({{0, 0, 0}});
+    labelMap->SetRegions(region);
+
+    LabelMapType::SpacingType spacing;
+    spacing.Fill(1.0);
+    labelMap->SetSpacing(spacing);
+
+    LabelMapType::PointType origin;
+    origin.Fill(0.0);
+    labelMap->SetOrigin(origin);
+
+    labelMap->Allocate();
+    labelMap->FillBuffer(0);
+
+    // L-shape in slices 3 and 17
+    for (int z : {3, 17}) {
+        for (int y = 5; y < 25; ++y) {
+            for (int x = 5; x < 15; ++x) {
+                labelMap->SetPixel({{x, y, z}}, 1);
+            }
+        }
+        for (int y = 5; y < 15; ++y) {
+            for (int x = 15; x < 25; ++x) {
+                labelMap->SetPixel({{x, y, z}}, 1);
+            }
+        }
+    }
+
+    InterpolationParameters params;
+    params.labelIds = {1};
+
+    auto result = interpolator_->interpolate(labelMap, params);
+    ASSERT_TRUE(result.has_value());
+
+    size_t afterCount = countLabelVoxels(result.value(), 1);
+    EXPECT_GT(afterCount, 0u)
+        << "Non-convex L-shape should be interpolated without crashing";
+}
+
+TEST_F(SliceInterpolatorTest, SparseAnnotationsOverFiftySlicesApart) {
+    // Annotations 60 slices apart (clinically unusual but shouldn't crash)
+    auto labelMap = createSparseLabelMap(32, 32, 80, {5, 65}, 1, 16.0, 16.0, 8.0);
+
+    InterpolationParameters params;
+    params.labelIds = {1};
+
+    auto result = interpolator_->interpolate(labelMap, params);
+    ASSERT_TRUE(result.has_value());
+
+    size_t afterCount = countLabelVoxels(result.value(), 1);
+    EXPECT_GT(afterCount, 0u)
+        << "Sparse annotations 60 slices apart should still interpolate";
+
+    // Should fill all slices between 5 and 65
+    size_t beforeCount = countLabelVoxels(labelMap, 1);
+    EXPECT_GT(afterCount, beforeCount)
+        << "Interpolation should add voxels between sparse annotations";
+}

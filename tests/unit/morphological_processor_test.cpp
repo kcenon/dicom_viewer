@@ -612,4 +612,91 @@ TEST_F(MorphologicalProcessorTest, StructuringElementToString) {
               "Cross");
 }
 
+// ============================================================================
+// Edge case and algorithmic correctness tests (Issue #204)
+// ============================================================================
+
+TEST_F(MorphologicalProcessorTest, OneVoxelThickStructureErodedCompletely) {
+    // A single-voxel-thick line should be completely removed by erosion with radius 1
+    auto mask = createTestMask(20, 20, 20);
+
+    // Create a 1-voxel-thick line along x-axis at y=10, z=10
+    BinaryMaskType::IndexType idx;
+    for (int x = 2; x < 18; ++x) {
+        idx[0] = x;
+        idx[1] = 10;
+        idx[2] = 10;
+        mask->SetPixel(idx, 1);
+    }
+
+    int beforeCount = countForegroundVoxels(mask);
+    EXPECT_EQ(beforeCount, 16);
+
+    auto result = processor_->erosion(mask, 1, StructuringElementShape::Ball);
+    ASSERT_TRUE(result.has_value());
+
+    int afterCount = countForegroundVoxels(result.value());
+    EXPECT_EQ(afterCount, 0)
+        << "1-voxel-thick structure should be completely eroded by radius-1 ball";
+}
+
+TEST_F(MorphologicalProcessorTest, RepeatedClosingStability) {
+    // Applying closing twice should produce the same result as closing once
+    // (closing is idempotent for the same structuring element)
+    auto mask = createCubeMask(30, 5);
+
+    auto result1 = processor_->closing(mask, 2, StructuringElementShape::Ball);
+    ASSERT_TRUE(result1.has_value());
+    int count1 = countForegroundVoxels(result1.value());
+
+    auto result2 = processor_->closing(result1.value(), 2, StructuringElementShape::Ball);
+    ASSERT_TRUE(result2.has_value());
+    int count2 = countForegroundVoxels(result2.value());
+
+    EXPECT_EQ(count1, count2)
+        << "Repeated closing with same SE should be idempotent";
+}
+
+TEST_F(MorphologicalProcessorTest, DilationMergesNearbyRegions) {
+    // Two cubes separated by a small gap should merge after sufficient dilation
+    auto mask = createTestMask(30, 30, 30);
+
+    BinaryMaskType::IndexType idx;
+
+    // Cube 1: center at (8, 15, 15), radius 3
+    for (int z = 12; z <= 18; ++z) {
+        for (int y = 12; y <= 18; ++y) {
+            for (int x = 5; x <= 11; ++x) {
+                idx[0] = x; idx[1] = y; idx[2] = z;
+                mask->SetPixel(idx, 1);
+            }
+        }
+    }
+
+    // Cube 2: center at (22, 15, 15), radius 3 — gap of 4 voxels
+    for (int z = 12; z <= 18; ++z) {
+        for (int y = 12; y <= 18; ++y) {
+            for (int x = 19; x <= 25; ++x) {
+                idx[0] = x; idx[1] = y; idx[2] = z;
+                mask->SetPixel(idx, 1);
+            }
+        }
+    }
+
+    int beforeCount = countForegroundVoxels(mask);
+
+    // Dilate with radius 3 — should bridge the 4-voxel gap
+    auto result = processor_->dilation(mask, 3, StructuringElementShape::Ball);
+    ASSERT_TRUE(result.has_value());
+
+    int afterCount = countForegroundVoxels(result.value());
+    EXPECT_GT(afterCount, beforeCount)
+        << "Dilation should expand the regions";
+
+    // Check that the gap region is now filled (voxel at x=15 between cubes)
+    idx[0] = 15; idx[1] = 15; idx[2] = 15;
+    EXPECT_EQ(result.value()->GetPixel(idx), 1)
+        << "Gap between cubes should be bridged by dilation radius 3";
+}
+
 }  // namespace dicom_viewer::services::test

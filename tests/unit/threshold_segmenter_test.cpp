@@ -326,3 +326,76 @@ TEST_F(ThresholdSegmenterTest, ManualThresholdHandlesEmptyRange) {
     int nonZeroCount = countNonZeroPixels(result.value());
     EXPECT_EQ(nonZeroCount, 0);
 }
+
+// =============================================================================
+// Edge case and algorithmic correctness tests (Issue #204)
+// =============================================================================
+
+TEST_F(ThresholdSegmenterTest, LargeVolume256CubedDoesNotCrash) {
+    // 256³ = 16,777,216 voxels — verify no OOM or excessive latency
+    auto image = createTestImage(256, 256, 256);
+    auto result = segmenter_->manualThreshold(image, 0.0, 500.0);
+
+    ASSERT_TRUE(result.has_value());
+    auto maskSize = result.value()->GetLargestPossibleRegion().GetSize();
+    EXPECT_EQ(maskSize[0], 256u);
+    EXPECT_EQ(maskSize[1], 256u);
+    EXPECT_EQ(maskSize[2], 256u);
+}
+
+TEST_F(ThresholdSegmenterTest, FloatingPointPrecisionNearBoundary) {
+    // Verify thresholds handle floating-point edge cases correctly
+    auto image = createTestImage();  // values 0–999 (integer cast)
+
+    // Threshold that falls exactly on a boundary value
+    auto result = segmenter_->manualThreshold(image, 99.999999, 100.000001);
+    ASSERT_TRUE(result.has_value());
+
+    // At least the pixel with value=100 should be included
+    int count = countNonZeroPixels(result.value());
+    EXPECT_GE(count, 1);
+}
+
+TEST_F(ThresholdSegmenterTest, NegativeHUValuesThresholdedCorrectly) {
+    // Simulate CT lung window: HU range -1000 to -500
+    auto image = ImageType::New();
+    ImageType::SizeType size = {{20, 20, 20}};
+    ImageType::RegionType region;
+    region.SetSize(size);
+    region.SetIndex({{0, 0, 0}});
+    image->SetRegions(region);
+    image->Allocate();
+
+    itk::ImageRegionIterator<ImageType> it(image, region);
+    int i = 0;
+    for (it.GoToBegin(); !it.IsAtEnd(); ++it, ++i) {
+        // Fill with values from -1024 to +1024 across the volume
+        it.Set(static_cast<short>(-1024 + (i * 2048) / 8000));
+    }
+
+    auto result = segmenter_->manualThreshold(image, -1000.0, -500.0);
+    ASSERT_TRUE(result.has_value());
+    int count = countNonZeroPixels(result.value());
+    EXPECT_GT(count, 0) << "Should capture negative HU voxels in lung window";
+}
+
+TEST_F(ThresholdSegmenterTest, PipelineChainingThresholdThenOtsu) {
+    auto image = createTestImage();
+
+    // First pass: manual threshold to narrow range
+    auto manualResult = segmenter_->manualThreshold(image, 0.0, 500.0);
+    ASSERT_TRUE(manualResult.has_value());
+    int manualCount = countNonZeroPixels(manualResult.value());
+
+    // Second pass: Otsu on the same image
+    auto otsuResult = segmenter_->otsuThreshold(image);
+    ASSERT_TRUE(otsuResult.has_value());
+    int otsuCount = countNonZeroPixels(otsuResult.value());
+
+    // Both should produce valid, non-empty masks
+    EXPECT_GT(manualCount, 0);
+    EXPECT_GT(otsuCount, 0);
+
+    // Otsu should find a different split point than manual [0,500]
+    EXPECT_NE(manualCount, otsuCount);
+}
