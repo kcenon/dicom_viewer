@@ -532,14 +532,14 @@ TEST_F(LabelManagerTest, ComputeLabelStatisticsWithSourceImage) {
     ASSERT_TRUE(result.has_value());
 
     // Verify the label now has statistics populated
-    auto label = manager_->getLabel(1);
-    ASSERT_TRUE(label.has_value());
-    EXPECT_TRUE(label->get().voxelCount.has_value());
-    if (label->get().voxelCount.has_value()) {
-        EXPECT_EQ(label->get().voxelCount.value(), painted);
+    auto* label = manager_->getLabel(1);
+    ASSERT_NE(label, nullptr);
+    EXPECT_TRUE(label->voxelCount.has_value());
+    if (label->voxelCount.has_value()) {
+        EXPECT_EQ(label->voxelCount.value(), painted);
     }
-    if (label->get().meanHU.has_value()) {
-        EXPECT_NEAR(label->get().meanHU.value(), 50.0, 1.0);
+    if (label->meanHU.has_value()) {
+        EXPECT_NEAR(label->meanHU.value(), 50.0, 1.0);
     }
 }
 
