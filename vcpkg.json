@@ -7,9 +7,9 @@
     "license": "MIT",
     "dependencies": [
         {
-            "name": "qt6",
+            "name": "qtbase",
             "default-features": false,
-            "features": ["widgets", "gui", "opengl", "printsupport"]
+            "features": ["widgets", "gui", "opengl"]
         },
         {
             "name": "vtk",
@@ -19,7 +19,7 @@
         {
             "name": "itk",
             "default-features": false,
-            "features": ["vtk", "gdcm"]
+            "features": ["vtk"]
         },
         "spdlog",
         "fmt",
