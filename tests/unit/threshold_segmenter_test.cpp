@@ -390,7 +390,7 @@ TEST_F(ThresholdSegmenterTest, PipelineChainingThresholdThenOtsu) {
     // Second pass: Otsu on the same image
     auto otsuResult = segmenter_->otsuThreshold(image);
     ASSERT_TRUE(otsuResult.has_value());
-    int otsuCount = countNonZeroPixels(otsuResult.value());
+    int otsuCount = countNonZeroPixels(otsuResult.value().mask);
 
     // Both should produce valid, non-empty masks
     EXPECT_GT(manualCount, 0);
