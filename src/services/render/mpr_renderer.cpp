@@ -423,7 +423,12 @@ void MPRRenderer::setSlicePosition(MPRPlane plane, double position) {
     impl_->updateSlicePosition(planeIndex);
 
     // Update crosshair position for synchronization
-    impl_->crosshairPosition[planeIndex] = position;
+    // Map plane index to world coordinate axis: Axial→Z(2), Coronal→Y(1), Sagittal→X(0)
+    switch (planeIndex) {
+        case 0: impl_->crosshairPosition[2] = position; break;  // Axial → Z
+        case 1: impl_->crosshairPosition[1] = position; break;  // Coronal → Y
+        case 2: impl_->crosshairPosition[0] = position; break;  // Sagittal → X
+    }
     for (int i = 0; i < 3; ++i) {
         impl_->updateCrosshair(i);
     }
@@ -461,7 +466,15 @@ std::pair<double, double> MPRRenderer::getSliceRange(MPRPlane plane) const {
 void MPRRenderer::scrollSlice(MPRPlane plane, int delta) {
     int planeIndex = static_cast<int>(plane);
     double currentPos = impl_->slicePositions[planeIndex];
-    double spacing = impl_->spacing[planeIndex];
+
+    // Map plane to correct spacing axis: Axial→Z, Coronal→Y, Sagittal→X
+    double spacing;
+    switch (planeIndex) {
+        case 0: spacing = impl_->spacing[2]; break;  // Axial → Z spacing
+        case 1: spacing = impl_->spacing[1]; break;  // Coronal → Y spacing
+        case 2: spacing = impl_->spacing[0]; break;  // Sagittal → X spacing
+        default: spacing = impl_->spacing[0]; break;
+    }
 
     double newPos = currentPos + delta * spacing;
     setSlicePosition(plane, newPos);
@@ -480,8 +493,13 @@ std::pair<double, double> MPRRenderer::getWindowLevel() const {
 void MPRRenderer::setCrosshairPosition(double x, double y, double z) {
     impl_->crosshairPosition = {x, y, z};
 
-    // Update slice positions to match crosshair
-    impl_->slicePositions = {x, y, z};
+    // Map world coordinates to slice positions per plane:
+    // Axial (index 0) slices along Z axis
+    // Coronal (index 1) slices along Y axis
+    // Sagittal (index 2) slices along X axis
+    impl_->slicePositions[0] = z;  // Axial → Z
+    impl_->slicePositions[1] = y;  // Coronal → Y
+    impl_->slicePositions[2] = x;  // Sagittal → X
 
     for (int i = 0; i < 3; ++i) {
         impl_->updateSlicePosition(i);
@@ -574,8 +592,12 @@ void MPRRenderer::resetViews() {
 
     // Set slice positions to center of volume
     double* center = impl_->inputData->GetCenter();
-    impl_->slicePositions = {center[0], center[1], center[2]};
+    // crosshairPosition stores world coordinates (x, y, z)
     impl_->crosshairPosition = {center[0], center[1], center[2]};
+    // slicePositions indexed by plane: Axial→Z, Coronal→Y, Sagittal→X
+    impl_->slicePositions[0] = center[2];  // Axial → Z center
+    impl_->slicePositions[1] = center[1];  // Coronal → Y center
+    impl_->slicePositions[2] = center[0];  // Sagittal → X center
 
     // Update each plane
     for (int i = 0; i < 3; ++i) {

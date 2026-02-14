@@ -85,6 +85,7 @@ add_executable(mpr_renderer_test
 
 target_link_libraries(mpr_renderer_test PRIVATE
     render_service
+    segmentation_service
     GTest::gtest
     GTest::gtest_main
 )
@@ -1254,6 +1255,7 @@ target_link_directories(rendering_benchmark_test PRIVATE
 target_link_libraries(rendering_benchmark_test PRIVATE
     dicom_viewer_core
     render_service
+    segmentation_service
     flow_service
     ${VTK_LIBRARIES}
     GTest::gtest
@@ -1270,3 +1272,27 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(rendering_benchmark_test DISCOVERY_TIMEOUT 120)
+
+# Concurrency and thread-safety tests
+add_executable(concurrency_test
+    unit/concurrency_test.cpp
+)
+
+target_link_directories(concurrency_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(concurrency_test PRIVATE
+    segmentation_service
+    preprocessing_service
+    flow_service
+    pacs_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(concurrency_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(concurrency_test DISCOVERY_TIMEOUT 120)

@@ -6,25 +6,10 @@
     "homepage": "https://github.com/kcenon/dicom_viewer",
     "license": "MIT",
     "dependencies": [
-        {
-            "name": "qt6",
-            "default-features": false,
-            "features": ["widgets", "gui", "opengl", "printsupport"]
-        },
-        {
-            "name": "vtk",
-            "default-features": false,
-            "features": ["qt", "opengl"]
-        },
-        {
-            "name": "itk",
-            "default-features": false,
-            "features": ["vtk", "gdcm"]
-        },
         "spdlog",
         "fmt",
         "nlohmann-json",
         "gtest"
     ],
-    "builtin-baseline": "2024.01.12"
+    "builtin-baseline": "84bab45d415d22042bd0b9081aea57f362da3f35"
 }

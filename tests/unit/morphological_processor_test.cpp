@@ -632,7 +632,10 @@ TEST_F(MorphologicalProcessorTest, OneVoxelThickStructureErodedCompletely) {
     int beforeCount = countForegroundVoxels(mask);
     EXPECT_EQ(beforeCount, 16);
 
-    auto result = processor_->erosion(mask, 1, StructuringElementShape::Ball);
+    MorphologicalProcessor::Parameters erosionParams;
+    erosionParams.radius = 1;
+    erosionParams.structuringElement = StructuringElementShape::Ball;
+    auto result = processor_->erosion(mask, erosionParams);
     ASSERT_TRUE(result.has_value());
 
     int afterCount = countForegroundVoxels(result.value());
@@ -645,11 +648,14 @@ TEST_F(MorphologicalProcessorTest, RepeatedClosingStability) {
     // (closing is idempotent for the same structuring element)
     auto mask = createCubeMask(30, 5);
 
-    auto result1 = processor_->closing(mask, 2, StructuringElementShape::Ball);
+    MorphologicalProcessor::Parameters closingParams;
+    closingParams.radius = 2;
+    closingParams.structuringElement = StructuringElementShape::Ball;
+    auto result1 = processor_->closing(mask, closingParams);
     ASSERT_TRUE(result1.has_value());
     int count1 = countForegroundVoxels(result1.value());
 
-    auto result2 = processor_->closing(result1.value(), 2, StructuringElementShape::Ball);
+    auto result2 = processor_->closing(result1.value(), closingParams);
     ASSERT_TRUE(result2.has_value());
     int count2 = countForegroundVoxels(result2.value());
 
@@ -686,7 +692,10 @@ TEST_F(MorphologicalProcessorTest, DilationMergesNearbyRegions) {
     int beforeCount = countForegroundVoxels(mask);
 
     // Dilate with radius 3 — should bridge the 4-voxel gap
-    auto result = processor_->dilation(mask, 3, StructuringElementShape::Ball);
+    MorphologicalProcessor::Parameters dilationParams;
+    dilationParams.radius = 3;
+    dilationParams.structuringElement = StructuringElementShape::Ball;
+    auto result = processor_->dilation(mask, dilationParams);
     ASSERT_TRUE(result.has_value());
 
     int afterCount = countForegroundVoxels(result.value());

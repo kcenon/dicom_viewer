@@ -2,6 +2,7 @@
 
 #include "services/dicom_store_scp.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>

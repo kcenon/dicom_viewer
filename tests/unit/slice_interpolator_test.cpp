@@ -446,7 +446,7 @@ TEST_F(SliceInterpolatorTest, VolumeConservationBetweenIdenticalSlices) {
     auto result = interpolator_->interpolate(labelMap, params);
     ASSERT_TRUE(result.has_value());
 
-    size_t afterCount = countLabelVoxels(result.value(), 1);
+    size_t afterCount = countLabelVoxels(result.value().interpolatedMask, 1);
 
     // Interpolated volume should be >= original (fills in-between slices)
     EXPECT_GE(afterCount, beforeCount)
@@ -501,7 +501,7 @@ TEST_F(SliceInterpolatorTest, NonConvexRegionInterpolation) {
     auto result = interpolator_->interpolate(labelMap, params);
     ASSERT_TRUE(result.has_value());
 
-    size_t afterCount = countLabelVoxels(result.value(), 1);
+    size_t afterCount = countLabelVoxels(result.value().interpolatedMask, 1);
     EXPECT_GT(afterCount, 0u)
         << "Non-convex L-shape should be interpolated without crashing";
 }
@@ -516,7 +516,7 @@ TEST_F(SliceInterpolatorTest, SparseAnnotationsOverFiftySlicesApart) {
     auto result = interpolator_->interpolate(labelMap, params);
     ASSERT_TRUE(result.has_value());
 
-    size_t afterCount = countLabelVoxels(result.value(), 1);
+    size_t afterCount = countLabelVoxels(result.value().interpolatedMask, 1);
     EXPECT_GT(afterCount, 0u)
         << "Sparse annotations 60 slices apart should still interpolate";
 
