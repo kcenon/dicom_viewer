@@ -198,6 +198,7 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
     find_library(NETWORK_SYSTEM_LIB NetworkSystem HINTS ${PACS_SYSTEM_LIB_DIR})
     find_library(LOGGER_SYSTEM_LIB LoggerSystem HINTS ${PACS_SYSTEM_LIB_DIR})
     find_library(THREAD_BASE_LIB thread_base HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(THREAD_CORE_LIB thread_core HINTS ${PACS_SYSTEM_LIB_DIR})
 
     if(PACS_CORE_LIB AND PACS_NETWORK_LIB AND PACS_SERVICES_LIB)
         set(PACS_SYSTEM_FOUND TRUE)
@@ -278,6 +279,14 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                 IMPORTED_LOCATION "${THREAD_BASE_LIB}"
             )
             message(STATUS "  - thread_base: ${THREAD_BASE_LIB}")
+        endif()
+
+        if(THREAD_CORE_LIB)
+            add_library(pacs::thread_core STATIC IMPORTED)
+            set_target_properties(pacs::thread_core PROPERTIES
+                IMPORTED_LOCATION "${THREAD_CORE_LIB}"
+            )
+            message(STATUS "  - thread_core: ${THREAD_CORE_LIB}")
         endif()
 
         # Define macro to enable pacs_system code paths
@@ -461,6 +470,10 @@ endif()
 
 if(TARGET pacs::thread_base)
     target_link_libraries(pacs_service PUBLIC pacs::thread_base)
+endif()
+
+if(TARGET pacs::thread_core)
+    target_link_libraries(pacs_service PUBLIC pacs::thread_core)
 endif()
 
 add_library(export_service STATIC
