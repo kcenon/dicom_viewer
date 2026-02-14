@@ -40,6 +40,25 @@ jobs:
           brew install itk fftw spdlog fmt nlohmann-json googletest expat
 
       # ---------------------------------------------------------------
+      # 2b. Fix SDK paths (prevent SDK version mixing)
+      # ---------------------------------------------------------------
+      - name: Fix SDK paths
+        run: |
+          CURRENT_SDK=$(xcrun --show-sdk-path)
+          echo "Current SDK: $CURRENT_SDK"
+          # Homebrew bottles may reference old SDK include paths.
+          # Symlink any stale SDK to the current one to prevent
+          # C/C++ header conflicts (isnan macro vs std::isnan).
+          for sdk in /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk; do
+            if [ -d "$sdk" ] && [ "$sdk" != "$CURRENT_SDK" ]; then
+              echo "Redirecting $sdk -> $CURRENT_SDK"
+              sudo rm -rf "$sdk"
+              sudo ln -s "$CURRENT_SDK" "$sdk"
+            fi
+          done
+          ls -la /Library/Developer/CommandLineTools/SDKs/
+
+      # ---------------------------------------------------------------
       # 3. Clone kcenon ecosystem (pacs_system + transitive deps)
       # ---------------------------------------------------------------
       - name: Clone ecosystem dependencies
@@ -84,6 +103,7 @@ jobs:
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) \
             -DCMAKE_PREFIX_PATH="/opt/homebrew;/opt/homebrew/opt/expat" \
             -DCMAKE_FIND_FRAMEWORK=LAST \
             -DBUILD_TESTS=ON
