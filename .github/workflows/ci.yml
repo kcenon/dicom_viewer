@@ -37,7 +37,7 @@ jobs:
       # ---------------------------------------------------------------
       - name: Install dependencies
         run: |
-          brew install itk fftw spdlog fmt nlohmann-json googletest
+          brew install itk fftw spdlog fmt nlohmann-json googletest expat
 
       # ---------------------------------------------------------------
       # 3. Clone kcenon ecosystem (pacs_system + transitive deps)
@@ -84,7 +84,8 @@ jobs:
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DCMAKE_PREFIX_PATH="/opt/homebrew" \
+            -DCMAKE_PREFIX_PATH="/opt/homebrew;/opt/homebrew/opt/expat" \
+            -DCMAKE_FIND_FRAMEWORK=LAST \
             -DBUILD_TESTS=ON
 
       - name: Build
