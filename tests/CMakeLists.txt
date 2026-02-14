@@ -85,6 +85,7 @@ add_executable(mpr_renderer_test
 
 target_link_libraries(mpr_renderer_test PRIVATE
     render_service
+    segmentation_service
     GTest::gtest
     GTest::gtest_main
 )

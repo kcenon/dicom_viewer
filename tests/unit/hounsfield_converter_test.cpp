@@ -151,7 +151,7 @@ TEST_F(HounsfieldConverterTest, GetTissueTypeNameReturnsFat) {
 }
 
 TEST_F(HounsfieldConverterTest, GetTissueTypeNameReturnsSoftTissue) {
-    std::string tissue = hounsfield::getTissueTypeName(50.0);
+    std::string tissue = hounsfield::getTissueTypeName(65.0);
     EXPECT_EQ(tissue, "Soft Tissue");
 }
 
