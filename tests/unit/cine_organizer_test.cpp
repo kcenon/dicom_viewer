@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "core/dicom_loader.hpp"
 #include "services/cardiac/cine_organizer.hpp"
 #include "services/flow/temporal_navigator.hpp"
 #include "test_utils/cardiac_phantom_generator.hpp"
