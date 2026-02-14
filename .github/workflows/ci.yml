@@ -124,7 +124,7 @@ jobs:
         working-directory: build
         run: |
           ctest --output-on-failure --timeout 120 \
-            -E "(integration|benchmark|concurrency)" \
+            -E "[Ii]ntegration|[Bb]enchmark|[Cc]oncurrency" \
             --output-junit unit-test-results.xml \
             -j $(sysctl -n hw.ncpu)
 
@@ -134,7 +134,7 @@ jobs:
         working-directory: build
         run: |
           ctest --output-on-failure --timeout 120 \
-            -R "concurrency" \
+            -R "[Cc]oncurrency" \
             --output-junit concurrency-test-results.xml \
             -j 1
 
@@ -144,7 +144,7 @@ jobs:
         working-directory: build
         run: |
           ctest --output-on-failure --timeout 120 \
-            -R "benchmark" \
+            -R "[Bb]enchmark" \
             --output-junit benchmark-test-results.xml \
             -j 1
 
@@ -154,7 +154,7 @@ jobs:
         working-directory: build
         run: |
           ctest --output-on-failure --timeout 300 \
-            -R "integration" \
+            -R "[Ii]ntegration" \
             --output-junit integration-test-results.xml \
             -j 1
 
