@@ -23,7 +23,7 @@ jobs:
   build-and-test:
     name: Build & Test
     runs-on: macos-14
-    timeout-minutes: 240
+    timeout-minutes: 60
 
     steps:
       # ---------------------------------------------------------------
@@ -33,14 +33,14 @@ jobs:
         uses: actions/checkout@v4
 
       # ---------------------------------------------------------------
-      # 2. System dependencies (not managed by vcpkg)
+      # 2. System dependencies via Homebrew (pre-built bottles)
       # ---------------------------------------------------------------
       - name: Install system dependencies
         run: |
-          brew install fftw gdcm autoconf autoconf-archive automake libtool pkg-config
+          brew install itk fftw
 
       # ---------------------------------------------------------------
-      # 3. vcpkg setup with caching
+      # 3. vcpkg setup (lightweight packages only)
       # ---------------------------------------------------------------
       - name: Cache vcpkg installed packages
         uses: actions/cache@v4
@@ -101,6 +101,7 @@ jobs:
           cmake -B build \
             -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_PREFIX_PATH="/opt/homebrew" \
             -DBUILD_TESTS=ON
 
       - name: Build
