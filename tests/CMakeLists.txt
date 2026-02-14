@@ -1255,6 +1255,7 @@ target_link_directories(rendering_benchmark_test PRIVATE
 target_link_libraries(rendering_benchmark_test PRIVATE
     dicom_viewer_core
     render_service
+    segmentation_service
     flow_service
     ${VTK_LIBRARIES}
     GTest::gtest
