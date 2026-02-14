@@ -588,6 +588,19 @@ TEST_F(FlowConcurrencyTest, FlowQuantifierConcurrentMeasurements) {
 class StressConcurrencyTest : public ::testing::Test {};
 
 TEST_F(StressConcurrencyTest, RapidServiceCreationDestruction) {
+    // Warm up ITK object factories and logger singletons in main thread
+    // before concurrent access. ITK's factory registration uses global
+    // state that is not thread-safe for first-time initialization.
+    {
+        LabelManager warmupManager;
+        [[maybe_unused]] auto r = warmupManager.initializeLabelMap(8, 8, 8);
+    }
+    {
+        GaussianSmoother warmupSmoother;
+        auto warmupVol = createVolume(8);
+        [[maybe_unused]] auto r = warmupSmoother.apply(warmupVol);
+    }
+
     constexpr int kThreadCount = 4;
     constexpr int kCycles = 50;
 
