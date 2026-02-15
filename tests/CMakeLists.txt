@@ -1411,3 +1411,26 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(hemodynamic_overlay_renderer_test DISCOVERY_TIMEOUT 60)
+
+# Volume Renderer Overlay Tests
+add_executable(volume_renderer_overlay_test
+    unit/volume_renderer_overlay_test.cpp
+)
+
+target_link_libraries(volume_renderer_overlay_test PRIVATE
+    render_service
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(volume_renderer_overlay_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS volume_renderer_overlay_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(volume_renderer_overlay_test DISCOVERY_TIMEOUT 60)

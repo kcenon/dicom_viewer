@@ -12,7 +12,23 @@
 #include <vtkDoubleArray.h>
 #include <vtkNew.h>
 
+#include <map>
+
 namespace dicom_viewer::services {
+
+// =============================================================================
+// Scalar overlay entry
+// =============================================================================
+
+struct ScalarOverlayEntry {
+    std::string name;
+    vtkSmartPointer<vtkVolume> volume;
+    vtkSmartPointer<vtkVolumeProperty> property;
+    vtkSmartPointer<vtkSmartVolumeMapper> mapper;
+    vtkSmartPointer<vtkColorTransferFunction> colorTF;
+    vtkSmartPointer<vtkPiecewiseFunction> opacityTF;
+    bool visible = true;
+};
 
 class VolumeRenderer::Impl {
 public:
@@ -30,6 +46,9 @@ public:
     bool useGPU = true;
     bool useLOD = true;
     bool gpuValidated = false;
+
+    // Scalar overlays (name → entry)
+    std::map<std::string, ScalarOverlayEntry> overlays;
 
     Impl() : logger(logging::LoggerFactory::create("VolumeRenderer")) {
         volume = vtkSmartPointer<vtkVolume>::New();
@@ -366,6 +385,148 @@ TransferFunctionPreset VolumeRenderer::getPresetMRIDefault()
             {1000, 0.8}
         }
     };
+}
+
+// =============================================================================
+// Scalar Overlay Implementation
+// =============================================================================
+
+void VolumeRenderer::addScalarOverlay(
+    const std::string& name,
+    vtkSmartPointer<vtkImageData> scalarField,
+    vtkSmartPointer<vtkColorTransferFunction> colorTF,
+    vtkSmartPointer<vtkPiecewiseFunction> opacityTF)
+{
+    // Remove existing overlay with same name
+    removeScalarOverlay(name);
+
+    ScalarOverlayEntry entry;
+    entry.name = name;
+    entry.colorTF = colorTF;
+    entry.opacityTF = opacityTF;
+
+    entry.property = vtkSmartPointer<vtkVolumeProperty>::New();
+    entry.property->SetInterpolationTypeToLinear();
+    entry.property->ShadeOff();  // No shading for scalar overlays
+    entry.property->SetColor(colorTF);
+    entry.property->SetScalarOpacity(opacityTF);
+
+    entry.mapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
+    entry.mapper->SetInputData(scalarField);
+    entry.mapper->SetRequestedRenderModeToRayCast();
+
+    entry.volume = vtkSmartPointer<vtkVolume>::New();
+    entry.volume->SetMapper(entry.mapper);
+    entry.volume->SetProperty(entry.property);
+
+    impl_->overlays[name] = std::move(entry);
+    impl_->logger->info("Added scalar overlay: {}", name);
+}
+
+bool VolumeRenderer::removeScalarOverlay(const std::string& name)
+{
+    auto it = impl_->overlays.find(name);
+    if (it == impl_->overlays.end()) {
+        return false;
+    }
+
+    impl_->overlays.erase(it);
+    impl_->logger->info("Removed scalar overlay: {}", name);
+    return true;
+}
+
+void VolumeRenderer::removeAllScalarOverlays()
+{
+    impl_->overlays.clear();
+}
+
+bool VolumeRenderer::hasOverlay(const std::string& name) const
+{
+    return impl_->overlays.contains(name);
+}
+
+std::vector<std::string> VolumeRenderer::overlayNames() const
+{
+    std::vector<std::string> names;
+    names.reserve(impl_->overlays.size());
+    for (const auto& [name, _] : impl_->overlays) {
+        names.push_back(name);
+    }
+    return names;
+}
+
+void VolumeRenderer::setOverlayVisible(const std::string& name, bool visible)
+{
+    auto it = impl_->overlays.find(name);
+    if (it != impl_->overlays.end()) {
+        it->second.visible = visible;
+        it->second.volume->SetVisibility(visible);
+    }
+}
+
+void VolumeRenderer::setOverlayOpacity(const std::string& name, double opacity)
+{
+    auto it = impl_->overlays.find(name);
+    if (it != impl_->overlays.end()) {
+        // Scale the opacity transfer function by the global factor
+        it->second.volume->GetProperty()->SetScalarOpacityUnitDistance(
+            1.0 / std::max(opacity, 0.01));
+    }
+}
+
+vtkSmartPointer<vtkVolume> VolumeRenderer::getOverlayVolume(const std::string& name) const
+{
+    auto it = impl_->overlays.find(name);
+    if (it != impl_->overlays.end()) {
+        return it->second.volume;
+    }
+    return nullptr;
+}
+
+bool VolumeRenderer::updateOverlayTransferFunctions(
+    const std::string& name,
+    vtkSmartPointer<vtkColorTransferFunction> colorTF,
+    vtkSmartPointer<vtkPiecewiseFunction> opacityTF)
+{
+    auto it = impl_->overlays.find(name);
+    if (it == impl_->overlays.end()) {
+        return false;
+    }
+
+    it->second.colorTF = colorTF;
+    it->second.opacityTF = opacityTF;
+    it->second.property->SetColor(colorTF);
+    it->second.property->SetScalarOpacity(opacityTF);
+    it->second.volume->Modified();
+    return true;
+}
+
+vtkSmartPointer<vtkColorTransferFunction>
+VolumeRenderer::createVelocityColorFunction(double maxVelocity)
+{
+    auto colorTF = vtkSmartPointer<vtkColorTransferFunction>::New();
+    // Jet colormap: blue → cyan → green → yellow → red
+    colorTF->AddRGBPoint(0.0, 0.0, 0.0, 0.5);                      // Dark blue
+    colorTF->AddRGBPoint(maxVelocity * 0.25, 0.0, 0.0, 1.0);       // Blue
+    colorTF->AddRGBPoint(maxVelocity * 0.375, 0.0, 1.0, 1.0);      // Cyan
+    colorTF->AddRGBPoint(maxVelocity * 0.5, 0.0, 1.0, 0.0);        // Green
+    colorTF->AddRGBPoint(maxVelocity * 0.625, 1.0, 1.0, 0.0);      // Yellow
+    colorTF->AddRGBPoint(maxVelocity * 0.75, 1.0, 0.5, 0.0);       // Orange
+    colorTF->AddRGBPoint(maxVelocity, 1.0, 0.0, 0.0);              // Red
+    return colorTF;
+}
+
+vtkSmartPointer<vtkPiecewiseFunction>
+VolumeRenderer::createVelocityOpacityFunction(double maxVelocity, double baseOpacity)
+{
+    auto opacityTF = vtkSmartPointer<vtkPiecewiseFunction>::New();
+    // Low velocity = transparent, increasing opacity for higher velocity
+    opacityTF->AddPoint(0.0, 0.0);
+    opacityTF->AddPoint(maxVelocity * 0.1, 0.0);                    // Below 10% → invisible
+    opacityTF->AddPoint(maxVelocity * 0.2, baseOpacity * 0.3);      // Fade in
+    opacityTF->AddPoint(maxVelocity * 0.5, baseOpacity * 0.6);      // Mid range
+    opacityTF->AddPoint(maxVelocity, baseOpacity);                   // Full opacity at max
+    return opacityTF;
 }
 
 } // namespace dicom_viewer::services
