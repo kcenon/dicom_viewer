@@ -13,6 +13,8 @@
 
 namespace dicom_viewer::ui {
 
+enum class ScrollMode;
+
 /**
  * @brief Composite widget displaying synchronized MPR views with segmentation support
  *
@@ -240,7 +242,12 @@ signals:
     /// Emitted when slab mode changes
     void slabModeChanged(services::SlabMode mode, double thickness);
 
+    /// Emitted when scroll wheel is used in Phase mode
+    void phaseScrollRequested(int delta);
+
 public slots:
+    /// Set the scroll mode (Slice or Phase)
+    void setScrollMode(ScrollMode mode);
     /// Set crosshair position from external source
     void setCrosshairPosition(double x, double y, double z);
 
