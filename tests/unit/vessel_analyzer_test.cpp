@@ -394,6 +394,114 @@ TEST(VesselAnalyzerVorticity, HelicitySignMatchesRotationDirection) {
         << "Forward flow + positive rotation → positive helicity";
 }
 
+TEST(VesselAnalyzerVorticity, HelicityMagnitudeInSIUnits) {
+    // Rotating cylinder with axial flow:
+    // At center: V = (0, 0, Vz) cm/s, omega_z = 2*omega*10 1/s
+    // H = Vz(m/s) * omega_z(1/s) = (Vz * 0.01) * (2 * omega * 10)
+    constexpr int kDim = 64;
+    constexpr double kOmega = 3.0;
+    constexpr double kVz = 30.0;  // cm/s
+
+    auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+    auto* buf = velocity->GetBufferPointer();
+    double center = (kDim - 1) / 2.0;
+    double R2 = 20.0 * 20.0;
+
+    for (int z = 0; z < kDim; ++z) {
+        for (int y = 0; y < kDim; ++y) {
+            for (int x = 0; x < kDim; ++x) {
+                int idx = z * kDim * kDim + y * kDim + x;
+                double dx = x - center;
+                double dy = y - center;
+                if (dx * dx + dy * dy < R2) {
+                    buf[idx * 3]     = static_cast<float>(-kOmega * dy);
+                    buf[idx * 3 + 1] = static_cast<float>(kOmega * dx);
+                    buf[idx * 3 + 2] = static_cast<float>(kVz);
+                } else {
+                    buf[idx * 3]     = 0.0f;
+                    buf[idx * 3 + 1] = 0.0f;
+                    buf[idx * 3 + 2] = 0.0f;
+                }
+            }
+        }
+    }
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+
+    VesselAnalyzer analyzer;
+    auto result = analyzer.computeVorticity(phase);
+    ASSERT_TRUE(result.has_value());
+
+    int cIdx = (kDim / 2) * kDim * kDim + (kDim / 2) * kDim + (kDim / 2);
+    auto* helBuf = result->helicityDensity->GetBufferPointer();
+
+    // Expected: H = Vz_m * omega_z = (30 * 0.01) * (2 * 3 * 10) = 0.3 * 60 = 18 m/s^2
+    double expectedH = (kVz * 0.01) * (2.0 * kOmega * 10.0);
+    EXPECT_NEAR(helBuf[cIdx], expectedH, expectedH * 0.1)
+        << "Helicity should be in SI units (m/s^2), expected ~" << expectedH;
+}
+
+TEST(VesselAnalyzerVorticity, RightLeftHelicityDecomposition) {
+    // Use rotating cylinder with axial flow → positive helicity at center
+    constexpr int kDim = 64;
+
+    auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+    auto* buf = velocity->GetBufferPointer();
+    double center = (kDim - 1) / 2.0;
+    double omega = 3.0;
+    double R2 = 20.0 * 20.0;
+
+    for (int z = 0; z < kDim; ++z) {
+        for (int y = 0; y < kDim; ++y) {
+            for (int x = 0; x < kDim; ++x) {
+                int idx = z * kDim * kDim + y * kDim + x;
+                double dx = x - center;
+                double dy = y - center;
+                if (dx * dx + dy * dy < R2) {
+                    buf[idx * 3]     = static_cast<float>(-omega * dy);
+                    buf[idx * 3 + 1] = static_cast<float>(omega * dx);
+                    buf[idx * 3 + 2] = 30.0f;
+                } else {
+                    buf[idx * 3]     = 0.0f;
+                    buf[idx * 3 + 1] = 0.0f;
+                    buf[idx * 3 + 2] = 0.0f;
+                }
+            }
+        }
+    }
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+
+    VesselAnalyzer analyzer;
+    auto result = analyzer.computeVorticity(phase);
+    ASSERT_TRUE(result.has_value());
+    ASSERT_NE(result->rightHelicity, nullptr);
+    ASSERT_NE(result->leftHelicity, nullptr);
+
+    auto* helBuf = result->helicityDensity->GetBufferPointer();
+    auto* rhBuf  = result->rightHelicity->GetBufferPointer();
+    auto* lhBuf  = result->leftHelicity->GetBufferPointer();
+
+    int cIdx = (kDim / 2) * kDim * kDim + (kDim / 2) * kDim + (kDim / 2);
+
+    // Center has positive helicity → rightHelicity > 0, leftHelicity == 0
+    EXPECT_GT(rhBuf[cIdx], 0.0f)
+        << "Right helicity should be positive where H > 0";
+    EXPECT_FLOAT_EQ(lhBuf[cIdx], 0.0f)
+        << "Left helicity should be zero where H > 0";
+
+    // Verify decomposition identity: H = rightH + leftH for interior voxels
+    int nTotal = kDim * kDim * kDim;
+    for (int i = 0; i < nTotal; ++i) {
+        EXPECT_NEAR(helBuf[i], rhBuf[i] + lhBuf[i], 1e-6f)
+            << "H = max(H,0) + min(H,0) must hold at voxel " << i;
+        EXPECT_GE(rhBuf[i], 0.0f) << "Right helicity must be >= 0";
+        EXPECT_LE(lhBuf[i], 0.0f) << "Left helicity must be <= 0";
+    }
+}
+
 TEST(VesselAnalyzerVorticity, OutputImageDimensionsMatch) {
     constexpr int kDim = 16;
     auto [phase, truth] = phantom::generateRotatingCylinder(kDim, 2.0, 6.0);

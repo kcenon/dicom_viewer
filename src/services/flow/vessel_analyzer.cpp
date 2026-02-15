@@ -471,6 +471,20 @@ VesselAnalyzer::computeVorticity(const VelocityPhase& phase) const {
     helicity->SetDirection(image->GetDirection());
     helicity->Allocate(true);
 
+    auto rightHel = FloatImage3D::New();
+    rightHel->SetRegions(region);
+    rightHel->SetSpacing(image->GetSpacing());
+    rightHel->SetOrigin(image->GetOrigin());
+    rightHel->SetDirection(image->GetDirection());
+    rightHel->Allocate(true);
+
+    auto leftHel = FloatImage3D::New();
+    leftHel->SetRegions(region);
+    leftHel->SetSpacing(image->GetSpacing());
+    leftHel->SetOrigin(image->GetOrigin());
+    leftHel->SetDirection(image->GetDirection());
+    leftHel->Allocate(true);
+
     // Spacing in meters for SI vorticity (1/s)
     // But velocity is in cm/s and spacing in mm
     // vorticity = dV/dx where V in cm/s and dx in mm
@@ -486,6 +500,8 @@ VesselAnalyzer::computeVorticity(const VelocityPhase& phase) const {
     auto* vortBuf = vortField->GetBufferPointer();
     auto* magBuf = vortMag->GetBufferPointer();
     auto* helBuf = helicity->GetBufferPointer();
+    auto* rhBuf = rightHel->GetBufferPointer();
+    auto* lhBuf = leftHel->GetBufferPointer();
 
     int nx = static_cast<int>(size[0]);
     int ny = static_cast<int>(size[1]);
@@ -531,12 +547,14 @@ VesselAnalyzer::computeVorticity(const VelocityPhase& phase) const {
                 magBuf[idx] = static_cast<float>(mag);
 
                 // Helicity density: H = V · omega
-                // V in cm/s, omega in 1/s → H in cm/s * 1/s = cm/s^2
-                double vx = vBuf[idx * 3];
-                double vy = vBuf[idx * 3 + 1];
-                double vz = vBuf[idx * 3 + 2];
-                double h = vx * wx + vy * wy + vz * wz;
+                // V in cm/s → convert to m/s (×0.01), omega in 1/s → H in m/s^2
+                double vxM = vBuf[idx * 3]     * 0.01;
+                double vyM = vBuf[idx * 3 + 1] * 0.01;
+                double vzM = vBuf[idx * 3 + 2] * 0.01;
+                double h = vxM * wx + vyM * wy + vzM * wz;
                 helBuf[idx] = static_cast<float>(h);
+                rhBuf[idx] = static_cast<float>(std::max(h, 0.0));
+                lhBuf[idx] = static_cast<float>(std::min(h, 0.0));
             }
         }
     }
@@ -545,6 +563,8 @@ VesselAnalyzer::computeVorticity(const VelocityPhase& phase) const {
     result.vorticityField = vortField;
     result.vorticityMagnitude = vortMag;
     result.helicityDensity = helicity;
+    result.rightHelicity = rightHel;
+    result.leftHelicity = leftHel;
 
     getLogger()->debug("Vorticity: computed for {}x{}x{} volume",
                        nx, ny, nz);
