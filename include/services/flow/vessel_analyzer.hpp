@@ -41,6 +41,8 @@ struct VortexResult {
     FloatImage3D::Pointer vorticityMagnitude;   ///< |curl(V)| in 1/s
     VectorImage3D::Pointer vorticityField;      ///< curl(V) vector field
     FloatImage3D::Pointer helicityDensity;      ///< V dot curl(V) in m/s^2
+    FloatImage3D::Pointer rightHelicity;        ///< max(H, 0) in m/s^2
+    FloatImage3D::Pointer leftHelicity;         ///< min(H, 0) in m/s^2
 };
 
 /**
