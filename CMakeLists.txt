@@ -567,6 +567,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/widgets/mpr_view_widget.cpp
     src/ui/widgets/dr_viewer.cpp
     src/ui/widgets/phase_slider_widget.cpp
+    src/ui/widgets/sp_mode_toggle.cpp
     src/ui/panels/patient_browser.cpp
     src/ui/panels/tools_panel.cpp
     src/ui/panels/statistics_panel.cpp
@@ -579,6 +580,7 @@ add_library(dicom_viewer_ui STATIC
     include/ui/mpr_view_widget.hpp
     include/ui/dr_viewer.hpp
     include/ui/widgets/phase_slider_widget.hpp
+    include/ui/widgets/sp_mode_toggle.hpp
     include/ui/panels/patient_browser.hpp
     include/ui/panels/tools_panel.hpp
     include/ui/panels/statistics_panel.hpp

@@ -5,6 +5,8 @@
 
 namespace dicom_viewer::ui {
 
+enum class ScrollMode;
+
 /**
  * @brief Widget for cardiac phase navigation with cine playback
  *
@@ -37,6 +39,11 @@ public:
      * @brief Check if cine playback is active
      */
     [[nodiscard]] bool isPlaying() const;
+
+    /**
+     * @brief Get current scroll mode (Slice or Phase)
+     */
+    [[nodiscard]] ScrollMode scrollMode() const;
 
 public slots:
     /**
@@ -84,6 +91,12 @@ signals:
      * @brief User clicked Stop button
      */
     void stopRequested();
+
+    /**
+     * @brief S/P mode changed by user
+     * @param mode New scroll mode
+     */
+    void scrollModeChanged(ScrollMode mode);
 
 private:
     void setupUI();
