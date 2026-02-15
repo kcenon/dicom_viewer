@@ -1512,3 +1512,21 @@ target_include_directories(snapshot_command_test PRIVATE
 )
 
 gtest_discover_tests(snapshot_command_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Ensight Gold format exporter
+add_executable(ensight_exporter_test
+    unit/ensight_exporter_test.cpp
+)
+
+target_link_libraries(ensight_exporter_test PRIVATE
+    export_service
+    ${ITK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(ensight_exporter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(ensight_exporter_test DISCOVERY_TIMEOUT 60)
