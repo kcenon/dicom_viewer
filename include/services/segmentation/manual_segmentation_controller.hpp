@@ -225,6 +225,9 @@ public:
     /// Callback when label map is modified
     using ModificationCallback = std::function<void(int sliceIndex)>;
 
+    /// Callback when undo/redo availability changes
+    using UndoRedoCallback = std::function<void(bool canUndo, bool canRedo)>;
+
     ManualSegmentationController();
     ~ManualSegmentationController();
 
@@ -517,6 +520,36 @@ public:
      * @param callback Callback function
      */
     void setModificationCallback(ModificationCallback callback);
+
+    // -- Undo/Redo support --
+
+    /**
+     * @brief Undo the last segmentation operation
+     * @return true if an undo was performed
+     */
+    bool undo();
+
+    /**
+     * @brief Redo the most recently undone operation
+     * @return true if a redo was performed
+     */
+    bool redo();
+
+    /**
+     * @brief Check if undo is available
+     */
+    [[nodiscard]] bool canUndo() const noexcept;
+
+    /**
+     * @brief Check if redo is available
+     */
+    [[nodiscard]] bool canRedo() const noexcept;
+
+    /**
+     * @brief Set callback for undo/redo availability changes
+     * @param callback Callback function
+     */
+    void setUndoRedoCallback(UndoRedoCallback callback);
 
     /**
      * @brief Clear all labels from the label map
