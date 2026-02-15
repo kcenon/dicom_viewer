@@ -755,6 +755,136 @@ VesselAnalyzer::computeKineticEnergy(const VelocityPhase& phase,
 }
 
 // =============================================================================
+// Energy Loss (Viscous Dissipation)
+// =============================================================================
+
+std::expected<EnergyLossResult, FlowError>
+VesselAnalyzer::computeEnergyLoss(const VelocityPhase& phase,
+                                   FloatImage3D::Pointer mask) const {
+    if (!phase.velocityField) {
+        return std::unexpected(FlowError{
+            FlowError::Code::InvalidInput,
+            "VelocityPhase has null velocity field"});
+    }
+
+    auto image = phase.velocityField;
+    if (image->GetNumberOfComponentsPerPixel() != 3) {
+        return std::unexpected(FlowError{
+            FlowError::Code::InvalidInput,
+            "Expected 3-component velocity field"});
+    }
+
+    auto region = image->GetLargestPossibleRegion();
+    auto size = region.GetSize();
+    auto spacing = image->GetSpacing();
+
+    // Validate mask dimensions if provided
+    float* maskBuf = nullptr;
+    if (mask) {
+        auto maskSize = mask->GetLargestPossibleRegion().GetSize();
+        if (maskSize[0] != size[0] || maskSize[1] != size[1] || maskSize[2] != size[2]) {
+            return std::unexpected(FlowError{
+                FlowError::Code::InvalidInput,
+                "Mask dimensions do not match velocity field"});
+        }
+        maskBuf = mask->GetBufferPointer();
+    }
+
+    // Create output dissipation image
+    auto dissipation = FloatImage3D::New();
+    dissipation->SetRegions(region);
+    dissipation->SetSpacing(image->GetSpacing());
+    dissipation->SetOrigin(image->GetOrigin());
+    dissipation->SetDirection(image->GetDirection());
+    dissipation->Allocate(true);
+
+    double mu = impl_->bloodViscosity;  // Pa·s
+
+    // Spacing in mm for central differences
+    double dxMM = spacing[0];
+    double dyMM = spacing[1];
+    double dzMM = spacing[2];
+
+    // Voxel volume in m³: spacing is in mm, so mm³ × 1e-9 = m³
+    double voxelVolM3 = dxMM * dyMM * dzMM * 1e-9;
+
+    auto* vBuf = image->GetBufferPointer();
+    auto* dBuf = dissipation->GetBufferPointer();
+
+    int nx = static_cast<int>(size[0]);
+    int ny = static_cast<int>(size[1]);
+    int nz = static_cast<int>(size[2]);
+
+    double totalEL = 0.0;
+    double sumDissipation = 0.0;
+    int voxelCount = 0;
+
+    for (int z = 1; z < nz - 1; ++z) {
+        for (int y = 1; y < ny - 1; ++y) {
+            for (int x = 1; x < nx - 1; ++x) {
+                int idx = z * ny * nx + y * nx + x;
+
+                // Skip masked-out voxels
+                if (maskBuf && maskBuf[idx] == 0.0f) {
+                    continue;
+                }
+
+                // Neighbor indices for central differences
+                int xp = z * ny * nx + y * nx + (x + 1);
+                int xm = z * ny * nx + y * nx + (x - 1);
+                int yp = z * ny * nx + (y + 1) * nx + x;
+                int ym = z * ny * nx + (y - 1) * nx + x;
+                int zp = (z + 1) * ny * nx + y * nx + x;
+                int zm = (z - 1) * ny * nx + y * nx + x;
+
+                // All 9 partial derivatives (raw: (cm/s)/mm)
+                // Convert to SI (1/s) by multiplying by 10
+                double dudx = (vBuf[xp * 3]     - vBuf[xm * 3])     / (2.0 * dxMM) * 10.0;
+                double dudy = (vBuf[yp * 3]     - vBuf[ym * 3])     / (2.0 * dyMM) * 10.0;
+                double dudz = (vBuf[zp * 3]     - vBuf[zm * 3])     / (2.0 * dzMM) * 10.0;
+
+                double dvdx = (vBuf[xp * 3 + 1] - vBuf[xm * 3 + 1]) / (2.0 * dxMM) * 10.0;
+                double dvdy = (vBuf[yp * 3 + 1] - vBuf[ym * 3 + 1]) / (2.0 * dyMM) * 10.0;
+                double dvdz = (vBuf[zp * 3 + 1] - vBuf[zm * 3 + 1]) / (2.0 * dzMM) * 10.0;
+
+                double dwdx = (vBuf[xp * 3 + 2] - vBuf[xm * 3 + 2]) / (2.0 * dxMM) * 10.0;
+                double dwdy = (vBuf[yp * 3 + 2] - vBuf[ym * 3 + 2]) / (2.0 * dyMM) * 10.0;
+                double dwdz = (vBuf[zp * 3 + 2] - vBuf[zm * 3 + 2]) / (2.0 * dzMM) * 10.0;
+
+                // Viscous dissipation rate:
+                // Φ = μ { 2(∂u/∂x)² + 2(∂v/∂y)² + 2(∂w/∂z)²
+                //       + (∂u/∂y + ∂v/∂x)² + (∂v/∂z + ∂w/∂y)²
+                //       + (∂u/∂z + ∂w/∂x)² }
+                double phi = mu * (
+                    2.0 * dudx * dudx +
+                    2.0 * dvdy * dvdy +
+                    2.0 * dwdz * dwdz +
+                    (dudy + dvdx) * (dudy + dvdx) +
+                    (dvdz + dwdy) * (dvdz + dwdy) +
+                    (dudz + dwdx) * (dudz + dwdx)
+                );
+
+                dBuf[idx] = static_cast<float>(phi);
+                sumDissipation += phi;
+                totalEL += phi * voxelVolM3;
+                ++voxelCount;
+            }
+        }
+    }
+
+    EnergyLossResult result;
+    result.dissipationField = dissipation;
+    result.totalEnergyLoss = totalEL;
+    result.meanDissipation = (voxelCount > 0) ? sumDissipation / voxelCount : 0.0;
+    result.voxelCount = voxelCount;
+
+    getLogger()->info("EnergyLoss: total={:.6e} W, mean={:.2f} W/m³, voxels={}",
+                      result.totalEnergyLoss, result.meanDissipation, voxelCount);
+
+    return result;
+}
+
+// =============================================================================
 // Relative Residence Time (RRT)
 // =============================================================================
 

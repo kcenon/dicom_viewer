@@ -757,3 +757,287 @@ TEST(VesselAnalyzerTest, SetLowWSSThreshold) {
     // Should not crash; threshold used in computeWSS for lowWSSArea
     SUCCEED();
 }
+
+// =============================================================================
+// Kinetic Energy tests (Issue #239)
+// =============================================================================
+
+TEST(VesselAnalyzerKE, NullFieldReturnsError) {
+    VesselAnalyzer analyzer;
+    VelocityPhase phase;
+    auto result = analyzer.computeKineticEnergy(phase);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VesselAnalyzerKE, UniformFlowAnalytical) {
+    // Uniform velocity → KE = 0.5 * rho * |u|^2
+    constexpr int kDim = 16;
+    auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+    auto* buf = velocity->GetBufferPointer();
+    // V = (0, 0, 100) cm/s = (0, 0, 1) m/s
+    for (int i = 0; i < kDim * kDim * kDim; ++i) {
+        buf[i * 3 + 2] = 100.0f;
+    }
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+
+    VesselAnalyzer analyzer;
+    auto result = analyzer.computeKineticEnergy(phase);
+    ASSERT_TRUE(result.has_value());
+
+    // KE = 0.5 * 1060 * 1.0^2 = 530 J/m³
+    EXPECT_NEAR(result->meanKE, 530.0, 1.0);
+    EXPECT_GT(result->totalKE, 0.0);
+}
+
+TEST(VesselAnalyzerKE, MaskRestrictsComputation) {
+    constexpr int kDim = 16;
+    auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+    auto* vBuf = velocity->GetBufferPointer();
+    for (int i = 0; i < kDim * kDim * kDim; ++i) {
+        vBuf[i * 3 + 2] = 50.0f;
+    }
+
+    // Mask: only half the volume
+    auto mask = phantom::createScalarImage(kDim, kDim, kDim);
+    auto* mBuf = mask->GetBufferPointer();
+    for (int z = 0; z < kDim / 2; ++z) {
+        for (int y = 0; y < kDim; ++y) {
+            for (int x = 0; x < kDim; ++x) {
+                mBuf[z * kDim * kDim + y * kDim + x] = 1.0f;
+            }
+        }
+    }
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+
+    VesselAnalyzer analyzer;
+    auto full = analyzer.computeKineticEnergy(phase);
+    auto masked = analyzer.computeKineticEnergy(phase, mask);
+    ASSERT_TRUE(full.has_value());
+    ASSERT_TRUE(masked.has_value());
+
+    EXPECT_LT(masked->voxelCount, full->voxelCount);
+    EXPECT_LT(masked->totalKE, full->totalKE);
+}
+
+// =============================================================================
+// Energy Loss (Viscous Dissipation) tests (Issue #238)
+// =============================================================================
+
+TEST(VesselAnalyzerEnergyLoss, NullFieldReturnsError) {
+    VesselAnalyzer analyzer;
+    VelocityPhase phase;
+    auto result = analyzer.computeEnergyLoss(phase);
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, FlowError::Code::InvalidInput);
+}
+
+TEST(VesselAnalyzerEnergyLoss, UniformFlowHasZeroDissipation) {
+    // Uniform velocity → all spatial gradients are zero → Φ = 0
+    constexpr int kDim = 16;
+    auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+    auto* buf = velocity->GetBufferPointer();
+    for (int i = 0; i < kDim * kDim * kDim; ++i) {
+        buf[i * 3]     = 10.0f;
+        buf[i * 3 + 1] = 20.0f;
+        buf[i * 3 + 2] = 50.0f;
+    }
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+
+    VesselAnalyzer analyzer;
+    auto result = analyzer.computeEnergyLoss(phase);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    EXPECT_NEAR(result->totalEnergyLoss, 0.0, 1e-12);
+    EXPECT_NEAR(result->meanDissipation, 0.0, 1e-12);
+}
+
+TEST(VesselAnalyzerEnergyLoss, UniformShearFlowAnalytical) {
+    // Simple shear: V = (gamma_dot * y, 0, 0)
+    // Only non-zero gradient: du/dy = gamma_dot
+    // Φ = μ × (du/dy + dv/dx)² = μ × gamma_dot²
+    //
+    // gamma_dot_raw = 2.0 cm/s per mm → SI = 20 1/s
+    // Φ = 0.004 × 20² = 0.004 × 400 = 1.6 W/m³
+
+    constexpr int kDim = 32;
+    constexpr double kGammaDotRaw = 2.0;  // (cm/s)/mm
+
+    auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+    auto* buf = velocity->GetBufferPointer();
+    double center = (kDim - 1) / 2.0;
+
+    for (int z = 0; z < kDim; ++z) {
+        for (int y = 0; y < kDim; ++y) {
+            for (int x = 0; x < kDim; ++x) {
+                int idx = z * kDim * kDim + y * kDim + x;
+                // V_x = gamma_dot * (y - center) cm/s — linear in y
+                buf[idx * 3]     = static_cast<float>(kGammaDotRaw * (y - center));
+                buf[idx * 3 + 1] = 0.0f;
+                buf[idx * 3 + 2] = 0.0f;
+            }
+        }
+    }
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+
+    VesselAnalyzer analyzer;
+    auto result = analyzer.computeEnergyLoss(phase);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    // Expected: Φ = μ × (gamma_dot_SI)² = 0.004 × 400 = 1.6 W/m³
+    double gammaDotSI = kGammaDotRaw * 10.0;  // 20 1/s
+    double expectedPhi = 0.004 * gammaDotSI * gammaDotSI;  // 1.6 W/m³
+
+    // Central differences are exact for linear fields,
+    // so interior voxels should match analytically
+    EXPECT_NEAR(result->meanDissipation, expectedPhi, expectedPhi * 0.01)
+        << "Mean dissipation should match analytical μ×γ̇²";
+
+    // Total EL = Φ × interior_voxels × voxel_volume
+    int interiorCount = (kDim - 2) * (kDim - 2) * (kDim - 2);  // 30³
+    double voxelVolM3 = 1e-9;  // 1mm³
+    double expectedTotal = expectedPhi * interiorCount * voxelVolM3;
+    EXPECT_NEAR(result->totalEnergyLoss, expectedTotal, expectedTotal * 0.01)
+        << "Total energy loss should match analytical";
+}
+
+TEST(VesselAnalyzerEnergyLoss, PoiseuilleFlowWithinTolerance) {
+    // Poiseuille: V = (0, 0, Vmax*(1 - r²/R²))
+    // dw/dx = -2*Vmax*x/R², dw/dy = -2*Vmax*y/R²
+    // Φ = μ × [(dw/dx)² + (dw/dy)²] per voxel (in SI)
+    //
+    // Analytical total: EL = 2π × μ × Vmax_SI² × L_SI
+    // (independent of R — elegant result of Poiseuille flow)
+
+    constexpr int kDim = 64;
+    constexpr double kVMax = 100.0;  // cm/s
+    constexpr double kRadius = 20.0; // voxels = 20mm
+
+    auto [phase, truth] = phantom::generatePoiseuillePipe(kDim, kVMax, kRadius);
+
+    VesselAnalyzer analyzer;
+    auto result = analyzer.computeEnergyLoss(phase);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    // Analytical: EL = 2π × μ × Vmax_SI² × L_SI
+    // L = interior slices: (kDim - 2) * 1mm = 62mm = 0.062 m
+    double vMaxSI = kVMax * 0.01;       // 1.0 m/s
+    double effectiveL = (kDim - 2) * 0.001;  // 0.062 m
+    double analyticalEL = 2.0 * std::numbers::pi * 0.004 * vMaxSI * vMaxSI * effectiveL;
+
+    // Accept ±6% tolerance for 64³ grid (boundary discretization error ~2/R ≈ 5%)
+    // Central differences at pipe boundary underestimate gradients due to step edge
+    EXPECT_NEAR(result->totalEnergyLoss, analyticalEL, analyticalEL * 0.06)
+        << "Poiseuille energy loss should match analytical within ±6%"
+        << "\n  Computed: " << result->totalEnergyLoss
+        << "\n  Analytical: " << analyticalEL;
+}
+
+TEST(VesselAnalyzerEnergyLoss, MaskRestrictsComputation) {
+    // Use uniform shear flow with a mask covering half the Z slices
+    constexpr int kDim = 16;
+    constexpr double kGammaDotRaw = 1.0;
+
+    auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+    auto* buf = velocity->GetBufferPointer();
+    double center = (kDim - 1) / 2.0;
+
+    for (int z = 0; z < kDim; ++z) {
+        for (int y = 0; y < kDim; ++y) {
+            for (int x = 0; x < kDim; ++x) {
+                int idx = z * kDim * kDim + y * kDim + x;
+                buf[idx * 3] = static_cast<float>(kGammaDotRaw * (y - center));
+            }
+        }
+    }
+
+    // Mask: only lower half (z < kDim/2) is active
+    auto mask = phantom::createScalarImage(kDim, kDim, kDim);
+    auto* mBuf = mask->GetBufferPointer();
+    for (int z = 0; z < kDim / 2; ++z) {
+        for (int y = 0; y < kDim; ++y) {
+            for (int x = 0; x < kDim; ++x) {
+                mBuf[z * kDim * kDim + y * kDim + x] = 1.0f;
+            }
+        }
+    }
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+
+    VesselAnalyzer analyzer;
+    auto fullResult = analyzer.computeEnergyLoss(phase);
+    auto maskedResult = analyzer.computeEnergyLoss(phase, mask);
+    ASSERT_TRUE(fullResult.has_value());
+    ASSERT_TRUE(maskedResult.has_value());
+
+    EXPECT_LT(maskedResult->voxelCount, fullResult->voxelCount);
+    EXPECT_LT(maskedResult->totalEnergyLoss, fullResult->totalEnergyLoss);
+
+    // Mean dissipation should be the same (uniform shear)
+    EXPECT_NEAR(maskedResult->meanDissipation, fullResult->meanDissipation,
+                fullResult->meanDissipation * 0.01);
+}
+
+TEST(VesselAnalyzerEnergyLoss, OutputImageDimensionsMatch) {
+    constexpr int kDim = 16;
+    auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+    auto* buf = velocity->GetBufferPointer();
+    for (int i = 0; i < kDim * kDim * kDim; ++i) {
+        buf[i * 3 + 2] = 50.0f;
+    }
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+
+    VesselAnalyzer analyzer;
+    auto result = analyzer.computeEnergyLoss(phase);
+    ASSERT_TRUE(result.has_value());
+
+    auto elSize = result->dissipationField->GetLargestPossibleRegion().GetSize();
+    EXPECT_EQ(elSize[0], static_cast<unsigned>(kDim));
+    EXPECT_EQ(elSize[1], static_cast<unsigned>(kDim));
+    EXPECT_EQ(elSize[2], static_cast<unsigned>(kDim));
+}
+
+TEST(VesselAnalyzerEnergyLoss, DissipationScalesWithViscosity) {
+    // Φ ∝ μ → doubling viscosity should double dissipation
+    constexpr int kDim = 16;
+    constexpr double kGammaDotRaw = 2.0;
+
+    auto makePhase = [&]() {
+        auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+        auto* buf = velocity->GetBufferPointer();
+        double center = (kDim - 1) / 2.0;
+        for (int z = 0; z < kDim; ++z) {
+            for (int y = 0; y < kDim; ++y) {
+                for (int x = 0; x < kDim; ++x) {
+                    int idx = z * kDim * kDim + y * kDim + x;
+                    buf[idx * 3] = static_cast<float>(kGammaDotRaw * (y - center));
+                }
+            }
+        }
+        VelocityPhase p;
+        p.velocityField = velocity;
+        return p;
+    };
+
+    VesselAnalyzer a1;
+    auto r1 = a1.computeEnergyLoss(makePhase());
+    ASSERT_TRUE(r1.has_value());
+
+    VesselAnalyzer a2;
+    a2.setBloodViscosity(0.008);  // 2× default
+    auto r2 = a2.computeEnergyLoss(makePhase());
+    ASSERT_TRUE(r2.has_value());
+
+    EXPECT_NEAR(r2->totalEnergyLoss / r1->totalEnergyLoss, 2.0, 0.01)
+        << "Doubling viscosity should double energy loss";
+}
