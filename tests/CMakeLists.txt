@@ -1495,3 +1495,20 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(plane_stats_rrt_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for SnapshotCommand (RLE compression + undo/redo)
+add_executable(snapshot_command_test
+    unit/snapshot_command_test.cpp
+)
+
+target_link_libraries(snapshot_command_test PRIVATE
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(snapshot_command_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(snapshot_command_test DISCOVERY_TIMEOUT 60)
