@@ -61,6 +61,23 @@ struct KineticEnergyResult {
 };
 
 /**
+ * @brief Viscous dissipation (Energy Loss) analysis result
+ *
+ * Φ = μ { 2(∂u/∂x)² + 2(∂v/∂y)² + 2(∂w/∂z)²
+ *       + (∂u/∂y + ∂v/∂x)² + (∂v/∂z + ∂w/∂y)² + (∂u/∂z + ∂w/∂x)² }
+ *
+ * Per-voxel dissipation rate in W/m³, total in Watts.
+ *
+ * @trace SRS-FR-047
+ */
+struct EnergyLossResult {
+    FloatImage3D::Pointer dissipationField;  ///< Per-voxel dissipation rate (W/m³)
+    double totalEnergyLoss = 0.0;            ///< Integrated energy loss (Watts)
+    double meanDissipation = 0.0;            ///< Mean per-voxel dissipation (W/m³)
+    int voxelCount = 0;                      ///< Number of voxels in computation
+};
+
+/**
  * @brief Advanced hemodynamic analysis for 4D Flow velocity data
  *
  * Computes Wall Shear Stress (WSS), Oscillatory Shear Index (OSI),
@@ -213,6 +230,23 @@ public:
     [[nodiscard]] std::expected<KineticEnergyResult, FlowError>
     computeKineticEnergy(const VelocityPhase& phase,
                          FloatImage3D::Pointer mask = nullptr) const;
+
+    // --- Energy Loss (Viscous Dissipation) ---
+
+    /**
+     * @brief Compute viscous dissipation rate (Energy Loss) from velocity field
+     *
+     * Φ = μ × (strain rate tensor double contraction)
+     * Uses all 9 partial derivatives of the velocity gradient tensor
+     * computed via central finite differences.
+     *
+     * @param phase Velocity field
+     * @param mask Optional mask restricting computation to ROI (non-zero voxels)
+     * @return EnergyLossResult with per-voxel dissipation and total energy loss
+     */
+    [[nodiscard]] std::expected<EnergyLossResult, FlowError>
+    computeEnergyLoss(const VelocityPhase& phase,
+                      FloatImage3D::Pointer mask = nullptr) const;
 
     // --- Relative Residence Time ---
 
