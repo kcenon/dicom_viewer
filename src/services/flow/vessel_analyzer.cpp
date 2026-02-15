@@ -685,4 +685,54 @@ VesselAnalyzer::computeKineticEnergy(const VelocityPhase& phase,
     return result;
 }
 
+// =============================================================================
+// Relative Residence Time (RRT)
+// =============================================================================
+
+std::expected<vtkSmartPointer<vtkPolyData>, FlowError>
+VesselAnalyzer::computeRRT(vtkSmartPointer<vtkPolyData> surface) const {
+    if (!surface || surface->GetNumberOfPoints() == 0) {
+        return std::unexpected(FlowError{
+            FlowError::Code::InvalidInput,
+            "Surface is null or empty"});
+    }
+
+    auto* osiArray = surface->GetPointData()->GetArray("OSI");
+    auto* tawssArray = surface->GetPointData()->GetArray("TAWSS");
+
+    if (!osiArray || !tawssArray) {
+        return std::unexpected(FlowError{
+            FlowError::Code::InvalidInput,
+            "Surface must have OSI and TAWSS point data arrays"});
+    }
+
+    int numPoints = surface->GetNumberOfPoints();
+
+    auto rrtArray = vtkSmartPointer<vtkFloatArray>::New();
+    rrtArray->SetName("RRT");
+    rrtArray->SetNumberOfTuples(numPoints);
+
+    for (int i = 0; i < numPoints; ++i) {
+        double osi = osiArray->GetTuple1(i);
+        double tawss = tawssArray->GetTuple1(i);
+
+        // RRT = 1 / ((1 - 2*OSI) * TAWSS)
+        double denominator = (1.0 - 2.0 * osi) * tawss;
+        float rrt = 0.0f;
+        if (std::abs(denominator) > 1e-12) {
+            rrt = static_cast<float>(1.0 / denominator);
+        }
+
+        rrtArray->SetValue(i, rrt);
+    }
+
+    auto outputSurface = vtkSmartPointer<vtkPolyData>::New();
+    outputSurface->DeepCopy(surface);
+    outputSurface->GetPointData()->AddArray(rrtArray);
+
+    getLogger()->info("RRT: computed for {} surface points", numPoints);
+
+    return outputSurface;
+}
+
 }  // namespace dicom_viewer::services

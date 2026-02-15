@@ -123,11 +123,15 @@ FlowQuantifier::measureFlow(const VelocityPhase& phase) const {
 
     // Sample velocity field at grid points on the plane
     double sumThroughPlane = 0.0;
+    double sumThroughPlaneSq = 0.0;
     double maxThroughPlane = 0.0;
+    double minThroughPlane = std::numeric_limits<double>::max();
     int sampleCount = 0;
 
     // Pixel area in cm^2 (spacing in mm → spacing/10 in cm)
     double pixelAreaCm2 = (spacing / 10.0) * (spacing / 10.0);
+    // Pixel area in mm^2 (spacing in mm)
+    double pixelAreaMm2 = spacing * spacing;
 
     auto region = image->GetLargestPossibleRegion();
 
@@ -158,7 +162,9 @@ FlowQuantifier::measureFlow(const VelocityPhase& phase) const {
             double vThrough = dotProduct(velocity, normal);
 
             sumThroughPlane += vThrough;
+            sumThroughPlaneSq += vThrough * vThrough;
             maxThroughPlane = std::max(maxThroughPlane, std::abs(vThrough));
+            minThroughPlane = std::min(minThroughPlane, std::abs(vThrough));
             ++sampleCount;
         }
     }
@@ -170,16 +176,28 @@ FlowQuantifier::measureFlow(const VelocityPhase& phase) const {
     if (sampleCount > 0) {
         result.meanVelocity = sumThroughPlane / sampleCount;
         result.maxVelocity = maxThroughPlane;
+        result.minVelocity = minThroughPlane;
         result.crossSectionArea = sampleCount * pixelAreaCm2;
+        result.roiAreaMm2 = sampleCount * pixelAreaMm2;
         // Flow rate = mean_through_plane_velocity × area
         result.flowRate = sumThroughPlane * pixelAreaCm2;  // mL/s
+
+        // Standard deviation of through-plane velocity
+        double meanSq = sumThroughPlaneSq / sampleCount;
+        double mean = result.meanVelocity;
+        double variance = meanSq - mean * mean;
+        result.stdVelocity = (variance > 0.0) ? std::sqrt(variance) : 0.0;
+    } else {
+        result.minVelocity = 0.0;
     }
 
     getLogger()->debug("Phase {}: flow={:.2f} mL/s, mean_v={:.2f} cm/s, "
-                       "max_v={:.2f} cm/s, area={:.2f} cm², samples={}",
+                       "max_v={:.2f} cm/s, min_v={:.2f} cm/s, "
+                       "std_v={:.2f} cm/s, roi={:.1f} mm², samples={}",
                        result.phaseIndex, result.flowRate,
                        result.meanVelocity, result.maxVelocity,
-                       result.crossSectionArea, result.sampleCount);
+                       result.minVelocity, result.stdVelocity,
+                       result.roiAreaMm2, result.sampleCount);
 
     return result;
 }
@@ -209,7 +227,13 @@ FlowQuantifier::computeTimeVelocityCurve(
     tvc.timePoints.reserve(phases.size());
     tvc.meanVelocities.reserve(phases.size());
     tvc.maxVelocities.reserve(phases.size());
+    tvc.minVelocities.reserve(phases.size());
+    tvc.stdVelocities.reserve(phases.size());
     tvc.flowRates.reserve(phases.size());
+    tvc.minFlowRates.reserve(phases.size());
+    tvc.stdFlowRates.reserve(phases.size());
+
+    double sumRoiArea = 0.0;
 
     for (const auto& phase : phases) {
         auto measurement = measureFlow(phase);
@@ -220,8 +244,21 @@ FlowQuantifier::computeTimeVelocityCurve(
         tvc.timePoints.push_back(phase.triggerTime);
         tvc.meanVelocities.push_back(measurement->meanVelocity);
         tvc.maxVelocities.push_back(measurement->maxVelocity);
+        tvc.minVelocities.push_back(measurement->minVelocity);
+        tvc.stdVelocities.push_back(measurement->stdVelocity);
         tvc.flowRates.push_back(measurement->flowRate);
+
+        // Per-pixel flow stats: min flow = minVelocity * pixelArea
+        double pixelAreaCm2 = (measurement->sampleCount > 0)
+            ? measurement->crossSectionArea / measurement->sampleCount
+            : 0.0;
+        tvc.minFlowRates.push_back(measurement->minVelocity * pixelAreaCm2);
+        tvc.stdFlowRates.push_back(measurement->stdVelocity * pixelAreaCm2);
+
+        sumRoiArea += measurement->roiAreaMm2;
     }
+
+    tvc.meanRoiArea = phases.empty() ? 0.0 : sumRoiArea / phases.size();
 
     // Compute stroke volume and regurgitant volume
     // dt in seconds = temporalResolution in ms / 1000
