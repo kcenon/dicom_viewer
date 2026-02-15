@@ -295,6 +295,23 @@ target_include_directories(morphological_processor_test PRIVATE
 
 gtest_discover_tests(morphological_processor_test DISCOVERY_TIMEOUT 60)
 
+# Unit tests for Mask Boolean Operations
+add_executable(mask_boolean_operations_test
+    unit/mask_boolean_operations_test.cpp
+)
+
+target_link_libraries(mask_boolean_operations_test PRIVATE
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(mask_boolean_operations_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(mask_boolean_operations_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for ROI Statistics Calculator
 add_executable(roi_statistics_test
     unit/roi_statistics_test.cpp

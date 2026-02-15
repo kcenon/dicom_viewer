@@ -418,6 +418,7 @@ add_library(segmentation_service STATIC
     src/services/segmentation/mpr_segmentation_renderer.cpp
     src/services/segmentation/segmentation_command.cpp
     src/services/segmentation/brush_stroke_command.cpp
+    src/services/segmentation/mask_boolean_operations.cpp
 )
 
 target_link_libraries(segmentation_service PUBLIC
