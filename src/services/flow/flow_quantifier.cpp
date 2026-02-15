@@ -306,6 +306,64 @@ FlowQuantifier::exportToCSV(const TimeVelocityCurve& curve,
 }
 
 // =============================================================================
+// Heart Rate extraction
+// =============================================================================
+
+std::expected<double, FlowError>
+FlowQuantifier::extractHeartRate(const std::vector<VelocityPhase>& phases,
+                                 double temporalResolution) {
+    if (phases.size() < 2) {
+        return std::unexpected(FlowError{
+            FlowError::Code::InvalidInput,
+            "Heart rate extraction requires at least 2 cardiac phases"});
+    }
+
+    // Strategy 1: Use trigger times from phases
+    // Find min and max trigger times
+    double minTrigger = phases[0].triggerTime;
+    double maxTrigger = phases[0].triggerTime;
+    bool hasTriggerData = false;
+
+    for (const auto& phase : phases) {
+        if (phase.triggerTime > 0.0 || phase.phaseIndex > 0) {
+            hasTriggerData = true;
+        }
+        minTrigger = std::min(minTrigger, phase.triggerTime);
+        maxTrigger = std::max(maxTrigger, phase.triggerTime);
+    }
+
+    double rrIntervalMs = 0.0;
+
+    if (hasTriggerData && maxTrigger > minTrigger) {
+        // RR interval = span of trigger times + one interval
+        // phases span [0, T*(N-1)/N] of the cardiac cycle
+        double span = maxTrigger - minTrigger;
+        int numPhases = static_cast<int>(phases.size());
+        rrIntervalMs = span * numPhases / (numPhases - 1);
+    } else if (temporalResolution > 0.0) {
+        // Strategy 2: Use temporal resolution × phase count
+        rrIntervalMs = temporalResolution * static_cast<double>(phases.size());
+    } else {
+        return std::unexpected(FlowError{
+            FlowError::Code::InvalidInput,
+            "No trigger time data or temporal resolution provided"});
+    }
+
+    if (rrIntervalMs <= 0.0) {
+        return std::unexpected(FlowError{
+            FlowError::Code::InvalidInput,
+            "Computed RR interval is non-positive"});
+    }
+
+    double heartRate = 60000.0 / rrIntervalMs;  // BPM
+
+    getLogger()->info("Heart rate: {:.1f} BPM (RR={:.1f} ms, phases={})",
+                      heartRate, rrIntervalMs, phases.size());
+
+    return heartRate;
+}
+
+// =============================================================================
 // Vector math utilities
 // =============================================================================
 

@@ -595,4 +595,94 @@ VesselAnalyzer::computeTKE(const std::vector<VelocityPhase>& phases) const {
     return tke;
 }
 
+// =============================================================================
+// Kinetic Energy
+// =============================================================================
+
+std::expected<KineticEnergyResult, FlowError>
+VesselAnalyzer::computeKineticEnergy(const VelocityPhase& phase,
+                                     FloatImage3D::Pointer mask) const {
+    if (!phase.velocityField) {
+        return std::unexpected(FlowError{
+            FlowError::Code::InvalidInput,
+            "VelocityPhase has null velocity field"});
+    }
+
+    auto image = phase.velocityField;
+    if (image->GetNumberOfComponentsPerPixel() != 3) {
+        return std::unexpected(FlowError{
+            FlowError::Code::InvalidInput,
+            "Expected 3-component velocity field"});
+    }
+
+    auto region = image->GetLargestPossibleRegion();
+    auto size = region.GetSize();
+    auto spacing = image->GetSpacing();
+
+    // Create output KE image matching input geometry
+    auto keImage = FloatImage3D::New();
+    keImage->SetRegions(region);
+    keImage->SetSpacing(image->GetSpacing());
+    keImage->SetOrigin(image->GetOrigin());
+    keImage->SetDirection(image->GetDirection());
+    keImage->Allocate(true);
+
+    int numPixels = static_cast<int>(size[0] * size[1] * size[2]);
+    auto* vBuf = image->GetBufferPointer();
+    auto* keBuf = keImage->GetBufferPointer();
+
+    // Validate mask dimensions if provided
+    float* maskBuf = nullptr;
+    if (mask) {
+        auto maskSize = mask->GetLargestPossibleRegion().GetSize();
+        if (maskSize[0] != size[0] || maskSize[1] != size[1] || maskSize[2] != size[2]) {
+            return std::unexpected(FlowError{
+                FlowError::Code::InvalidInput,
+                "Mask dimensions do not match velocity field"});
+        }
+        maskBuf = mask->GetBufferPointer();
+    }
+
+    double rho = impl_->bloodDensity;  // kg/m^3
+
+    // Voxel volume in m^3: spacing is in mm, so mm^3 * 1e-9 = m^3
+    double voxelVolM3 = spacing[0] * spacing[1] * spacing[2] * 1e-9;
+
+    double totalKE = 0.0;
+    double sumKEDensity = 0.0;
+    int voxelCount = 0;
+
+    for (int i = 0; i < numPixels; ++i) {
+        // Skip masked-out voxels
+        if (maskBuf && maskBuf[i] == 0.0f) {
+            continue;
+        }
+
+        // Velocity in cm/s → m/s: multiply by 0.01
+        double vx = vBuf[i * 3] * 0.01;
+        double vy = vBuf[i * 3 + 1] * 0.01;
+        double vz = vBuf[i * 3 + 2] * 0.01;
+        double u2 = vx * vx + vy * vy + vz * vz;
+
+        // Per-voxel KE density: 0.5 * rho * |u|^2 (J/m^3)
+        double keDensity = 0.5 * rho * u2;
+        keBuf[i] = static_cast<float>(keDensity);
+
+        sumKEDensity += keDensity;
+        totalKE += keDensity * voxelVolM3;
+        ++voxelCount;
+    }
+
+    KineticEnergyResult result;
+    result.keField = keImage;
+    result.totalKE = totalKE;
+    result.meanKE = (voxelCount > 0) ? sumKEDensity / voxelCount : 0.0;
+    result.voxelCount = voxelCount;
+
+    getLogger()->info("KE: total={:.6f} J, mean={:.2f} J/m^3, voxels={}",
+                      result.totalKE, result.meanKE, voxelCount);
+
+    return result;
+}
+
 }  // namespace dicom_viewer::services

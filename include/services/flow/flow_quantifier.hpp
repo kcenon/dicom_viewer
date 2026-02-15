@@ -151,6 +151,23 @@ public:
     exportToCSV(const TimeVelocityCurve& curve,
                 const std::string& filePath);
 
+    // --- Heart Rate ---
+
+    /**
+     * @brief Extract heart rate from trigger time data
+     *
+     * Computes HR = 60000 / RR_interval_ms from the trigger times
+     * of the provided velocity phases. Assumes phases span one full
+     * cardiac cycle.
+     *
+     * @param phases Velocity phases with trigger time data
+     * @param temporalResolution Time between phases in ms (fallback)
+     * @return Heart rate in BPM, or FlowError if computation fails
+     */
+    [[nodiscard]] static std::expected<double, FlowError>
+    extractHeartRate(const std::vector<VelocityPhase>& phases,
+                     double temporalResolution = 0.0);
+
     // --- Utility ---
 
     [[nodiscard]] static double dotProduct(

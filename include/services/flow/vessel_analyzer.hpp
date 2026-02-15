@@ -44,6 +44,21 @@ struct VortexResult {
 };
 
 /**
+ * @brief Kinetic Energy analysis result
+ *
+ * Per-voxel KE = 0.5 * rho * |u|^2 (J/m^3)
+ * Total KE = sum(per-voxel KE * voxel_volume) (Joules)
+ *
+ * @trace SRS-FR-047
+ */
+struct KineticEnergyResult {
+    FloatImage3D::Pointer keField;   ///< Per-voxel KE in J/m^3
+    double totalKE = 0.0;           ///< Integrated KE over volume (Joules)
+    double meanKE = 0.0;            ///< Mean per-voxel KE (J/m^3)
+    int voxelCount = 0;             ///< Number of voxels used in computation
+};
+
+/**
  * @brief Advanced hemodynamic analysis for 4D Flow velocity data
  *
  * Computes Wall Shear Stress (WSS), Oscillatory Shear Index (OSI),
@@ -177,6 +192,22 @@ public:
      */
     [[nodiscard]] std::expected<FloatImage3D::Pointer, FlowError>
     computeTKE(const std::vector<VelocityPhase>& phases) const;
+
+    // --- Kinetic Energy ---
+
+    /**
+     * @brief Compute instantaneous Kinetic Energy for a single phase
+     *
+     * KE = 0.5 * rho * |u|^2 per voxel (J/m^3)
+     * Total KE = sum(KE_voxel * voxel_volume) in Joules
+     *
+     * @param phase Velocity field
+     * @param mask Optional mask restricting computation to ROI (non-zero voxels)
+     * @return KineticEnergyResult on success, FlowError on failure
+     */
+    [[nodiscard]] std::expected<KineticEnergyResult, FlowError>
+    computeKineticEnergy(const VelocityPhase& phase,
+                         FloatImage3D::Pointer mask = nullptr) const;
 
 private:
     class Impl;
