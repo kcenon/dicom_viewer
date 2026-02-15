@@ -1367,3 +1367,20 @@ target_include_directories(controller_undo_redo_test PRIVATE
 )
 
 gtest_discover_tests(controller_undo_redo_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for ProjectManager and ZipArchive
+add_executable(project_manager_test
+    unit/project_manager_test.cpp
+)
+
+target_link_libraries(project_manager_test PRIVATE
+    dicom_viewer_core
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(project_manager_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(project_manager_test DISCOVERY_TIMEOUT 60)
