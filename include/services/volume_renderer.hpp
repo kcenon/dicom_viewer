@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <vector>
 #include <tuple>
 
@@ -9,6 +10,9 @@
 #include <vtkRenderer.h>
 #include <vtkRenderWindow.h>
 #include <vtkVolume.h>
+
+class vtkColorTransferFunction;
+class vtkPiecewiseFunction;
 
 namespace dicom_viewer::services {
 
@@ -137,6 +141,100 @@ public:
     static TransferFunctionPreset getPresetCTAngio();
     static TransferFunctionPreset getPresetCTAbdomen();
     static TransferFunctionPreset getPresetMRIDefault();
+
+    // ==================== Scalar Overlay Volumes ====================
+
+    /**
+     * @brief Add a scalar overlay volume with custom transfer functions
+     *
+     * Each overlay is rendered as an independent vtkVolume with its own
+     * color and opacity transfer functions. Multiple overlays can coexist.
+     *
+     * @param name Unique identifier for this overlay
+     * @param scalarField 3D scalar data (e.g., velocity magnitude)
+     * @param colorTF Color transfer function mapping scalars to RGB
+     * @param opacityTF Opacity transfer function mapping scalars to alpha
+     */
+    void addScalarOverlay(const std::string& name,
+                          vtkSmartPointer<vtkImageData> scalarField,
+                          vtkSmartPointer<vtkColorTransferFunction> colorTF,
+                          vtkSmartPointer<vtkPiecewiseFunction> opacityTF);
+
+    /**
+     * @brief Remove a scalar overlay by name
+     * @param name Overlay identifier
+     * @return True if overlay was found and removed
+     */
+    bool removeScalarOverlay(const std::string& name);
+
+    /**
+     * @brief Remove all scalar overlays
+     */
+    void removeAllScalarOverlays();
+
+    /**
+     * @brief Check if an overlay exists
+     * @param name Overlay identifier
+     */
+    [[nodiscard]] bool hasOverlay(const std::string& name) const;
+
+    /**
+     * @brief Get all overlay names
+     * @return Vector of overlay identifiers
+     */
+    [[nodiscard]] std::vector<std::string> overlayNames() const;
+
+    /**
+     * @brief Set overlay visibility
+     * @param name Overlay identifier
+     * @param visible True to show overlay
+     */
+    void setOverlayVisible(const std::string& name, bool visible);
+
+    /**
+     * @brief Set overlay opacity scaling factor
+     * @param name Overlay identifier
+     * @param opacity Global opacity multiplier (0.0-1.0)
+     */
+    void setOverlayOpacity(const std::string& name, double opacity);
+
+    /**
+     * @brief Get the VTK volume actor for an overlay
+     * @param name Overlay identifier
+     * @return Volume actor, or nullptr if not found
+     */
+    [[nodiscard]] vtkSmartPointer<vtkVolume> getOverlayVolume(const std::string& name) const;
+
+    /**
+     * @brief Update transfer functions for an existing overlay
+     * @param name Overlay identifier
+     * @param colorTF New color transfer function
+     * @param opacityTF New opacity transfer function
+     * @return True if overlay was found and updated
+     */
+    bool updateOverlayTransferFunctions(
+        const std::string& name,
+        vtkSmartPointer<vtkColorTransferFunction> colorTF,
+        vtkSmartPointer<vtkPiecewiseFunction> opacityTF);
+
+    // ==================== Convenience: Velocity Overlay ====================
+
+    /**
+     * @brief Create a jet colormap color transfer function for velocity
+     * @param maxVelocity Maximum velocity in cm/s (maps to red)
+     * @return Configured color transfer function
+     */
+    [[nodiscard]] static vtkSmartPointer<vtkColorTransferFunction>
+    createVelocityColorFunction(double maxVelocity);
+
+    /**
+     * @brief Create an opacity transfer function for velocity overlay
+     * @param maxVelocity Maximum velocity in cm/s
+     * @param baseOpacity Base opacity for visible regions (0.0-1.0)
+     * @return Configured opacity transfer function
+     */
+    [[nodiscard]] static vtkSmartPointer<vtkPiecewiseFunction>
+    createVelocityOpacityFunction(double maxVelocity, double baseOpacity = 0.3);
 
 private:
     class Impl;
