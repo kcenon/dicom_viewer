@@ -1173,3 +1173,203 @@ TEST_F(ManualSegmentationControllerTest, LabelExhaustion255Labels) {
     uint8_t pixelVal = getPixelAt(labelMap, 5, 5, 0);
     EXPECT_EQ(pixelVal, 255) << "Should be able to paint with label ID 255";
 }
+
+// =============================================================================
+// Undo/Redo integration tests
+// =============================================================================
+
+TEST_F(ManualSegmentationControllerTest, BrushUndoRedoRestoresPixels) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 10).has_value());
+    controller_->setActiveTool(SegmentationTool::Brush);
+    controller_->setBrushSize(3);
+    controller_->setActiveLabel(1);
+
+    controller_->onMousePress(Point2D{50, 50}, 5);
+    controller_->onMouseRelease(Point2D{50, 50}, 5);
+
+    auto labelMap = controller_->getLabelMap();
+    EXPECT_EQ(getPixelAt(labelMap, 50, 50, 5), 1);
+    EXPECT_TRUE(controller_->canUndo());
+
+    controller_->undo();
+    EXPECT_EQ(getPixelAt(labelMap, 50, 50, 5), 0)
+        << "Undo should restore brush pixels to 0";
+    EXPECT_TRUE(controller_->canRedo());
+
+    controller_->redo();
+    EXPECT_EQ(getPixelAt(labelMap, 50, 50, 5), 1)
+        << "Redo should reapply brush pixels";
+}
+
+TEST_F(ManualSegmentationControllerTest, EraserUndoRestoresLabel) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 10).has_value());
+    controller_->setActiveTool(SegmentationTool::Brush);
+    controller_->setBrushSize(3);
+    controller_->setActiveLabel(2);
+
+    controller_->onMousePress(Point2D{50, 50}, 5);
+    controller_->onMouseRelease(Point2D{50, 50}, 5);
+
+    // Erase
+    controller_->setActiveTool(SegmentationTool::Eraser);
+    controller_->onMousePress(Point2D{50, 50}, 5);
+    controller_->onMouseRelease(Point2D{50, 50}, 5);
+
+    auto labelMap = controller_->getLabelMap();
+    EXPECT_EQ(getPixelAt(labelMap, 50, 50, 5), 0);
+
+    controller_->undo();
+    EXPECT_EQ(getPixelAt(labelMap, 50, 50, 5), 2)
+        << "Undo eraser should restore original label";
+}
+
+TEST_F(ManualSegmentationControllerTest, FillUndoRestoresRegion) {
+    ASSERT_TRUE(controller_->initializeLabelMap(10, 10, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Fill);
+    controller_->setActiveLabel(1);
+
+    controller_->onMousePress(Point2D{5, 5}, 0);
+
+    auto labelMap = controller_->getLabelMap();
+    EXPECT_EQ(countLabelPixels(labelMap, 1), 100);
+    EXPECT_TRUE(controller_->canUndo());
+
+    controller_->undo();
+    EXPECT_EQ(countLabelPixels(labelMap, 1), 0)
+        << "Undo fill should clear all filled pixels";
+}
+
+TEST_F(ManualSegmentationControllerTest, FreehandUndoRestoresPixels) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Freehand);
+    controller_->setActiveLabel(3);
+
+    // Disable fill and smoothing for predictable output
+    FreehandParameters params;
+    params.fillInterior = false;
+    params.enableSmoothing = false;
+    params.enableSimplification = false;
+    controller_->setFreehandParameters(params);
+
+    // Draw a simple path
+    controller_->onMousePress(Point2D{10, 50}, 0);
+    controller_->onMouseMove(Point2D{20, 50}, 0);
+    controller_->onMouseMove(Point2D{30, 50}, 0);
+    controller_->onMouseRelease(Point2D{40, 50}, 0);
+
+    auto labelMap = controller_->getLabelMap();
+    int drawnPixels = countLabelPixels(labelMap, 3);
+    EXPECT_GT(drawnPixels, 0) << "Freehand should draw pixels";
+    EXPECT_TRUE(controller_->canUndo());
+
+    controller_->undo();
+    EXPECT_EQ(countLabelPixels(labelMap, 3), 0)
+        << "Undo freehand should clear all drawn pixels";
+}
+
+TEST_F(ManualSegmentationControllerTest, PolygonUndoRestoresPixels) {
+    ASSERT_TRUE(controller_->initializeLabelMap(100, 100, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Polygon);
+    controller_->setActiveLabel(4);
+
+    // Draw a triangle
+    controller_->onMousePress(Point2D{20, 20}, 0);
+    controller_->onMousePress(Point2D{80, 20}, 0);
+    controller_->onMousePress(Point2D{50, 80}, 0);
+    controller_->completePolygon(0);
+
+    auto labelMap = controller_->getLabelMap();
+    int drawnPixels = countLabelPixels(labelMap, 4);
+    EXPECT_GT(drawnPixels, 0) << "Polygon should draw pixels";
+    EXPECT_TRUE(controller_->canUndo());
+
+    controller_->undo();
+    EXPECT_EQ(countLabelPixels(labelMap, 4), 0)
+        << "Undo polygon should clear all drawn pixels";
+}
+
+TEST_F(ManualSegmentationControllerTest, ClearAllIsUndoable) {
+    ASSERT_TRUE(controller_->initializeLabelMap(10, 10, 1).has_value());
+
+    // Fill with label 1
+    controller_->setActiveTool(SegmentationTool::Fill);
+    controller_->setActiveLabel(1);
+    controller_->onMousePress(Point2D{5, 5}, 0);
+
+    auto labelMap = controller_->getLabelMap();
+    EXPECT_EQ(countLabelPixels(labelMap, 1), 100);
+
+    controller_->clearAll();
+    EXPECT_EQ(countLabelPixels(labelMap, 1), 0);
+    EXPECT_TRUE(controller_->canUndo());
+
+    controller_->undo();
+    EXPECT_EQ(countLabelPixels(labelMap, 1), 100)
+        << "Undo clearAll should restore all labels";
+}
+
+TEST_F(ManualSegmentationControllerTest, ClearLabelIsUndoable) {
+    ASSERT_TRUE(controller_->initializeLabelMap(20, 20, 1).has_value());
+
+    // Paint label 1
+    controller_->setActiveTool(SegmentationTool::Brush);
+    controller_->setBrushSize(3);
+    controller_->setActiveLabel(1);
+    controller_->onMousePress(Point2D{5, 5}, 0);
+    controller_->onMouseRelease(Point2D{5, 5}, 0);
+
+    // Paint label 2
+    controller_->setActiveLabel(2);
+    controller_->onMousePress(Point2D{15, 15}, 0);
+    controller_->onMouseRelease(Point2D{15, 15}, 0);
+
+    auto labelMap = controller_->getLabelMap();
+    int label1Before = countLabelPixels(labelMap, 1);
+    int label2Before = countLabelPixels(labelMap, 2);
+    EXPECT_GT(label1Before, 0);
+    EXPECT_GT(label2Before, 0);
+
+    // Clear only label 1
+    controller_->clearLabel(1);
+    EXPECT_EQ(countLabelPixels(labelMap, 1), 0);
+    EXPECT_EQ(countLabelPixels(labelMap, 2), label2Before)
+        << "clearLabel should not affect other labels";
+
+    controller_->undo();
+    EXPECT_EQ(countLabelPixels(labelMap, 1), label1Before)
+        << "Undo clearLabel should restore the specific label";
+    EXPECT_EQ(countLabelPixels(labelMap, 2), label2Before);
+}
+
+TEST_F(ManualSegmentationControllerTest, TwentyStepHistoryWithinMemoryBudget) {
+    ASSERT_TRUE(controller_->initializeLabelMap(64, 64, 1).has_value());
+    controller_->setActiveTool(SegmentationTool::Brush);
+    controller_->setBrushSize(3);
+
+    // Perform 20 brush strokes at different positions
+    for (int i = 0; i < 20; ++i) {
+        controller_->setActiveLabel(static_cast<uint8_t>((i % 254) + 1));
+        int x = 5 + (i * 3) % 55;
+        int y = 5 + (i * 7) % 55;
+        controller_->onMousePress(Point2D{x, y}, 0);
+        controller_->onMouseRelease(Point2D{x, y}, 0);
+    }
+
+    // All 20 should be undoable
+    int undoCount = 0;
+    while (controller_->canUndo()) {
+        controller_->undo();
+        ++undoCount;
+    }
+    EXPECT_EQ(undoCount, 20)
+        << "Should maintain at least 20 undo steps";
+
+    // All 20 should be redoable
+    int redoCount = 0;
+    while (controller_->canRedo()) {
+        controller_->redo();
+        ++redoCount;
+    }
+    EXPECT_EQ(redoCount, 20)
+        << "Should maintain at least 20 redo steps";
+}
