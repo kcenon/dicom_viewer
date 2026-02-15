@@ -1384,3 +1384,30 @@ target_include_directories(project_manager_test PRIVATE
 )
 
 gtest_discover_tests(project_manager_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Hemodynamic Overlay Renderer
+add_executable(hemodynamic_overlay_renderer_test
+    unit/hemodynamic_overlay_renderer_test.cpp
+)
+
+target_link_directories(hemodynamic_overlay_renderer_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(hemodynamic_overlay_renderer_test PRIVATE
+    render_service
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(hemodynamic_overlay_renderer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS hemodynamic_overlay_renderer_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(hemodynamic_overlay_renderer_test DISCOVERY_TIMEOUT 60)
