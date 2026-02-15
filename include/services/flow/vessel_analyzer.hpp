@@ -209,6 +209,21 @@ public:
     computeKineticEnergy(const VelocityPhase& phase,
                          FloatImage3D::Pointer mask = nullptr) const;
 
+    // --- Relative Residence Time ---
+
+    /**
+     * @brief Compute Relative Residence Time from OSI and TAWSS surface data
+     *
+     * RRT = 1 / ((1 - 2*OSI) * TAWSS) for each surface point.
+     * Input surface must have "OSI" and "TAWSS" point data arrays
+     * (as produced by computeOSI).
+     *
+     * @param surface Mesh with OSI and TAWSS arrays
+     * @return Surface with added "RRT" array, or error
+     */
+    [[nodiscard]] std::expected<vtkSmartPointer<vtkPolyData>, FlowError>
+    computeRRT(vtkSmartPointer<vtkPolyData> surface) const;
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;

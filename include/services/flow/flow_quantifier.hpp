@@ -21,7 +21,10 @@ struct FlowMeasurement {
     double flowRate = 0.0;           ///< mL/s (= cm^3/s)
     double meanVelocity = 0.0;       ///< cm/s (through-plane mean)
     double maxVelocity = 0.0;        ///< cm/s (through-plane max)
+    double minVelocity = 0.0;        ///< cm/s (through-plane min)
+    double stdVelocity = 0.0;        ///< cm/s (through-plane std dev)
     double crossSectionArea = 0.0;   ///< cm^2 (sampled area)
+    double roiAreaMm2 = 0.0;         ///< mm^2 (physical ROI area)
     int sampleCount = 0;             ///< Number of in-bounds samples
 };
 
@@ -44,11 +47,16 @@ struct TimeVelocityCurve {
     std::vector<double> timePoints;       ///< ms from R-wave
     std::vector<double> meanVelocities;   ///< cm/s per phase
     std::vector<double> maxVelocities;    ///< cm/s per phase
+    std::vector<double> minVelocities;    ///< cm/s per phase
+    std::vector<double> stdVelocities;    ///< cm/s per phase
     std::vector<double> flowRates;        ///< mL/s per phase
+    std::vector<double> minFlowRates;     ///< mL/s per phase (min per-pixel)
+    std::vector<double> stdFlowRates;     ///< mL/s per phase (std dev of per-pixel)
 
     double strokeVolume = 0.0;            ///< mL (integral of forward flow)
     double regurgitantVolume = 0.0;       ///< mL (integral of backward flow)
     double regurgitantFraction = 0.0;     ///< percentage (0-100)
+    double meanRoiArea = 0.0;             ///< mm^2 (mean ROI area across phases)
 };
 
 /**

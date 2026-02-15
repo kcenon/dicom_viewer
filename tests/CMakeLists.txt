@@ -1453,3 +1453,28 @@ target_include_directories(kinetic_energy_heart_rate_test PRIVATE
 )
 
 gtest_discover_tests(kinetic_energy_heart_rate_test DISCOVERY_TIMEOUT 60)
+
+# 2D Plane Stats and RRT Tests
+add_executable(plane_stats_rrt_test
+    unit/plane_stats_rrt_test.cpp
+)
+
+target_link_libraries(plane_stats_rrt_test PRIVATE
+    flow_service
+    ${ITK_LIBRARIES}
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(plane_stats_rrt_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/tests
+)
+
+vtk_module_autoinit(
+    TARGETS plane_stats_rrt_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(plane_stats_rrt_test DISCOVERY_TIMEOUT 60)
