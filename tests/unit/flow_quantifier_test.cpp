@@ -408,6 +408,9 @@ TEST(FlowQuantifierTest, ComputeTVC_WithRegurgitation) {
     q.setMeasurementPlane(plane);
 
     // 4 phases: 2 forward, 2 backward (regurgitant)
+    // Forward velocity = 10 cm/s, Backward velocity = 5 cm/s
+    // Forward volume = 2 × flowRate × dt, Backward volume = 2 × (flowRate/2) × dt
+    // RF = Backward / Forward × 100 = 50%
     std::vector<VelocityPhase> phases;
     phases.push_back(createUniformZFlow(10, 10.0f, 0));   // Forward
     phases.push_back(createUniformZFlow(10, 10.0f, 1));   // Forward
@@ -419,8 +422,32 @@ TEST(FlowQuantifierTest, ComputeTVC_WithRegurgitation) {
 
     EXPECT_GT(result->strokeVolume, 0.0);
     EXPECT_GT(result->regurgitantVolume, 0.0);
-    EXPECT_GT(result->regurgitantFraction, 0.0);
-    EXPECT_LT(result->regurgitantFraction, 100.0);
+    // RF = (Backward / Forward) × 100 = 50%
+    EXPECT_NEAR(result->regurgitantFraction, 50.0, 0.1);
+}
+
+TEST(FlowQuantifierTest, ComputeTVC_ZeroForwardFlow) {
+    FlowQuantifier q;
+
+    MeasurementPlane plane;
+    plane.center = {5, 5, 5};
+    plane.normal = {0, 0, 1};
+    plane.radius = 3.0;
+    plane.sampleSpacing = 1.0;
+    q.setMeasurementPlane(plane);
+
+    // All backward flow — forward volume = 0
+    std::vector<VelocityPhase> phases;
+    phases.push_back(createUniformZFlow(10, -10.0f, 0));
+    phases.push_back(createUniformZFlow(10, -10.0f, 1));
+
+    auto result = q.computeTimeVelocityCurve(phases, 40.0);
+    ASSERT_TRUE(result.has_value());
+
+    EXPECT_DOUBLE_EQ(result->strokeVolume, 0.0);
+    EXPECT_GT(result->regurgitantVolume, 0.0);
+    // Division by zero guard: RF should remain 0 when forward = 0
+    EXPECT_DOUBLE_EQ(result->regurgitantFraction, 0.0);
 }
 
 // =============================================================================

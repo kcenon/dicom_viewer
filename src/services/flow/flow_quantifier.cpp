@@ -241,9 +241,8 @@ FlowQuantifier::computeTimeVelocityCurve(
     tvc.strokeVolume = forwardFlow;
     tvc.regurgitantVolume = backwardFlow;
 
-    double totalForward = forwardFlow + backwardFlow;
-    if (totalForward > 0.0) {
-        tvc.regurgitantFraction = (backwardFlow / totalForward) * 100.0;
+    if (forwardFlow > 0.0) {
+        tvc.regurgitantFraction = (backwardFlow / forwardFlow) * 100.0;
     }
 
     getLogger()->info("TVC: {} phases, SV={:.1f} mL, RV={:.1f} mL, "
