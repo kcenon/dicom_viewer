@@ -228,9 +228,15 @@ signals:
     /// Emitted when segmentation is modified
     void segmentationModified(int sliceIndex);
 
+    /// Emitted when phase index changes
+    void phaseIndexChanged(int phaseIndex);
+
 public slots:
     /// Set crosshair position from external source
     void setCrosshairPosition(double x, double y, double z);
+
+    /// Set the cardiac phase index for 4D display
+    void setPhaseIndex(int phaseIndex);
 
 protected:
     void resizeEvent(QResizeEvent* event) override;

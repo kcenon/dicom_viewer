@@ -275,6 +275,14 @@ void ViewportWidget::setCrosshairPosition(double x, double y, double z)
     emit crosshairPositionChanged(x, y, z);
 }
 
+void ViewportWidget::setPhaseIndex(int phaseIndex)
+{
+    // Phase display update is handled by the controller layer
+    // which swaps the image data for each phase. This slot
+    // serves as a notification point for phase-aware rendering.
+    emit phaseIndexChanged(phaseIndex);
+}
+
 void ViewportWidget::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);

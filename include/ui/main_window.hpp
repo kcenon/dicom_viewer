@@ -63,6 +63,7 @@ private:
     void setupDockWidgets();
     void setupStatusBar();
     void setupConnections();
+    void setupPhaseControl();
     void applyDarkTheme();
     void saveLayout();
     void restoreLayout();
