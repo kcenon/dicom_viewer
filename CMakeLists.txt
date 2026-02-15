@@ -321,6 +321,8 @@ find_library(FFTW3_LIBRARY fftw3 HINTS /opt/homebrew/lib)
 find_library(FFTW3_THREADS_LIBRARY fftw3_threads HINTS /opt/homebrew/lib)
 
 # Core library
+find_package(ZLIB REQUIRED)
+
 add_library(dicom_viewer_core STATIC
     src/core/logging/logging.cpp
     src/core/dicom/dicom_loader.cpp
@@ -328,6 +330,8 @@ add_library(dicom_viewer_core STATIC
     src/core/dicom/transfer_syntax_decoder.cpp
     src/core/image/image_converter.cpp
     src/core/image/hounsfield_converter.cpp
+    src/core/zip_archive.cpp
+    src/core/project_manager.cpp
 )
 
 target_include_directories(dicom_viewer_core PUBLIC
@@ -343,6 +347,8 @@ target_link_libraries(dicom_viewer_core PUBLIC
     ${VTK_LIBRARIES}
     ${FFTW3_LIBRARY}
     ${FFTW3_THREADS_LIBRARY}
+    ZLIB::ZLIB
+    nlohmann_json::nlohmann_json
     spdlog::spdlog
     fmt::fmt
 )
