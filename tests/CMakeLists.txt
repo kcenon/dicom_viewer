@@ -1350,3 +1350,20 @@ target_include_directories(sp_mode_toggle_test PRIVATE
 )
 
 gtest_discover_tests(sp_mode_toggle_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for controller undo/redo integration
+add_executable(controller_undo_redo_test
+    unit/controller_undo_redo_test.cpp
+)
+
+target_link_libraries(controller_undo_redo_test PRIVATE
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(controller_undo_redo_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(controller_undo_redo_test DISCOVERY_TIMEOUT 60)

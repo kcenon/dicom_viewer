@@ -1,4 +1,6 @@
 #include "services/segmentation/manual_segmentation_controller.hpp"
+#include "services/segmentation/brush_stroke_command.hpp"
+#include "services/segmentation/segmentation_command.hpp"
 #include "services/segmentation/threshold_segmenter.hpp"
 
 #include <algorithm>
@@ -55,6 +57,11 @@ public:
     int imageWidth_ = 0;
     int imageHeight_ = 0;
 
+    // Command stack for undo/redo
+    SegmentationCommandStack commandStack_;
+    std::unique_ptr<BrushStrokeCommand> activeCommand_;
+    UndoRedoCallback undoRedoCallback_;
+
     /**
      * @brief Apply brush stroke at a position
      */
@@ -93,7 +100,19 @@ public:
                 index[1] = py;
                 index[2] = sliceIndex;
 
-                labelMap_->SetPixel(index, value);
+                uint8_t oldValue = labelMap_->GetPixel(index);
+                if (oldValue != value) {
+                    // Compute linear index for diff recording
+                    auto region = labelMap_->GetLargestPossibleRegion();
+                    auto sz = region.GetSize();
+                    size_t linearIdx = static_cast<size_t>(sliceIndex) * sz[0] * sz[1]
+                                     + static_cast<size_t>(py) * sz[0]
+                                     + static_cast<size_t>(px);
+                    if (activeCommand_) {
+                        activeCommand_->recordChange(linearIdx, oldValue, value);
+                    }
+                    labelMap_->SetPixel(index, value);
+                }
             }
         }
     }
@@ -188,6 +207,13 @@ public:
             idx[1] = current.y;
             idx[2] = sliceIndex;
 
+            uint8_t oldVal = labelMap_->GetPixel(idx);
+            if (oldVal != value && activeCommand_) {
+                size_t linearIdx = static_cast<size_t>(sliceIndex) * size[0] * size[1]
+                                 + static_cast<size_t>(current.y) * size[0]
+                                 + static_cast<size_t>(current.x);
+                activeCommand_->recordChange(linearIdx, oldVal, value);
+            }
             labelMap_->SetPixel(idx, value);
 
             for (const auto& [dx, dy] : neighbors) {
@@ -1181,16 +1207,27 @@ void ManualSegmentationController::onMousePress(const Point2D& position, int sli
 
     switch (pImpl_->activeTool_) {
         case SegmentationTool::Brush:
+            pImpl_->activeCommand_ = std::make_unique<BrushStrokeCommand>(
+                pImpl_->labelMap_, "Brush stroke");
             pImpl_->applyBrush(position, sliceIndex, pImpl_->activeLabel_);
             break;
 
         case SegmentationTool::Eraser:
+            pImpl_->activeCommand_ = std::make_unique<BrushStrokeCommand>(
+                pImpl_->labelMap_, "Eraser stroke");
             pImpl_->applyBrush(position, sliceIndex, 0);  // Erase = set to 0
             break;
 
         case SegmentationTool::Fill:
+            pImpl_->activeCommand_ = std::make_unique<BrushStrokeCommand>(
+                pImpl_->labelMap_, "Fill region");
             pImpl_->applyFill(position, sliceIndex, pImpl_->activeLabel_);
-            pImpl_->isDrawing_ = false;  // Fill is instant
+            // Fill is instant — push command immediately
+            if (pImpl_->activeCommand_ && pImpl_->activeCommand_->hasChanges()) {
+                pImpl_->commandStack_.execute(std::move(pImpl_->activeCommand_));
+            }
+            pImpl_->activeCommand_.reset();
+            pImpl_->isDrawing_ = false;
             break;
 
         case SegmentationTool::Freehand:
@@ -1295,6 +1332,12 @@ void ManualSegmentationController::onMouseRelease(const Point2D& position, int s
         pImpl_->finalizeFreehand(sliceIndex, pImpl_->activeLabel_);
     }
 
+    // Push completed command to the stack
+    if (pImpl_->activeCommand_ && pImpl_->activeCommand_->hasChanges()) {
+        pImpl_->commandStack_.execute(std::move(pImpl_->activeCommand_));
+    }
+    pImpl_->activeCommand_.reset();
+
     pImpl_->isDrawing_ = false;
 
     if (pImpl_->modificationCallback_) {
@@ -1324,6 +1367,8 @@ void ManualSegmentationController::setModificationCallback(ModificationCallback 
 void ManualSegmentationController::clearAll() {
     if (pImpl_->labelMap_) {
         pImpl_->labelMap_->FillBuffer(0);
+        pImpl_->commandStack_.clear();
+        pImpl_->activeCommand_.reset();
 
         if (pImpl_->modificationCallback_) {
             pImpl_->modificationCallback_(-1);  // -1 indicates all slices
@@ -1348,6 +1393,49 @@ void ManualSegmentationController::clearLabel(uint8_t labelId) {
     if (pImpl_->modificationCallback_) {
         pImpl_->modificationCallback_(-1);
     }
+}
+
+bool ManualSegmentationController::undo() {
+    bool result = pImpl_->commandStack_.undo();
+    if (result && pImpl_->modificationCallback_) {
+        pImpl_->modificationCallback_(-1);
+    }
+    if (pImpl_->undoRedoCallback_) {
+        pImpl_->undoRedoCallback_(pImpl_->commandStack_.canUndo(),
+                                  pImpl_->commandStack_.canRedo());
+    }
+    return result;
+}
+
+bool ManualSegmentationController::redo() {
+    bool result = pImpl_->commandStack_.redo();
+    if (result && pImpl_->modificationCallback_) {
+        pImpl_->modificationCallback_(-1);
+    }
+    if (pImpl_->undoRedoCallback_) {
+        pImpl_->undoRedoCallback_(pImpl_->commandStack_.canUndo(),
+                                  pImpl_->commandStack_.canRedo());
+    }
+    return result;
+}
+
+bool ManualSegmentationController::canUndo() const noexcept {
+    return pImpl_->commandStack_.canUndo();
+}
+
+bool ManualSegmentationController::canRedo() const noexcept {
+    return pImpl_->commandStack_.canRedo();
+}
+
+void ManualSegmentationController::setUndoRedoCallback(UndoRedoCallback callback) {
+    pImpl_->undoRedoCallback_ = std::move(callback);
+    // Also wire into command stack's own availability callback
+    pImpl_->commandStack_.setAvailabilityCallback(
+        [this](bool canUndoVal, bool canRedoVal) {
+            if (pImpl_->undoRedoCallback_) {
+                pImpl_->undoRedoCallback_(canUndoVal, canRedoVal);
+            }
+        });
 }
 
 } // namespace dicom_viewer::services
