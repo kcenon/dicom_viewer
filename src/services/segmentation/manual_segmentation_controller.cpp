@@ -476,7 +476,17 @@ public:
                     idx[0] = x;
                     idx[1] = y;
                     idx[2] = sliceIndex;
-                    labelMap_->SetPixel(idx, value);
+                    uint8_t oldValue = labelMap_->GetPixel(idx);
+                    if (oldValue != value) {
+                        if (activeCommand_) {
+                            size_t linearIdx =
+                                static_cast<size_t>(sliceIndex) * size[0] * size[1]
+                                + static_cast<size_t>(y) * size[0]
+                                + static_cast<size_t>(x);
+                            activeCommand_->recordChange(linearIdx, oldValue, value);
+                        }
+                        labelMap_->SetPixel(idx, value);
+                    }
                 }
             }
         }
@@ -523,6 +533,10 @@ public:
         if (polygonVertices_.size() < static_cast<size_t>(polygonParams_.minimumVertices)) {
             return;
         }
+
+        // Create command for undo support
+        activeCommand_ = std::make_unique<BrushStrokeCommand>(
+            labelMap_, "Polygon fill");
 
         // Draw outline if enabled
         if (polygonParams_.drawOutline) {
@@ -571,6 +585,10 @@ public:
         if (processedPath.size() < 2) {
             return;
         }
+
+        // Create command for undo support
+        activeCommand_ = std::make_unique<BrushStrokeCommand>(
+            labelMap_, "Freehand draw");
 
         // Check if path should be closed
         bool shouldClose = freehandParams_.fillInterior &&
@@ -839,6 +857,10 @@ public:
             return;
         }
 
+        // Create command for undo support
+        activeCommand_ = std::make_unique<BrushStrokeCommand>(
+            labelMap_, "Smart Scissors");
+
         // Get complete path
         std::vector<Point2D> completePath;
 
@@ -1051,6 +1073,12 @@ bool ManualSegmentationController::completePolygon(int sliceIndex) {
     // Finalize and draw the polygon
     pImpl_->finalizePolygon(sliceIndex, pImpl_->activeLabel_);
 
+    // Push command to stack for undo support
+    if (pImpl_->activeCommand_ && pImpl_->activeCommand_->hasChanges()) {
+        pImpl_->commandStack_.execute(std::move(pImpl_->activeCommand_));
+    }
+    pImpl_->activeCommand_.reset();
+
     // End drawing state
     pImpl_->isDrawing_ = false;
 
@@ -1170,6 +1198,12 @@ bool ManualSegmentationController::completeSmartScissors(int sliceIndex) {
     }
 
     pImpl_->finalizeSmartScissors(sliceIndex, pImpl_->activeLabel_);
+
+    // Push command to stack for undo support
+    if (pImpl_->activeCommand_ && pImpl_->activeCommand_->hasChanges()) {
+        pImpl_->commandStack_.execute(std::move(pImpl_->activeCommand_));
+    }
+    pImpl_->activeCommand_.reset();
 
     pImpl_->isDrawing_ = false;
 
@@ -1365,14 +1399,32 @@ void ManualSegmentationController::setModificationCallback(ModificationCallback 
 }
 
 void ManualSegmentationController::clearAll() {
-    if (pImpl_->labelMap_) {
-        pImpl_->labelMap_->FillBuffer(0);
-        pImpl_->commandStack_.clear();
-        pImpl_->activeCommand_.reset();
+    if (!pImpl_->labelMap_) {
+        return;
+    }
 
-        if (pImpl_->modificationCallback_) {
-            pImpl_->modificationCallback_(-1);  // -1 indicates all slices
+    auto cmd = std::make_unique<BrushStrokeCommand>(
+        pImpl_->labelMap_, "Clear all labels");
+
+    auto* buffer = pImpl_->labelMap_->GetBufferPointer();
+    auto region = pImpl_->labelMap_->GetLargestPossibleRegion();
+    auto size = region.GetSize();
+    size_t totalVoxels = size[0] * size[1] * size[2];
+
+    for (size_t i = 0; i < totalVoxels; ++i) {
+        if (buffer[i] != 0) {
+            cmd->recordChange(i, buffer[i], 0);
+            buffer[i] = 0;
         }
+    }
+
+    if (cmd->hasChanges()) {
+        pImpl_->commandStack_.execute(std::move(cmd));
+    }
+    pImpl_->activeCommand_.reset();
+
+    if (pImpl_->modificationCallback_) {
+        pImpl_->modificationCallback_(-1);  // -1 indicates all slices
     }
 }
 
@@ -1381,13 +1433,23 @@ void ManualSegmentationController::clearLabel(uint8_t labelId) {
         return;
     }
 
-    using IteratorType = itk::ImageRegionIterator<LabelMapType>;
-    IteratorType it(pImpl_->labelMap_, pImpl_->labelMap_->GetLargestPossibleRegion());
+    auto cmd = std::make_unique<BrushStrokeCommand>(
+        pImpl_->labelMap_, "Clear label " + std::to_string(labelId));
 
-    for (it.GoToBegin(); !it.IsAtEnd(); ++it) {
-        if (it.Get() == labelId) {
-            it.Set(0);
+    auto* buffer = pImpl_->labelMap_->GetBufferPointer();
+    auto region = pImpl_->labelMap_->GetLargestPossibleRegion();
+    auto size = region.GetSize();
+    size_t totalVoxels = size[0] * size[1] * size[2];
+
+    for (size_t i = 0; i < totalVoxels; ++i) {
+        if (buffer[i] == labelId) {
+            cmd->recordChange(i, labelId, 0);
+            buffer[i] = 0;
         }
+    }
+
+    if (cmd->hasChanges()) {
+        pImpl_->commandStack_.execute(std::move(cmd));
     }
 
     if (pImpl_->modificationCallback_) {
