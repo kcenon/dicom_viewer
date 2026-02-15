@@ -1434,3 +1434,22 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(volume_renderer_overlay_test DISCOVERY_TIMEOUT 60)
+
+# Kinetic Energy and Heart Rate Tests
+add_executable(kinetic_energy_heart_rate_test
+    unit/kinetic_energy_heart_rate_test.cpp
+)
+
+target_link_libraries(kinetic_energy_heart_rate_test PRIVATE
+    flow_service
+    ${ITK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(kinetic_energy_heart_rate_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/tests
+)
+
+gtest_discover_tests(kinetic_energy_heart_rate_test DISCOVERY_TIMEOUT 60)
