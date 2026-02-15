@@ -157,11 +157,37 @@ TEST(VesselAnalyzerWSS, PoiseuilleFlowProducesNonZeroWSS) {
     // mu = 0.004 Pa*s, Vmax = 100 cm/s = 1 m/s, R = 15mm = 0.015 m
     // tau = 0.004 * 2 * 1.0 / 0.015 = 0.533 Pa
     double analyticalWSS = 0.004 * 2.0 * (kVMax * 0.01) / (kRadius * 0.001);
-    // Allow broad tolerance due to discrete sampling and nearest-neighbor
-    EXPECT_GT(result->meanWSS, analyticalWSS * 0.1)
-        << "WSS should be in the right order of magnitude";
-    EXPECT_LT(result->meanWSS, analyticalWSS * 5.0)
-        << "WSS should not be wildly off";
+    // Multi-point gradient estimation should be within ±30% on a 64^3 grid
+    EXPECT_GT(result->meanWSS, analyticalWSS * 0.7)
+        << "WSS should be within 30% of analytical (low bound)";
+    EXPECT_LT(result->meanWSS, analyticalWSS * 1.3)
+        << "WSS should be within 30% of analytical (high bound)";
+}
+
+TEST(VesselAnalyzerWSS, LowWSSAreaUsesTriangleCellAreas) {
+    // Zero velocity → all WSS below threshold → lowWSSArea = total mesh area
+    constexpr int kDim = 32;
+    auto velocity = phantom::createVectorImage(kDim, kDim, kDim);
+
+    VelocityPhase phase;
+    phase.velocityField = velocity;
+
+    double center = (kDim - 1) / 2.0;
+    auto wallMesh = createCylindricalWallMesh(8.0, 20.0, 16, 4, center, center, 5.0);
+
+    VesselAnalyzer analyzer;
+    auto result = analyzer.computeWSS(phase, wallMesh);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    // With zero velocity, all WSS = 0 < threshold → entire mesh is low WSS area
+    // Area should be positive and in cm² (not vertex count)
+    EXPECT_GT(result->lowWSSArea, 0.0)
+        << "Low WSS area should be positive for zero-velocity field";
+    // Area should NOT be an integer count of vertices
+    // Cylindrical mesh: ~2*pi*R*L = 2*pi*8*20 ≈ 1005 mm² ≈ 10.05 cm²
+    double expectedAreaCm2 = 2.0 * std::numbers::pi * 8.0 * 20.0 / 100.0;
+    EXPECT_NEAR(result->lowWSSArea, expectedAreaCm2, expectedAreaCm2 * 0.3)
+        << "Low WSS area should approximate cylinder lateral area in cm²";
 }
 
 TEST(VesselAnalyzerWSS, WSSOutputMeshHasDataArrays) {

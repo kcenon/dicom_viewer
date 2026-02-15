@@ -4,6 +4,7 @@
 #include <cmath>
 #include <numeric>
 
+#include <vtkCellArray.h>
 #include <vtkCellData.h>
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
@@ -125,12 +126,12 @@ VesselAnalyzer::computeWSS(const VelocityPhase& phase,
     double mu = impl_->bloodViscosity;
     double sumWSS = 0.0;
     double maxWSS = 0.0;
-    double lowWSSArea = 0.0;
     int validCount = 0;
 
-    // Sample distance from wall (1-2 voxels along inward normal)
+    // Multi-point sampling for velocity gradient estimation
     auto spacing = image->GetSpacing();
-    double sampleDist = std::max({spacing[0], spacing[1], spacing[2]}) * 1.5;
+    double minSpacing = std::min({spacing[0], spacing[1], spacing[2]});
+    constexpr int kNumSamples = 3;
 
     for (int i = 0; i < numVertices; ++i) {
         double pt[3], normal[3];
@@ -140,43 +141,67 @@ VesselAnalyzer::computeWSS(const VelocityPhase& phase,
         // Inward normal (flip outward normal)
         double inward[3] = {-normal[0], -normal[1], -normal[2]};
 
-        // Sample point at sampleDist along inward normal
-        VectorImage3D::PointType samplePoint;
-        samplePoint[0] = pt[0] + inward[0] * sampleDist;
-        samplePoint[1] = pt[1] + inward[1] * sampleDist;
-        samplePoint[2] = pt[2] + inward[2] * sampleDist;
+        // Sample tangential velocity at 1×, 2×, 3× spacing from wall
+        double sd[kNumSamples], stx[kNumSamples], sty[kNumSamples], stz[kNumSamples];
+        int nValid = 0;
 
-        VectorImage3D::IndexType idx;
-        bool inBounds = image->TransformPhysicalPointToIndex(samplePoint, idx);
-        if (!inBounds || !region.IsInside(idx)) {
+        for (int s = 0; s < kNumSamples; ++s) {
+            double d = minSpacing * (s + 1);
+            VectorImage3D::PointType samplePoint;
+            samplePoint[0] = pt[0] + inward[0] * d;
+            samplePoint[1] = pt[1] + inward[1] * d;
+            samplePoint[2] = pt[2] + inward[2] * d;
+
+            VectorImage3D::IndexType idx;
+            if (!image->TransformPhysicalPointToIndex(samplePoint, idx)) continue;
+            if (!region.IsInside(idx)) continue;
+
+            auto pixel = image->GetPixel(idx);
+            double vx = pixel[0], vy = pixel[1], vz = pixel[2];
+
+            // Tangential velocity: V_t = V - (V·n)*n
+            double vDotN = vx * inward[0] + vy * inward[1] + vz * inward[2];
+            sd[nValid] = d;
+            stx[nValid] = vx - vDotN * inward[0];
+            sty[nValid] = vy - vDotN * inward[1];
+            stz[nValid] = vz - vDotN * inward[2];
+            ++nValid;
+        }
+
+        if (nValid == 0) {
             wssMagnitude->SetValue(i, 0.0f);
             wssVector->SetTuple3(i, 0.0, 0.0, 0.0);
             continue;
         }
 
-        auto pixel = image->GetPixel(idx);
-        double vx = pixel[0], vy = pixel[1], vz = pixel[2];
+        // Estimate velocity gradient at wall (d=0) in cm/s per mm
+        double gx, gy, gz;
 
-        // Velocity gradient at wall: dV/dn ≈ V_near / distance
-        // Convert distance from mm to m for SI units
-        double distM = sampleDist * 0.001;
+        if (nValid >= 3) {
+            // Quadratic interpolation: Lagrange polynomial derivative at d=0
+            double d1 = sd[0], d2 = sd[1], d3 = sd[2];
+            double c1 = -(d2 + d3) / ((d1 - d2) * (d1 - d3));
+            double c2 = -(d1 + d3) / ((d2 - d1) * (d2 - d3));
+            double c3 = -(d1 + d2) / ((d3 - d1) * (d3 - d2));
+            gx = c1 * stx[0] + c2 * stx[1] + c3 * stx[2];
+            gy = c1 * sty[0] + c2 * sty[1] + c3 * sty[2];
+            gz = c1 * stz[0] + c2 * stz[1] + c3 * stz[2];
+        } else if (nValid == 2) {
+            double invDd = 1.0 / (sd[1] - sd[0]);
+            gx = (stx[1] - stx[0]) * invDd;
+            gy = (sty[1] - sty[0]) * invDd;
+            gz = (stz[1] - stz[0]) * invDd;
+        } else {
+            gx = stx[0] / sd[0];
+            gy = sty[0] / sd[0];
+            gz = stz[0] / sd[0];
+        }
 
-        // WSS vector = mu * (V/d) projected tangent to wall
-        // Tangential velocity: V_t = V - (V·n)*n
-        double vDotN = vx * inward[0] + vy * inward[1] + vz * inward[2];
-        double vtx = vx - vDotN * inward[0];
-        double vty = vy - vDotN * inward[1];
-        double vtz = vz - vDotN * inward[2];
-
-        // Convert velocity from cm/s to m/s
-        double vtxM = vtx * 0.01;
-        double vtyM = vty * 0.01;
-        double vtzM = vtz * 0.01;
-
-        // WSS = mu * V_tangential / distance (Pa)
-        double wssX = mu * vtxM / distM;
-        double wssY = mu * vtyM / distM;
-        double wssZ = mu * vtzM / distM;
+        // Convert gradient: (cm/s)/mm → (m/s)/m = ×10
+        // WSS = μ × velocity_gradient (Pa = Pa·s × s⁻¹)
+        double wssX = mu * gx * 10.0;
+        double wssY = mu * gy * 10.0;
+        double wssZ = mu * gz * 10.0;
         double wssMag = std::sqrt(wssX * wssX + wssY * wssY + wssZ * wssZ);
 
         wssMagnitude->SetValue(i, static_cast<float>(wssMag));
@@ -185,11 +210,6 @@ VesselAnalyzer::computeWSS(const VelocityPhase& phase,
         sumWSS += wssMag;
         maxWSS = std::max(maxWSS, wssMag);
         ++validCount;
-
-        if (wssMag < impl_->lowWSSThreshold) {
-            // Approximate area per vertex (simplified)
-            lowWSSArea += 1.0;  // Will be refined with actual cell areas
-        }
     }
 
     // Attach arrays to output mesh
@@ -198,14 +218,43 @@ VesselAnalyzer::computeWSS(const VelocityPhase& phase,
     outputMesh->GetPointData()->AddArray(wssMagnitude);
     outputMesh->GetPointData()->AddArray(wssVector);
 
+    // Compute low WSS area from actual mesh cell areas
+    double lowWSSArea = 0.0;
+    auto* polys = outputMesh->GetPolys();
+    if (polys) {
+        polys->InitTraversal();
+        vtkIdType npts;
+        const vtkIdType* pts;
+        while (polys->GetNextCell(npts, pts)) {
+            if (npts != 3) continue;
+            double w0 = wssMagnitude->GetValue(pts[0]);
+            double w1 = wssMagnitude->GetValue(pts[1]);
+            double w2 = wssMagnitude->GetValue(pts[2]);
+            if ((w0 + w1 + w2) / 3.0 >= impl_->lowWSSThreshold) continue;
+
+            double p0[3], p1[3], p2[3];
+            outputMesh->GetPoint(pts[0], p0);
+            outputMesh->GetPoint(pts[1], p1);
+            outputMesh->GetPoint(pts[2], p2);
+            double e1[3] = {p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]};
+            double e2[3] = {p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2]};
+            double cx = e1[1]*e2[2] - e1[2]*e2[1];
+            double cy = e1[2]*e2[0] - e1[0]*e2[2];
+            double cz = e1[0]*e2[1] - e1[1]*e2[0];
+            lowWSSArea += 0.5 * std::sqrt(cx*cx + cy*cy + cz*cz);
+        }
+        lowWSSArea /= 100.0;  // mm² → cm²
+    }
+
     WSSResult result;
     result.wallMesh = outputMesh;
     result.meanWSS = (validCount > 0) ? sumWSS / validCount : 0.0;
     result.maxWSS = maxWSS;
+    result.lowWSSArea = lowWSSArea;
     result.wallVertexCount = validCount;
 
-    getLogger()->debug("WSS: mean={:.4f} Pa, max={:.4f} Pa, vertices={}",
-                       result.meanWSS, result.maxWSS, validCount);
+    getLogger()->debug("WSS: mean={:.4f} Pa, max={:.4f} Pa, lowArea={:.2f} cm², vertices={}",
+                       result.meanWSS, result.maxWSS, result.lowWSSArea, validCount);
 
     return result;
 }

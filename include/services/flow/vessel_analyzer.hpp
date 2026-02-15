@@ -125,8 +125,11 @@ public:
      *
      * For each wall vertex:
      * 1. Get inward normal direction
-     * 2. Sample velocity at 1-2 voxels from wall along normal
-     * 3. WSS = mu * |V_near| / distance
+     * 2. Sample velocity at 3 distances along inward normal
+     * 3. Fit quadratic profile, extract gradient at wall (d=0)
+     * 4. WSS = mu * dV_tangential/dn
+     *
+     * Low WSS area is computed from actual mesh cell (triangle) areas.
      *
      * @param phase Velocity field
      * @param wallMesh Vessel wall surface mesh with vertex normals
