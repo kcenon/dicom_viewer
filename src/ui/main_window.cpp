@@ -1,5 +1,6 @@
 #include "ui/main_window.hpp"
 #include "ui/viewport_widget.hpp"
+#include "ui/widgets/phase_slider_widget.hpp"
 #include "ui/panels/patient_browser.hpp"
 #include "ui/panels/tools_panel.hpp"
 #include "ui/panels/statistics_panel.hpp"
@@ -8,6 +9,7 @@
 #include "services/pacs_config_manager.hpp"
 #include "services/dicom_store_scp.hpp"
 #include "services/measurement/roi_statistics.hpp"
+#include "services/flow/temporal_navigator.hpp"
 
 #include <itkImage.h>
 #include <itkVTKImageToImageFilter.h>
@@ -27,6 +29,7 @@
 #include <QShortcut>
 #include <QActionGroup>
 #include <QLabel>
+#include <QTimer>
 
 namespace dicom_viewer::ui {
 
@@ -67,6 +70,13 @@ public:
     std::unique_ptr<services::DicomStoreSCP> storageScp;
     QAction* toggleStorageScpAction = nullptr;
 
+    // Phase control
+    PhaseSliderWidget* phaseSlider = nullptr;
+    QDockWidget* phaseControlDock = nullptr;
+    QAction* togglePhaseControlAction = nullptr;
+    services::TemporalNavigator temporalNavigator;
+    QTimer* cineTimer = nullptr;
+
     // Measurement actions
     QAction* distanceAction = nullptr;
     QAction* angleAction = nullptr;
@@ -94,6 +104,7 @@ MainWindow::MainWindow(QWidget* parent)
     setupMenuBar();
     setupToolBar();
     setupDockWidgets();
+    setupPhaseControl();
     setupStatusBar();
     setupConnections();
     registerShortcuts();
@@ -196,6 +207,11 @@ void MainWindow::setupMenuBar()
     impl_->toggleSegmentationPanelAction->setCheckable(true);
     impl_->toggleSegmentationPanelAction->setChecked(false);
     impl_->toggleSegmentationPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_4));
+
+    impl_->togglePhaseControlAction = viewMenu->addAction(tr("&Phase Control"));
+    impl_->togglePhaseControlAction->setCheckable(true);
+    impl_->togglePhaseControlAction->setChecked(false);
+    impl_->togglePhaseControlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_5));
 
     viewMenu->addSeparator();
 
@@ -432,6 +448,59 @@ void MainWindow::setupDockWidgets()
     impl_->segmentationPanelDock->hide();  // Initially hidden
 }
 
+void MainWindow::setupPhaseControl()
+{
+    // Phase control dock (left area, below Patient Browser)
+    impl_->phaseControlDock = new QDockWidget(tr("Phase Control"), this);
+    impl_->phaseControlDock->setObjectName("PhaseControlDock");
+    impl_->phaseSlider = new PhaseSliderWidget();
+    impl_->phaseControlDock->setWidget(impl_->phaseSlider);
+    addDockWidget(Qt::LeftDockWidgetArea, impl_->phaseControlDock);
+    impl_->phaseControlDock->hide();  // Hidden until 4D data is loaded
+
+    // Cine playback timer
+    impl_->cineTimer = new QTimer(this);
+
+    // Phase slider → TemporalNavigator
+    connect(impl_->phaseSlider, &PhaseSliderWidget::phaseChangeRequested,
+            this, [this](int phaseIndex) {
+        (void)impl_->temporalNavigator.goToPhase(phaseIndex);
+        impl_->viewport->setPhaseIndex(phaseIndex);
+    });
+
+    connect(impl_->phaseSlider, &PhaseSliderWidget::playRequested,
+            this, [this]() {
+        impl_->temporalNavigator.play();
+        impl_->phaseSlider->setPlaying(true);
+        auto state = impl_->temporalNavigator.playbackState();
+        int intervalMs = static_cast<int>(1000.0 / (state.fps * state.speedMultiplier));
+        impl_->cineTimer->start(intervalMs);
+    });
+
+    connect(impl_->phaseSlider, &PhaseSliderWidget::stopRequested,
+            this, [this]() {
+        impl_->temporalNavigator.pause();
+        impl_->phaseSlider->setPlaying(false);
+        impl_->cineTimer->stop();
+    });
+
+    // Cine timer tick → advance phase
+    connect(impl_->cineTimer, &QTimer::timeout,
+            this, [this]() {
+        auto result = impl_->temporalNavigator.tick();
+        if (result) {
+            int phase = impl_->temporalNavigator.currentPhase();
+            impl_->phaseSlider->setCurrentPhase(phase);
+            impl_->viewport->setPhaseIndex(phase);
+        } else {
+            // Reached end without looping
+            impl_->cineTimer->stop();
+            impl_->phaseSlider->setPlaying(false);
+            impl_->temporalNavigator.pause();
+        }
+    });
+}
+
 void MainWindow::setupStatusBar()
 {
     impl_->statusLabel = new QLabel(tr("Ready"));
@@ -465,6 +534,11 @@ void MainWindow::setupConnections()
             impl_->segmentationPanelDock, &QDockWidget::setVisible);
     connect(impl_->segmentationPanelDock, &QDockWidget::visibilityChanged,
             impl_->toggleSegmentationPanelAction, &QAction::setChecked);
+
+    connect(impl_->togglePhaseControlAction, &QAction::toggled,
+            impl_->phaseControlDock, &QDockWidget::setVisible);
+    connect(impl_->phaseControlDock, &QDockWidget::visibilityChanged,
+            impl_->togglePhaseControlAction, &QAction::setChecked);
 
     // Patient browser -> Load series
     connect(impl_->patientBrowser, &PatientBrowser::seriesLoadRequested,
@@ -767,7 +841,9 @@ void MainWindow::onResetLayout()
     impl_->toolsPanelDock->setFloating(false);
     impl_->statisticsPanelDock->setFloating(false);
     impl_->segmentationPanelDock->setFloating(false);
+    impl_->phaseControlDock->setFloating(false);
     addDockWidget(Qt::LeftDockWidgetArea, impl_->patientBrowserDock);
+    addDockWidget(Qt::LeftDockWidgetArea, impl_->phaseControlDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->toolsPanelDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->statisticsPanelDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->segmentationPanelDock);

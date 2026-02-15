@@ -1296,3 +1296,22 @@ target_include_directories(concurrency_test PRIVATE
 )
 
 gtest_discover_tests(concurrency_test DISCOVERY_TIMEOUT 120)
+
+# Phase slider widget tests
+find_package(Qt6 COMPONENTS Test QUIET)
+add_executable(phase_slider_widget_test
+    unit/phase_slider_widget_test.cpp
+)
+
+target_link_libraries(phase_slider_widget_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(phase_slider_widget_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(phase_slider_widget_test DISCOVERY_TIMEOUT 60)

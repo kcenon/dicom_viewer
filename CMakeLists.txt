@@ -564,6 +564,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/widgets/mpr_widget.cpp
     src/ui/widgets/mpr_view_widget.cpp
     src/ui/widgets/dr_viewer.cpp
+    src/ui/widgets/phase_slider_widget.cpp
     src/ui/panels/patient_browser.cpp
     src/ui/panels/tools_panel.cpp
     src/ui/panels/statistics_panel.cpp
@@ -575,6 +576,7 @@ add_library(dicom_viewer_ui STATIC
     include/ui/viewport_widget.hpp
     include/ui/mpr_view_widget.hpp
     include/ui/dr_viewer.hpp
+    include/ui/widgets/phase_slider_widget.hpp
     include/ui/panels/patient_browser.hpp
     include/ui/panels/tools_panel.hpp
     include/ui/panels/statistics_panel.hpp
@@ -588,6 +590,7 @@ target_link_libraries(dicom_viewer_ui PUBLIC
     segmentation_service
     pacs_service
     export_service
+    flow_service
     Qt6::Core
     Qt6::Widgets
     Qt6::Gui
