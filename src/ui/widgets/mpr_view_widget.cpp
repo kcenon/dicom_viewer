@@ -1,4 +1,5 @@
 #include "ui/mpr_view_widget.hpp"
+#include "ui/widgets/sp_mode_toggle.hpp"
 
 #include <QGridLayout>
 #include <QMouseEvent>
@@ -68,6 +69,9 @@ public:
 
     // Active plane (last interacted)
     services::MPRPlane activePlane = services::MPRPlane::Axial;
+
+    // Scroll mode (Slice or Phase)
+    ScrollMode scrollMode = ScrollMode::Slice;
 
     Impl(MPRViewWidget* w) : widget(w) {
         mprRenderer = std::make_unique<services::MPRRenderer>();
@@ -220,6 +224,13 @@ public:
     }
 
     void handleMouseWheel(services::MPRPlane plane, int delta) {
+        if (scrollMode == ScrollMode::Phase) {
+            // In Phase mode, scroll wheel navigates cardiac phases
+            emit widget->phaseScrollRequested(delta);
+            return;
+        }
+
+        // Default Slice mode: scroll through slices
         mprRenderer->scrollSlice(plane, delta);
 
         // Update overlay for new slice position
@@ -517,6 +528,10 @@ void MPRViewWidget::setCrosshairPosition(double x, double y, double z) {
 
     impl_->updateAllViews();
     emit crosshairPositionChanged(x, y, z);
+}
+
+void MPRViewWidget::setScrollMode(ScrollMode mode) {
+    impl_->scrollMode = mode;
 }
 
 void MPRViewWidget::resizeEvent(QResizeEvent* event) {

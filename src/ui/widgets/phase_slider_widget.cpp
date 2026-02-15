@@ -1,4 +1,5 @@
 #include "ui/widgets/phase_slider_widget.hpp"
+#include "ui/widgets/sp_mode_toggle.hpp"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -15,6 +16,7 @@ public:
     QSpinBox* spinBox = nullptr;
     QPushButton* playStopButton = nullptr;
     QLabel* titleLabel = nullptr;
+    SPModeToggle* spToggle = nullptr;
 
     int phaseCount = 0;
     bool playing = false;
@@ -40,6 +42,11 @@ void PhaseSliderWidget::setupUI()
 
     impl_->titleLabel = new QLabel(tr("Phase:"), this);
     layout->addWidget(impl_->titleLabel);
+
+    // S/P mode toggle
+    impl_->spToggle = new SPModeToggle(this);
+    impl_->spToggle->setToolTip(tr("S = Slice scroll, P = Phase scroll"));
+    layout->addWidget(impl_->spToggle);
 
     impl_->playStopButton = new QPushButton(tr("Play"), this);
     impl_->playStopButton->setFixedWidth(50);
@@ -92,6 +99,10 @@ void PhaseSliderWidget::setupConnections()
             emit playRequested();
         }
     });
+
+    // S/P toggle → forward as scrollModeChanged signal
+    connect(impl_->spToggle, &SPModeToggle::modeChanged,
+            this, &PhaseSliderWidget::scrollModeChanged);
 }
 
 int PhaseSliderWidget::currentPhase() const
@@ -102,6 +113,11 @@ int PhaseSliderWidget::currentPhase() const
 bool PhaseSliderWidget::isPlaying() const
 {
     return impl_->playing;
+}
+
+ScrollMode PhaseSliderWidget::scrollMode() const
+{
+    return impl_->spToggle->mode();
 }
 
 void PhaseSliderWidget::setPhaseCount(int phaseCount)

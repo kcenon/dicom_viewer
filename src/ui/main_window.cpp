@@ -1,6 +1,7 @@
 #include "ui/main_window.hpp"
 #include "ui/viewport_widget.hpp"
 #include "ui/widgets/phase_slider_widget.hpp"
+#include "ui/widgets/sp_mode_toggle.hpp"
 #include "ui/panels/patient_browser.hpp"
 #include "ui/panels/tools_panel.hpp"
 #include "ui/panels/statistics_panel.hpp"
@@ -497,6 +498,16 @@ void MainWindow::setupPhaseControl()
             impl_->cineTimer->stop();
             impl_->phaseSlider->setPlaying(false);
             impl_->temporalNavigator.pause();
+        }
+    });
+
+    // S/P mode toggle → propagate to status bar
+    connect(impl_->phaseSlider, &PhaseSliderWidget::scrollModeChanged,
+            this, [this](ScrollMode mode) {
+        if (mode == ScrollMode::Phase) {
+            impl_->statusLabel->setText(tr("Phase scroll mode"));
+        } else {
+            impl_->statusLabel->setText(tr("Slice scroll mode"));
         }
     });
 }

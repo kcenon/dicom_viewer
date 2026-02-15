@@ -1332,3 +1332,21 @@ target_include_directories(segmentation_command_test PRIVATE
 )
 
 gtest_discover_tests(segmentation_command_test DISCOVERY_TIMEOUT 60)
+
+# S/P mode toggle and phase slider integration tests
+add_executable(sp_mode_toggle_test
+    unit/sp_mode_toggle_test.cpp
+)
+
+target_link_libraries(sp_mode_toggle_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(sp_mode_toggle_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(sp_mode_toggle_test DISCOVERY_TIMEOUT 60)
