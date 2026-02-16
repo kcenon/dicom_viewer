@@ -1,9 +1,13 @@
 #include "services/enhanced_dicom/series_classifier.hpp"
 
+#include "core/series_builder.hpp"
+
 #include <gtest/gtest.h>
 #include <itkMetaDataObject.h>
 
 using namespace dicom_viewer::services;
+using dicom_viewer::core::SeriesInfo;
+using dicom_viewer::core::SliceInfo;
 
 namespace {
 
@@ -341,4 +345,136 @@ TEST(SeriesClassifierTest, MetadataFieldsPreserved) {
     EXPECT_EQ(result.modality, "CT");
     EXPECT_EQ(result.description, "Chest CT w/ contrast");
     EXPECT_EQ(result.seriesUid, "1.2.840.113619.2.55.1234");
+}
+
+// =============================================================================
+// Vendor-specific edge cases
+// =============================================================================
+
+TEST(SeriesClassifierTest, SiemensSIDirectionMapsToFH) {
+    // "SI" (Superior-Inferior) is an alias for "FH" (Foot-Head)
+    auto dict = MockDicomBuilder()
+        .modality("MR")
+        .seriesDescription("fl3d1r21_4DFlow_Phase_SI")
+        .scanningSequence("GR\\PC")
+        .imageType("ORIGINAL\\PRIMARY\\P\\ND")
+        .manufacturer("SIEMENS")
+        .siemensFlowDir("tp 0.0 SI 150.0")
+        .build();
+
+    auto result = SeriesClassifier::classify(dict);
+    EXPECT_EQ(result.type, SeriesType::Flow4D_Phase_FH);
+    EXPECT_TRUE(result.is4DFlow);
+}
+
+TEST(SeriesClassifierTest, StarvibeUnderscoreVariant) {
+    auto dict = MockDicomBuilder()
+        .modality("MR")
+        .seriesDescription("fl3d_STAR_VIBE_tra_dyn")
+        .build();
+
+    auto result = SeriesClassifier::classify(dict);
+    EXPECT_EQ(result.type, SeriesType::Starvibe);
+    EXPECT_FALSE(result.is4DFlow);
+}
+
+TEST(SeriesClassifierTest, GESIDirectionMapsToFH) {
+    auto dict = MockDicomBuilder()
+        .modality("MR")
+        .seriesDescription("4DFlow_SI_VENC150")
+        .scanningSequence("GR\\PC")
+        .imageType("ORIGINAL\\PRIMARY\\P\\NONE")
+        .manufacturer("GE MEDICAL SYSTEMS")
+        .geVenc("150")
+        .build();
+
+    auto result = SeriesClassifier::classify(dict);
+    EXPECT_EQ(result.type, SeriesType::Flow4D_Phase_FH);
+    EXPECT_TRUE(result.is4DFlow);
+}
+
+TEST(SeriesClassifierTest, CaseInsensitiveDIXONDetection) {
+    auto dict = MockDicomBuilder()
+        .modality("MR")
+        .seriesDescription("t1_vibe_Dixon_Water")
+        .build();
+
+    auto result = SeriesClassifier::classify(dict);
+    EXPECT_EQ(result.type, SeriesType::DIXON);
+}
+
+TEST(SeriesClassifierTest, CaseInsensitiveCINEDetection) {
+    auto dict = MockDicomBuilder()
+        .modality("MR")
+        .seriesDescription("cine_retro_2ch")
+        .build();
+
+    auto result = SeriesClassifier::classify(dict);
+    EXPECT_EQ(result.type, SeriesType::CINE);
+}
+
+TEST(SeriesClassifierTest, PCMRAVariantDetection) {
+    auto dict = MockDicomBuilder()
+        .modality("MR")
+        .seriesDescription("PCMRA_sagittal_MIP")
+        .build();
+
+    auto result = SeriesClassifier::classify(dict);
+    EXPECT_EQ(result.type, SeriesType::PC_MRA);
+}
+
+TEST(SeriesClassifierTest, PhaseContrastViaTag) {
+    // Phase contrast detected via (0018,9014) tag, not scanning sequence
+    auto dict = MockDicomBuilder()
+        .modality("MR")
+        .seriesDescription("4DFlow_mag")
+        .phaseContrast("YES")
+        .imageType("ORIGINAL\\PRIMARY\\M\\ND")
+        .build();
+
+    auto result = SeriesClassifier::classify(dict);
+    EXPECT_EQ(result.type, SeriesType::Flow4D_Magnitude);
+    EXPECT_TRUE(result.is4DFlow);
+}
+
+// =============================================================================
+// classifyScannedSeries — integration with SeriesBuilder
+// =============================================================================
+
+TEST(SeriesClassifierTest, ClassifyScannedSeriesEmpty) {
+    std::vector<SeriesInfo> empty;
+    auto results = SeriesClassifier::classifyScannedSeries(empty);
+    EXPECT_TRUE(results.empty());
+}
+
+TEST(SeriesClassifierTest, ClassifyScannedSeriesNoSlices) {
+    SeriesInfo info;
+    info.seriesInstanceUid = "1.2.3.4.5";
+    info.seriesDescription = "Test Series";
+    info.modality = "MR";
+    // No slices
+
+    auto results = SeriesClassifier::classifyScannedSeries({info});
+    ASSERT_EQ(results.size(), 1);
+    EXPECT_EQ(results[0].type, SeriesType::Unknown);
+    EXPECT_EQ(results[0].seriesUid, "1.2.3.4.5");
+    EXPECT_EQ(results[0].description, "Test Series");
+    EXPECT_EQ(results[0].modality, "MR");
+    EXPECT_FALSE(results[0].is4DFlow);
+}
+
+TEST(SeriesClassifierTest, ClassifyScannedSeriesPreservesOrder) {
+    SeriesInfo s1;
+    s1.seriesInstanceUid = "uid-1";
+    s1.modality = "CT";
+    // No slices — classified as Unknown using fallback fields
+
+    SeriesInfo s2;
+    s2.seriesInstanceUid = "uid-2";
+    s2.modality = "MR";
+
+    auto results = SeriesClassifier::classifyScannedSeries({s1, s2});
+    ASSERT_EQ(results.size(), 2);
+    EXPECT_EQ(results[0].seriesUid, "uid-1");
+    EXPECT_EQ(results[1].seriesUid, "uid-2");
 }
