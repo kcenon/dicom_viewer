@@ -1603,6 +1603,24 @@ target_include_directories(centerline_tracer_test PRIVATE
 
 gtest_discover_tests(centerline_tracer_test DISCOVERY_TIMEOUT 120)
 
+# Unit tests for Level Tracing contour tool
+add_executable(level_tracing_test
+    unit/level_tracing_test.cpp
+)
+
+target_link_libraries(level_tracing_test PRIVATE
+    segmentation_service
+    ${ITK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(level_tracing_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(level_tracing_test)
+
 # Unit tests for Ensight Gold format exporter
 add_executable(ensight_exporter_test
     unit/ensight_exporter_test.cpp
