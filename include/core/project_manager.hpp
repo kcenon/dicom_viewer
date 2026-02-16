@@ -162,6 +162,41 @@ public:
     void setViewState(const ViewState& state);
     [[nodiscard]] const ViewState& viewState() const noexcept;
 
+    // -- Recent projects --
+
+    /**
+     * @brief Add a project path to the recent projects list
+     *
+     * If the path already exists, it is moved to the front.
+     * The list is capped at kMaxRecentProjects entries.
+     * Persists to disk if a recent projects path is configured.
+     *
+     * @param path Project file path
+     * @param name Display name (defaults to filename stem)
+     */
+    void addToRecent(const std::filesystem::path& path,
+                     const std::string& name = "");
+
+    /**
+     * @brief Get the list of recent projects (newest first)
+     */
+    [[nodiscard]] std::vector<RecentProject> recentProjects() const;
+
+    /**
+     * @brief Clear the recent projects list and persist
+     */
+    void clearRecentProjects();
+
+    /**
+     * @brief Set the file path used to persist recent projects
+     *
+     * If not set, recent projects are stored in memory only.
+     * The file uses JSON format.
+     *
+     * @param path Path to the recent projects JSON file
+     */
+    void setRecentProjectsPath(const std::filesystem::path& path);
+
     // -- State change notification --
 
     void setStateChangeCallback(StateChangeCallback callback);
