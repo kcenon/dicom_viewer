@@ -1585,6 +1585,24 @@ target_include_directories(hollow_smoother_test PRIVATE
 
 gtest_discover_tests(hollow_smoother_test DISCOVERY_TIMEOUT 120)
 
+# Unit tests for CenterlineTracer (vessel centerline tracing)
+add_executable(centerline_tracer_test
+    unit/centerline_tracer_test.cpp
+)
+
+target_link_libraries(centerline_tracer_test PRIVATE
+    segmentation_service
+    ${ITK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(centerline_tracer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(centerline_tracer_test DISCOVERY_TIMEOUT 120)
+
 # Unit tests for Ensight Gold format exporter
 add_executable(ensight_exporter_test
     unit/ensight_exporter_test.cpp

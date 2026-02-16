@@ -424,6 +424,7 @@ add_library(segmentation_service STATIC
     src/services/segmentation/phase_tracker.cpp
     src/services/segmentation/hollow_tool.cpp
     src/services/segmentation/mask_smoother.cpp
+    src/services/segmentation/centerline_tracer.cpp
 )
 
 target_link_libraries(segmentation_service PUBLIC
