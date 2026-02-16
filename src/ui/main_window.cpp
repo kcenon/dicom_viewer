@@ -7,6 +7,7 @@
 #include "ui/panels/tools_panel.hpp"
 #include "ui/panels/statistics_panel.hpp"
 #include "ui/panels/segmentation_panel.hpp"
+#include "ui/panels/overlay_control_panel.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
 #include "services/pacs_config_manager.hpp"
 #include "services/dicom_store_scp.hpp"
@@ -46,8 +47,10 @@ public:
     QDockWidget* toolsPanelDock = nullptr;
     QDockWidget* statisticsPanelDock = nullptr;
     QDockWidget* segmentationPanelDock = nullptr;
+    QDockWidget* overlayControlDock = nullptr;
     StatisticsPanel* statisticsPanel = nullptr;
     SegmentationPanel* segmentationPanel = nullptr;
+    OverlayControlPanel* overlayControlPanel = nullptr;
 
     QToolBar* mainToolBar = nullptr;
     QActionGroup* toolActionGroup = nullptr;
@@ -62,6 +65,7 @@ public:
     QAction* toggleToolsPanelAction = nullptr;
     QAction* toggleStatisticsPanelAction = nullptr;
     QAction* toggleSegmentationPanelAction = nullptr;
+    QAction* toggleOverlayControlAction = nullptr;
 
     // Statistics action
     QAction* showStatisticsAction = nullptr;
@@ -224,6 +228,11 @@ void MainWindow::setupMenuBar()
     impl_->togglePhaseControlAction->setCheckable(true);
     impl_->togglePhaseControlAction->setChecked(false);
     impl_->togglePhaseControlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_5));
+
+    impl_->toggleOverlayControlAction = viewMenu->addAction(tr("&Overlay Controls"));
+    impl_->toggleOverlayControlAction->setCheckable(true);
+    impl_->toggleOverlayControlAction->setChecked(false);
+    impl_->toggleOverlayControlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_6));
 
     viewMenu->addSeparator();
 
@@ -488,6 +497,16 @@ void MainWindow::setupDockWidgets()
     addDockWidget(Qt::RightDockWidgetArea, impl_->segmentationPanelDock);
     tabifyDockWidget(impl_->statisticsPanelDock, impl_->segmentationPanelDock);
     impl_->segmentationPanelDock->hide();  // Initially hidden
+
+    // Overlay Control Panel (right, tabbed with other panels)
+    impl_->overlayControlDock = new QDockWidget(tr("Overlay Controls"), this);
+    impl_->overlayControlDock->setObjectName("OverlayControlDock");
+    impl_->overlayControlPanel = new OverlayControlPanel();
+    impl_->overlayControlDock->setWidget(impl_->overlayControlPanel);
+    impl_->overlayControlDock->setMinimumWidth(220);
+    addDockWidget(Qt::RightDockWidgetArea, impl_->overlayControlDock);
+    tabifyDockWidget(impl_->segmentationPanelDock, impl_->overlayControlDock);
+    impl_->overlayControlDock->hide();  // Initially hidden
 }
 
 void MainWindow::setupPhaseControl()
@@ -617,6 +636,11 @@ void MainWindow::setupConnections()
             impl_->phaseControlDock, &QDockWidget::setVisible);
     connect(impl_->phaseControlDock, &QDockWidget::visibilityChanged,
             impl_->togglePhaseControlAction, &QAction::setChecked);
+
+    connect(impl_->toggleOverlayControlAction, &QAction::toggled,
+            impl_->overlayControlDock, &QDockWidget::setVisible);
+    connect(impl_->overlayControlDock, &QDockWidget::visibilityChanged,
+            impl_->toggleOverlayControlAction, &QAction::setChecked);
 
     // Patient browser -> Load series
     connect(impl_->patientBrowser, &PatientBrowser::seriesLoadRequested,
@@ -983,14 +1007,17 @@ void MainWindow::onResetLayout()
     impl_->toolsPanelDock->setFloating(false);
     impl_->statisticsPanelDock->setFloating(false);
     impl_->segmentationPanelDock->setFloating(false);
+    impl_->overlayControlDock->setFloating(false);
     impl_->phaseControlDock->setFloating(false);
     addDockWidget(Qt::LeftDockWidgetArea, impl_->patientBrowserDock);
     addDockWidget(Qt::LeftDockWidgetArea, impl_->phaseControlDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->toolsPanelDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->statisticsPanelDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->segmentationPanelDock);
+    addDockWidget(Qt::RightDockWidgetArea, impl_->overlayControlDock);
     tabifyDockWidget(impl_->toolsPanelDock, impl_->statisticsPanelDock);
     tabifyDockWidget(impl_->statisticsPanelDock, impl_->segmentationPanelDock);
+    tabifyDockWidget(impl_->segmentationPanelDock, impl_->overlayControlDock);
     impl_->patientBrowserDock->show();
     impl_->toolsPanelDock->show();
     impl_->toolsPanelDock->raise();  // Show Tools tab

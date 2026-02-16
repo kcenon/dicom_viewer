@@ -1718,3 +1718,21 @@ target_include_directories(vendor_flow_parsers_test PRIVATE
 )
 
 gtest_discover_tests(vendor_flow_parsers_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Overlay Control Panel
+add_executable(overlay_control_panel_test
+    unit/overlay_control_panel_test.cpp
+)
+
+target_link_libraries(overlay_control_panel_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(overlay_control_panel_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(overlay_control_panel_test DISCOVERY_TIMEOUT 60)
