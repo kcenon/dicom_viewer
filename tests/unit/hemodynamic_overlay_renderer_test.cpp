@@ -163,6 +163,12 @@ TEST(HemodynamicOverlayRendererTest, OverlayTypeSettings) {
 
     renderer.setOverlayType(OverlayType::VelocityZ);
     EXPECT_EQ(renderer.overlayType(), OverlayType::VelocityZ);
+
+    renderer.setOverlayType(OverlayType::Vorticity);
+    EXPECT_EQ(renderer.overlayType(), OverlayType::Vorticity);
+
+    renderer.setOverlayType(OverlayType::EnergyLoss);
+    EXPECT_EQ(renderer.overlayType(), OverlayType::EnergyLoss);
 }
 
 // =============================================================================
@@ -498,4 +504,161 @@ TEST(HemodynamicOverlayRendererTest, MagnitudePreservesGeometry) {
     EXPECT_DOUBLE_EQ(origin[0], 10.0);
     EXPECT_DOUBLE_EQ(origin[1], 20.0);
     EXPECT_DOUBLE_EQ(origin[2], 30.0);
+}
+
+// =============================================================================
+// Default Colormap For Overlay Type
+// =============================================================================
+
+TEST(HemodynamicOverlayRendererTest, DefaultColormapForVelocityMagnitude) {
+    auto preset = HemodynamicOverlayRenderer::defaultColormapForType(
+        OverlayType::VelocityMagnitude);
+    EXPECT_EQ(preset, ColormapPreset::Jet);
+}
+
+TEST(HemodynamicOverlayRendererTest, DefaultColormapForVelocityComponents) {
+    EXPECT_EQ(HemodynamicOverlayRenderer::defaultColormapForType(OverlayType::VelocityX),
+              ColormapPreset::CoolWarm);
+    EXPECT_EQ(HemodynamicOverlayRenderer::defaultColormapForType(OverlayType::VelocityY),
+              ColormapPreset::CoolWarm);
+    EXPECT_EQ(HemodynamicOverlayRenderer::defaultColormapForType(OverlayType::VelocityZ),
+              ColormapPreset::CoolWarm);
+}
+
+TEST(HemodynamicOverlayRendererTest, DefaultColormapForVorticity) {
+    auto preset = HemodynamicOverlayRenderer::defaultColormapForType(
+        OverlayType::Vorticity);
+    EXPECT_EQ(preset, ColormapPreset::CoolWarm);
+}
+
+TEST(HemodynamicOverlayRendererTest, DefaultColormapForEnergyLoss) {
+    auto preset = HemodynamicOverlayRenderer::defaultColormapForType(
+        OverlayType::EnergyLoss);
+    EXPECT_EQ(preset, ColormapPreset::HotMetal);
+}
+
+// =============================================================================
+// Overlay Type Auto-Applies Colormap
+// =============================================================================
+
+TEST(HemodynamicOverlayRendererTest, SetOverlayTypeAppliesDefaultColormap) {
+    HemodynamicOverlayRenderer renderer;
+
+    renderer.setOverlayType(OverlayType::Vorticity);
+    EXPECT_EQ(renderer.colormapPreset(), ColormapPreset::CoolWarm);
+
+    renderer.setOverlayType(OverlayType::EnergyLoss);
+    EXPECT_EQ(renderer.colormapPreset(), ColormapPreset::HotMetal);
+
+    renderer.setOverlayType(OverlayType::VelocityMagnitude);
+    EXPECT_EQ(renderer.colormapPreset(), ColormapPreset::Jet);
+}
+
+// =============================================================================
+// Vorticity Overlay Pipeline
+// =============================================================================
+
+TEST(HemodynamicOverlayRendererTest, VorticityOverlayEndToEnd) {
+    // Simulate a vorticity magnitude scalar field
+    auto vorticityField = createScalarField(16, 16, 16);
+
+    HemodynamicOverlayRenderer renderer;
+    renderer.setOverlayType(OverlayType::Vorticity);
+    renderer.setScalarField(vorticityField);
+    renderer.setScalarRange(0.0, 50.0);
+
+    EXPECT_EQ(renderer.overlayType(), OverlayType::Vorticity);
+    EXPECT_EQ(renderer.colormapPreset(), ColormapPreset::CoolWarm);
+
+    auto axial = vtkSmartPointer<vtkRenderer>::New();
+    auto coronal = vtkSmartPointer<vtkRenderer>::New();
+    auto sagittal = vtkSmartPointer<vtkRenderer>::New();
+    renderer.setRenderers(axial, coronal, sagittal);
+
+    auto r = renderer.setSlicePosition(MPRPlane::Axial, 8.0);
+    EXPECT_TRUE(r.has_value());
+
+    // Pipeline should execute without crash
+    renderer.update();
+
+    EXPECT_GT(axial->GetViewProps()->GetNumberOfItems(), 0);
+}
+
+// =============================================================================
+// Energy Loss Overlay Pipeline
+// =============================================================================
+
+TEST(HemodynamicOverlayRendererTest, EnergyLossOverlayEndToEnd) {
+    // Simulate a dissipation rate scalar field
+    auto dissipationField = createScalarField(16, 16, 16);
+
+    HemodynamicOverlayRenderer renderer;
+    renderer.setOverlayType(OverlayType::EnergyLoss);
+    renderer.setScalarField(dissipationField);
+    renderer.setScalarRange(0.0, 1000.0);
+
+    EXPECT_EQ(renderer.overlayType(), OverlayType::EnergyLoss);
+    EXPECT_EQ(renderer.colormapPreset(), ColormapPreset::HotMetal);
+
+    auto axial = vtkSmartPointer<vtkRenderer>::New();
+    auto coronal = vtkSmartPointer<vtkRenderer>::New();
+    auto sagittal = vtkSmartPointer<vtkRenderer>::New();
+    renderer.setRenderers(axial, coronal, sagittal);
+
+    auto r1 = renderer.setSlicePosition(MPRPlane::Axial, 8.0);
+    EXPECT_TRUE(r1.has_value());
+    auto r2 = renderer.setSlicePosition(MPRPlane::Coronal, 8.0);
+    EXPECT_TRUE(r2.has_value());
+    auto r3 = renderer.setSlicePosition(MPRPlane::Sagittal, 8.0);
+    EXPECT_TRUE(r3.has_value());
+
+    renderer.update();
+
+    EXPECT_GT(axial->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_GT(coronal->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_GT(sagittal->GetViewProps()->GetNumberOfItems(), 0);
+}
+
+// =============================================================================
+// Vorticity/EnergyLoss Opacity and Visibility
+// =============================================================================
+
+TEST(HemodynamicOverlayRendererTest, VorticityOpacityControl) {
+    HemodynamicOverlayRenderer renderer;
+    renderer.setOverlayType(OverlayType::Vorticity);
+    renderer.setOpacity(0.3);
+
+    EXPECT_DOUBLE_EQ(renderer.opacity(), 0.3);
+}
+
+TEST(HemodynamicOverlayRendererTest, EnergyLossVisibilityToggle) {
+    HemodynamicOverlayRenderer renderer;
+    renderer.setOverlayType(OverlayType::EnergyLoss);
+
+    renderer.setVisible(false);
+    EXPECT_FALSE(renderer.isVisible());
+
+    renderer.setVisible(true);
+    EXPECT_TRUE(renderer.isVisible());
+}
+
+// =============================================================================
+// Colormap Override After setOverlayType
+// =============================================================================
+
+TEST(HemodynamicOverlayRendererTest, ColormapOverrideAfterTypeSet) {
+    HemodynamicOverlayRenderer renderer;
+
+    // setOverlayType auto-applies CoolWarm for Vorticity
+    renderer.setOverlayType(OverlayType::Vorticity);
+    EXPECT_EQ(renderer.colormapPreset(), ColormapPreset::CoolWarm);
+
+    // User can override the colormap after setting type
+    renderer.setColormapPreset(ColormapPreset::Viridis);
+    EXPECT_EQ(renderer.colormapPreset(), ColormapPreset::Viridis);
+
+    // Verify LUT reflects the override
+    auto lut = renderer.getLookupTable();
+    ASSERT_NE(lut, nullptr);
+    EXPECT_EQ(lut->GetNumberOfTableValues(), 256);
 }

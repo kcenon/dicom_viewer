@@ -293,6 +293,8 @@ bool HemodynamicOverlayRenderer::hasScalarField() const noexcept {
 
 void HemodynamicOverlayRenderer::setOverlayType(OverlayType type) {
     impl_->overlayType = type;
+    // Automatically apply default colormap for the new overlay type
+    setColormapPreset(defaultColormapForType(type));
 }
 
 OverlayType HemodynamicOverlayRenderer::overlayType() const noexcept {
@@ -473,6 +475,21 @@ HemodynamicOverlayRenderer::extractComponent(
     }
 
     return result;
+}
+
+ColormapPreset HemodynamicOverlayRenderer::defaultColormapForType(OverlayType type) noexcept {
+    switch (type) {
+        case OverlayType::VelocityMagnitude:
+            return ColormapPreset::Jet;
+        case OverlayType::VelocityX:
+        case OverlayType::VelocityY:
+        case OverlayType::VelocityZ:
+        case OverlayType::Vorticity:
+            return ColormapPreset::CoolWarm;
+        case OverlayType::EnergyLoss:
+            return ColormapPreset::HotMetal;
+    }
+    return ColormapPreset::Jet;
 }
 
 } // namespace dicom_viewer::services
