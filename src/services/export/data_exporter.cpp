@@ -88,13 +88,13 @@ public:
             });
         }
 
+        // Write UTF-8 BOM directly to file before QTextStream wraps it
+        if (options.includeUtf8Bom) {
+            file.write("\xEF\xBB\xBF", 3);
+        }
+
         QTextStream stream(&file);
         stream.setEncoding(QStringConverter::Utf8);
-
-        // Write UTF-8 BOM for Excel compatibility
-        if (options.includeUtf8Bom) {
-            stream << "\xEF\xBB\xBF";
-        }
 
         // Write metadata header as comments
         if (options.includeMetadata && !patientInfo.name.empty()) {
@@ -529,15 +529,15 @@ std::expected<void, ExportError> DataExporter::exportAllToCSV(
         });
     }
 
+    // Write UTF-8 BOM directly to file before QTextStream wraps it
+    if (options.includeUtf8Bom) {
+        file.write("\xEF\xBB\xBF", 3);
+    }
+
     QTextStream stream(&file);
     stream.setEncoding(QStringConverter::Utf8);
 
     QString delim(options.csvDelimiter);
-
-    // Write UTF-8 BOM
-    if (options.includeUtf8Bom) {
-        stream << "\xEF\xBB\xBF";
-    }
 
     // Metadata header
     if (options.includeMetadata) {

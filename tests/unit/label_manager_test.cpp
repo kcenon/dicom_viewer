@@ -470,9 +470,25 @@ TEST_F(LabelManagerIOTest, ExportSegmentationNRRD) {
 }
 
 TEST_F(LabelManagerIOTest, ImportSegmentation) {
+    // Add label and paint some voxels so the export produces valid data
+    (void)manager_->addLabel(1, "Liver", LabelColor(0.8f, 0.2f, 0.2f));
+    auto labelMap = manager_->getLabelMap();
+    ASSERT_TRUE(labelMap != nullptr);
+    LabelManager::LabelMapType::IndexType idx;
+    for (int z = 2; z < 5; ++z) {
+        for (int y = 10; y < 15; ++y) {
+            for (int x = 10; x < 15; ++x) {
+                idx[0] = x; idx[1] = y; idx[2] = z;
+                labelMap->SetPixel(idx, 1);
+            }
+        }
+    }
+
     // First export
-    auto path = tempDir_ / "segmentation.nii.gz";
-    (void)manager_->exportSegmentation(path, SegmentationFormat::NIfTI);
+    auto path = tempDir_ / "segmentation.nrrd";
+    auto exportResult = manager_->exportSegmentation(path, SegmentationFormat::NRRD);
+    ASSERT_TRUE(exportResult.has_value())
+        << "Export must succeed before import test";
 
     // Create new manager and import
     LabelManager newManager;

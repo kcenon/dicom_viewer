@@ -544,8 +544,10 @@ TEST_F(LevelSetSegmenterTest, NonUnitSpacingHandledCorrectly) {
     spacing[2] = 2.0;
     image->SetSpacing(spacing);
 
+    // Seed must be in physical coordinates:
+    // voxel center (25,25,12.5) * spacing (0.5,0.5,2.0) = physical (12.5, 12.5, 25.0)
     ThresholdLevelSetParameters params;
-    params.seedPoints = {{25.0, 25.0, 12.5}};
+    params.seedPoints = {{12.5, 12.5, 25.0}};
     params.seedRadius = 3.0;
     params.lowerThreshold = 100.0;
     params.upperThreshold = 300.0;
