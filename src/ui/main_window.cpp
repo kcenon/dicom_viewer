@@ -285,7 +285,6 @@ void MainWindow::setupMenuBar()
     });
 
     impl_->showStatisticsAction = toolsMenu->addAction(tr("&Show ROI Statistics"));
-    impl_->showStatisticsAction->setShortcut(QKeySequence(Qt::Key_S));
     connect(impl_->showStatisticsAction, &QAction::triggered,
             this, &MainWindow::onShowRoiStatistics);
 
@@ -321,7 +320,6 @@ void MainWindow::setupMenuBar()
     });
 
     impl_->polygonRoiAction = roiMenu->addAction(tr("&Polygon"));
-    impl_->polygonRoiAction->setShortcut(QKeySequence(Qt::Key_P));
     impl_->polygonRoiAction->setCheckable(true);
     connect(impl_->polygonRoiAction, &QAction::triggered, this, [this]() {
         if (impl_->polygonRoiAction->isChecked()) {
@@ -473,8 +471,9 @@ void MainWindow::setupPhaseControl()
             this, [this]() {
         impl_->temporalNavigator.play();
         impl_->phaseSlider->setPlaying(true);
+        int fps = impl_->phaseSlider->fps();
         auto state = impl_->temporalNavigator.playbackState();
-        int intervalMs = static_cast<int>(1000.0 / (state.fps * state.speedMultiplier));
+        int intervalMs = static_cast<int>(1000.0 / (fps * state.speedMultiplier));
         impl_->cineTimer->start(intervalMs);
     });
 
@@ -501,13 +500,38 @@ void MainWindow::setupPhaseControl()
         }
     });
 
-    // S/P mode toggle → propagate to status bar
+    // S/P mode toggle → propagate to status bar and viewport
     connect(impl_->phaseSlider, &PhaseSliderWidget::scrollModeChanged,
             this, [this](ScrollMode mode) {
+        impl_->viewport->setScrollMode(mode);
         if (mode == ScrollMode::Phase) {
             impl_->statusLabel->setText(tr("Phase scroll mode"));
         } else {
             impl_->statusLabel->setText(tr("Slice scroll mode"));
+        }
+    });
+
+    // Viewport phase scroll (wheel in Phase mode) → navigate phases
+    connect(impl_->viewport, &ViewportWidget::phaseScrollRequested,
+            this, [this](int delta) {
+        if (!impl_->temporalNavigator.isInitialized()) return;
+        if (delta > 0) {
+            (void)impl_->temporalNavigator.nextPhase();
+        } else {
+            (void)impl_->temporalNavigator.previousPhase();
+        }
+        int phase = impl_->temporalNavigator.currentPhase();
+        impl_->phaseSlider->setCurrentPhase(phase);
+        impl_->viewport->setPhaseIndex(phase);
+    });
+
+    // FPS change → update cine timer interval
+    connect(impl_->phaseSlider, &PhaseSliderWidget::fpsChanged,
+            this, [this](int fps) {
+        if (impl_->cineTimer->isActive()) {
+            auto state = impl_->temporalNavigator.playbackState();
+            int intervalMs = static_cast<int>(1000.0 / (fps * state.speedMultiplier));
+            impl_->cineTimer->setInterval(intervalMs);
         }
     });
 }
@@ -720,6 +744,58 @@ void MainWindow::registerShortcuts()
 
     auto endShortcut = new QShortcut(QKeySequence(Qt::Key_End), this);
     connect(endShortcut, &QShortcut::activated, this, [](){});
+
+    // Phase navigation: Left/Right for single phase step
+    auto phaseLeftShortcut = new QShortcut(QKeySequence(Qt::Key_Left), this);
+    connect(phaseLeftShortcut, &QShortcut::activated, this, [this]() {
+        if (!impl_->temporalNavigator.isInitialized()) return;
+        (void)impl_->temporalNavigator.previousPhase();
+        int phase = impl_->temporalNavigator.currentPhase();
+        impl_->phaseSlider->setCurrentPhase(phase);
+        impl_->viewport->setPhaseIndex(phase);
+    });
+
+    auto phaseRightShortcut = new QShortcut(QKeySequence(Qt::Key_Right), this);
+    connect(phaseRightShortcut, &QShortcut::activated, this, [this]() {
+        if (!impl_->temporalNavigator.isInitialized()) return;
+        (void)impl_->temporalNavigator.nextPhase();
+        int phase = impl_->temporalNavigator.currentPhase();
+        impl_->phaseSlider->setCurrentPhase(phase);
+        impl_->viewport->setPhaseIndex(phase);
+    });
+
+    // Phase page step: < / > for 5-phase jump
+    auto phasePageBackShortcut = new QShortcut(
+        QKeySequence(Qt::SHIFT | Qt::Key_Comma), this);
+    connect(phasePageBackShortcut, &QShortcut::activated, this, [this]() {
+        if (!impl_->temporalNavigator.isInitialized()) return;
+        int target = std::max(0, impl_->temporalNavigator.currentPhase() - 5);
+        (void)impl_->temporalNavigator.goToPhase(target);
+        impl_->phaseSlider->setCurrentPhase(target);
+        impl_->viewport->setPhaseIndex(target);
+    });
+
+    auto phasePageForwardShortcut = new QShortcut(
+        QKeySequence(Qt::SHIFT | Qt::Key_Period), this);
+    connect(phasePageForwardShortcut, &QShortcut::activated, this, [this]() {
+        if (!impl_->temporalNavigator.isInitialized()) return;
+        int maxPhase = impl_->temporalNavigator.phaseCount() - 1;
+        int target = std::min(maxPhase, impl_->temporalNavigator.currentPhase() + 5);
+        (void)impl_->temporalNavigator.goToPhase(target);
+        impl_->phaseSlider->setCurrentPhase(target);
+        impl_->viewport->setPhaseIndex(target);
+    });
+
+    // S/P mode toggle shortcuts
+    auto sliceModeShortcut = new QShortcut(QKeySequence(Qt::Key_S), this);
+    connect(sliceModeShortcut, &QShortcut::activated, this, [this]() {
+        impl_->phaseSlider->setScrollMode(ScrollMode::Slice);
+    });
+
+    auto phaseModeShortcut = new QShortcut(QKeySequence(Qt::Key_P), this);
+    connect(phaseModeShortcut, &QShortcut::activated, this, [this]() {
+        impl_->phaseSlider->setScrollMode(ScrollMode::Phase);
+    });
 
     // Quick window presets
     auto bonePreset = new QShortcut(QKeySequence(Qt::Key_1), this);

@@ -14,6 +14,7 @@ class PhaseSliderWidget::Impl {
 public:
     QSlider* slider = nullptr;
     QSpinBox* spinBox = nullptr;
+    QSpinBox* fpsSpinBox = nullptr;
     QPushButton* playStopButton = nullptr;
     QLabel* titleLabel = nullptr;
     SPModeToggle* spToggle = nullptr;
@@ -67,6 +68,16 @@ void PhaseSliderWidget::setupUI()
     impl_->spinBox->setFixedWidth(60);
     impl_->spinBox->setToolTip(tr("Current phase index"));
     layout->addWidget(impl_->spinBox);
+
+    // FPS control for cine playback speed
+    impl_->fpsSpinBox = new QSpinBox(this);
+    impl_->fpsSpinBox->setMinimum(1);
+    impl_->fpsSpinBox->setMaximum(60);
+    impl_->fpsSpinBox->setValue(15);
+    impl_->fpsSpinBox->setSuffix(tr(" fps"));
+    impl_->fpsSpinBox->setFixedWidth(72);
+    impl_->fpsSpinBox->setToolTip(tr("Cine playback speed (frames per second)"));
+    layout->addWidget(impl_->fpsSpinBox);
 }
 
 void PhaseSliderWidget::setupConnections()
@@ -103,6 +114,10 @@ void PhaseSliderWidget::setupConnections()
     // S/P toggle → forward as scrollModeChanged signal
     connect(impl_->spToggle, &SPModeToggle::modeChanged,
             this, &PhaseSliderWidget::scrollModeChanged);
+
+    // FPS spinbox → forward as fpsChanged signal
+    connect(impl_->fpsSpinBox, qOverload<int>(&QSpinBox::valueChanged),
+            this, &PhaseSliderWidget::fpsChanged);
 }
 
 int PhaseSliderWidget::currentPhase() const
@@ -155,6 +170,23 @@ void PhaseSliderWidget::setControlsEnabled(bool enabled)
     impl_->slider->setEnabled(enabled);
     impl_->spinBox->setEnabled(enabled);
     impl_->playStopButton->setEnabled(enabled);
+}
+
+int PhaseSliderWidget::fps() const
+{
+    return impl_->fpsSpinBox->value();
+}
+
+void PhaseSliderWidget::setFps(int fps)
+{
+    impl_->fpsSpinBox->setValue(fps);
+}
+
+void PhaseSliderWidget::setScrollMode(ScrollMode mode)
+{
+    if (impl_->spToggle->mode() == mode) return;
+    impl_->spToggle->setMode(mode);
+    emit scrollModeChanged(mode);
 }
 
 } // namespace dicom_viewer::ui

@@ -1,10 +1,13 @@
 #include "ui/viewport_widget.hpp"
+#include "ui/widgets/sp_mode_toggle.hpp"
 #include "services/measurement/linear_measurement_tool.hpp"
 #include "services/measurement/area_measurement_tool.hpp"
 #include "services/segmentation/manual_segmentation_controller.hpp"
 
+#include <QLabel>
 #include <QVBoxLayout>
 #include <QMouseEvent>
+#include <QWheelEvent>
 #include <QVTKOpenGLNativeWidget.h>
 
 #include <vtkGenericOpenGLRenderWindow.h>
@@ -47,6 +50,8 @@ public:
     std::unique_ptr<services::ManualSegmentationController> segmentationController;
 
     ViewportMode mode = ViewportMode::SingleSlice;
+    ScrollMode scrollMode = ScrollMode::Slice;
+    QLabel* spIndicator = nullptr;
     double windowWidth = 400.0;
     double windowCenter = 40.0;
     int currentSlice = 0;
@@ -134,6 +139,19 @@ ViewportWidget::ViewportWidget(QWidget* parent)
     // Set interactor for measurement tools
     impl_->measurementTool->setInteractor(interactor);
     impl_->areaMeasurementTool->setInteractor(interactor);
+
+    // Install event filter on VTK widget to intercept scroll in Phase mode
+    impl_->vtkWidget->installEventFilter(this);
+
+    // S/P mode indicator overlay (top-right corner)
+    impl_->spIndicator = new QLabel("S", this);
+    impl_->spIndicator->setFixedSize(24, 24);
+    impl_->spIndicator->setAlignment(Qt::AlignCenter);
+    impl_->spIndicator->setStyleSheet(
+        "QLabel { background-color: rgba(42, 130, 218, 180); color: white; "
+        "font-weight: bold; font-size: 12px; border-radius: 4px; }");
+    impl_->spIndicator->raise();
+    impl_->spIndicator->hide();  // Hidden until 4D data is loaded
 
     // Setup measurement callbacks
     impl_->measurementTool->setDistanceCompletedCallback(
@@ -283,9 +301,31 @@ void ViewportWidget::setPhaseIndex(int phaseIndex)
     emit phaseIndexChanged(phaseIndex);
 }
 
+void ViewportWidget::setScrollMode(ScrollMode mode)
+{
+    impl_->scrollMode = mode;
+    impl_->spIndicator->setText(mode == ScrollMode::Phase ? "P" : "S");
+}
+
+bool ViewportWidget::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == impl_->vtkWidget && event->type() == QEvent::Wheel) {
+        if (impl_->scrollMode == ScrollMode::Phase) {
+            auto* wheelEvent = static_cast<QWheelEvent*>(event);
+            int delta = wheelEvent->angleDelta().y() > 0 ? -1 : 1;
+            emit phaseScrollRequested(delta);
+            return true;  // Consume event — don't pass to VTK interactor
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
 void ViewportWidget::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+    if (impl_->spIndicator) {
+        impl_->spIndicator->move(width() - impl_->spIndicator->width() - 8, 8);
+    }
     if (impl_->vtkWidget) {
         impl_->vtkWidget->renderWindow()->Render();
     }
