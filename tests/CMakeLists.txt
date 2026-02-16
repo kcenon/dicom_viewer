@@ -1656,3 +1656,20 @@ target_include_directories(matlab_exporter_test PRIVATE
 )
 
 gtest_discover_tests(matlab_exporter_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Vendor-specific Flow Parsers (fallback paths and edge cases)
+add_executable(vendor_flow_parsers_test
+    unit/vendor_flow_parsers_test.cpp
+)
+
+target_link_libraries(vendor_flow_parsers_test PRIVATE
+    flow_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(vendor_flow_parsers_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(vendor_flow_parsers_test DISCOVERY_TIMEOUT 60)
