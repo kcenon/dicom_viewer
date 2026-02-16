@@ -380,7 +380,7 @@ TEST(DataSerializer, AnalysisResultsZipRoundtrip) {
 
     auto tmpPath = std::filesystem::temp_directory_path()
                    / "data_serializer_test_analysis.flo";
-    zip.writeTo(tmpPath);
+    (void)zip.writeTo(tmpPath);
 
     auto readResult = ZipArchive::readFrom(tmpPath);
     ASSERT_TRUE(readResult.has_value());
@@ -477,11 +477,11 @@ TEST(DataSerializer, ZipCompressionReducesSize) {
     std::vector<DataSerializer::LabelDefinition> labels = {{1, "ROI", {1,0,0}, 1}};
 
     ZipArchive zip;
-    DataSerializer::saveMask(zip, mask.GetPointer(), labels);
+    (void)DataSerializer::saveMask(zip, mask.GetPointer(), labels);
 
     auto tmpPath = std::filesystem::temp_directory_path()
                    / "data_serializer_compression.flo";
-    zip.writeTo(tmpPath);
+    (void)zip.writeTo(tmpPath);
 
     auto fileSize = std::filesystem::file_size(tmpPath);
     size_t rawSize = 64 * 64 * 64;  // 262144 bytes raw
