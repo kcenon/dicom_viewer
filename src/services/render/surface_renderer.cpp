@@ -8,6 +8,9 @@
 #include <vtkProperty.h>
 #include <vtkMassProperties.h>
 #include <vtkTriangleFilter.h>
+#include <vtkLookupTable.h>
+#include <vtkPolyData.h>
+#include <vtkPointData.h>
 #include <vtkNew.h>
 
 #include <algorithm>
@@ -26,6 +29,8 @@ struct SurfaceEntry {
     double surfaceArea = 0.0;
     double volume = 0.0;
     bool needsUpdate = true;
+    bool isScalarSurface = false;
+    std::string activeScalarArray;
 };
 
 class SurfaceRenderer::Impl {
@@ -463,6 +468,149 @@ SurfaceConfig SurfaceRenderer::getPresetBloodVessels()
         .decimationReduction = 0.4,
         .visible = true
     };
+}
+
+// =============================================================================
+// Per-Vertex Scalar Coloring
+// =============================================================================
+
+size_t SurfaceRenderer::addScalarSurface(
+    const std::string& name,
+    vtkSmartPointer<vtkPolyData> surface,
+    const std::string& activeArrayName)
+{
+    impl_->logger->info("Adding scalar surface '{}' with array '{}'",
+                        name, activeArrayName);
+
+    SurfaceEntry entry;
+    entry.config.name = name;
+    entry.config.visible = true;
+    entry.config.opacity = 1.0;
+    entry.isScalarSurface = true;
+    entry.activeScalarArray = activeArrayName;
+
+    entry.mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    entry.mapper->SetInputData(surface);
+    entry.mapper->ScalarVisibilityOn();
+    entry.mapper->SetScalarModeToUsePointData();
+    entry.mapper->SetColorModeToMapScalars();
+
+    if (auto* arr = surface->GetPointData()->GetArray(activeArrayName.c_str())) {
+        surface->GetPointData()->SetActiveScalars(activeArrayName.c_str());
+        double range[2];
+        arr->GetRange(range);
+        entry.mapper->SetScalarRange(range[0], range[1]);
+    }
+
+    entry.actor = vtkSmartPointer<vtkActor>::New();
+    entry.actor->SetMapper(entry.mapper);
+
+    auto* prop = entry.actor->GetProperty();
+    prop->SetInterpolationToPhong();
+    prop->SetAmbient(0.1);
+    prop->SetDiffuse(0.7);
+    prop->SetSpecular(0.3);
+    prop->SetSpecularPower(20.0);
+
+    entry.triangleCount = surface->GetNumberOfPolys();
+    entry.needsUpdate = false;
+
+    impl_->surfaces.push_back(std::move(entry));
+    return impl_->surfaces.size() - 1;
+}
+
+void SurfaceRenderer::setSurfaceScalarRange(size_t index, double minVal, double maxVal)
+{
+    if (index >= impl_->surfaces.size()) {
+        return;
+    }
+    impl_->surfaces[index].mapper->SetScalarRange(minVal, maxVal);
+}
+
+std::pair<double, double> SurfaceRenderer::surfaceScalarRange(size_t index) const
+{
+    if (index >= impl_->surfaces.size()) {
+        return {0.0, 0.0};
+    }
+    const double* range = impl_->surfaces[index].mapper->GetScalarRange();
+    return {range[0], range[1]};
+}
+
+void SurfaceRenderer::setSurfaceLookupTable(size_t index,
+                                            vtkSmartPointer<vtkLookupTable> lut)
+{
+    if (index >= impl_->surfaces.size()) {
+        return;
+    }
+    impl_->surfaces[index].mapper->SetLookupTable(lut);
+}
+
+// =============================================================================
+// Hemodynamic Colormap Factories
+// =============================================================================
+
+vtkSmartPointer<vtkLookupTable> SurfaceRenderer::createWSSLookupTable(double maxWSS)
+{
+    auto lut = vtkSmartPointer<vtkLookupTable>::New();
+    lut->SetNumberOfTableValues(256);
+    lut->SetRange(0.0, maxWSS);
+    lut->SetHueRange(0.667, 0.0);   // Blue (0.667) → Red (0.0)
+    lut->SetSaturationRange(1.0, 1.0);
+    lut->SetValueRange(0.8, 1.0);
+    lut->Build();
+    return lut;
+}
+
+vtkSmartPointer<vtkLookupTable> SurfaceRenderer::createOSILookupTable()
+{
+    auto lut = vtkSmartPointer<vtkLookupTable>::New();
+    lut->SetNumberOfTableValues(256);
+    lut->SetRange(0.0, 0.5);
+
+    lut->SetNumberOfTableValues(256);
+    lut->Build();
+
+    // Manually set diverging colormap: blue → white → red
+    for (int i = 0; i < 256; ++i) {
+        double t = static_cast<double>(i) / 255.0;
+        double r, g, b;
+        if (t < 0.5) {
+            // Blue → White
+            double s = t / 0.5;
+            r = s;
+            g = s;
+            b = 1.0;
+        } else {
+            // White → Red
+            double s = (t - 0.5) / 0.5;
+            r = 1.0;
+            g = 1.0 - s;
+            b = 1.0 - s;
+        }
+        lut->SetTableValue(i, r, g, b, 1.0);
+    }
+
+    return lut;
+}
+
+vtkSmartPointer<vtkLookupTable> SurfaceRenderer::createRRTLookupTable(double maxRRT)
+{
+    auto lut = vtkSmartPointer<vtkLookupTable>::New();
+    lut->SetNumberOfTableValues(256);
+    lut->SetRange(0.0, maxRRT);
+
+    lut->Build();
+
+    // Sequential colormap: light yellow → orange → dark red
+    for (int i = 0; i < 256; ++i) {
+        double t = static_cast<double>(i) / 255.0;
+        double r = 1.0;
+        double g = 1.0 - 0.8 * t;              // 1.0 → 0.2
+        double b = 0.6 * (1.0 - t) * (1.0 - t); // 0.6 → 0.0 (quadratic)
+        lut->SetTableValue(i, r, g, b, 1.0);
+    }
+
+    return lut;
 }
 
 } // namespace dicom_viewer::services
