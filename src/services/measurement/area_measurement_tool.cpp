@@ -1205,7 +1205,8 @@ AreaMeasurementTool::copyRoiToSliceRange(int measurementId, int startSlice, int 
         if (!result) {
             // If one copy fails, delete all previously created copies and return error
             for (int id : newIds) {
-                deleteMeasurement(id);
+                // Best-effort cleanup; ignore errors since we're already in error path
+                (void)deleteMeasurement(id);
             }
             return std::unexpected(result.error());
         }

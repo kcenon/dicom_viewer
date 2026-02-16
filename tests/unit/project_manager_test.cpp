@@ -285,7 +285,7 @@ TEST(ProjectManagerTest, LoadMissingManifest) {
     // Write valid ZIP but without manifest.json
     ZipArchive zip;
     zip.addEntry("patient.json", "{}");
-    zip.writeTo(tmp.path());
+    (void)zip.writeTo(tmp.path());
 
     ProjectManager pm;
     auto result = pm.loadProject(tmp.path());
@@ -299,7 +299,7 @@ TEST(ProjectManagerTest, LoadInvalidManifestFormat) {
     // Write valid ZIP with wrong format identifier
     ZipArchive zip;
     zip.addEntry("manifest.json", R"({"format": "wrong_format", "version": 1})");
-    zip.writeTo(tmp.path());
+    (void)zip.writeTo(tmp.path());
 
     ProjectManager pm;
     auto result = pm.loadProject(tmp.path());
@@ -314,7 +314,7 @@ TEST(ProjectManagerTest, LoadIncompatibleVersion) {
     ZipArchive zip;
     zip.addEntry("manifest.json",
         R"({"format": "dicom_viewer_project", "version": 999})");
-    zip.writeTo(tmp.path());
+    (void)zip.writeTo(tmp.path());
 
     ProjectManager pm;
     auto result = pm.loadProject(tmp.path());

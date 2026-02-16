@@ -92,7 +92,7 @@ TEST(PhaseCacheTest, CachesLoadedPhases) {
     cache.setPhaseLoader(createMockLoader(20));
 
     EXPECT_FALSE(cache.isCached(3));
-    cache.getPhase(3);
+    (void)cache.getPhase(3);
     EXPECT_TRUE(cache.isCached(3));
 }
 
@@ -100,15 +100,15 @@ TEST(PhaseCacheTest, LRUEviction) {
     PhaseCache cache(3);  // Max 3 phases
     cache.setPhaseLoader(createMockLoader(20));
 
-    cache.getPhase(0);
-    cache.getPhase(1);
-    cache.getPhase(2);
+    (void)cache.getPhase(0);
+    (void)cache.getPhase(1);
+    (void)cache.getPhase(2);
     EXPECT_TRUE(cache.isCached(0));
     EXPECT_TRUE(cache.isCached(1));
     EXPECT_TRUE(cache.isCached(2));
 
     // Loading phase 3 should evict phase 0 (oldest)
-    cache.getPhase(3);
+    (void)cache.getPhase(3);
     EXPECT_FALSE(cache.isCached(0));
     EXPECT_TRUE(cache.isCached(1));
     EXPECT_TRUE(cache.isCached(2));
@@ -119,15 +119,15 @@ TEST(PhaseCacheTest, LRUTouchReorders) {
     PhaseCache cache(3);
     cache.setPhaseLoader(createMockLoader(20));
 
-    cache.getPhase(0);
-    cache.getPhase(1);
-    cache.getPhase(2);
+    (void)cache.getPhase(0);
+    (void)cache.getPhase(1);
+    (void)cache.getPhase(2);
 
     // Touch phase 0 again — now 1 is the oldest
-    cache.getPhase(0);
+    (void)cache.getPhase(0);
 
     // Loading phase 3 should evict phase 1 (now oldest)
-    cache.getPhase(3);
+    (void)cache.getPhase(3);
     EXPECT_TRUE(cache.isCached(0));   // Recently touched
     EXPECT_FALSE(cache.isCached(1));  // Evicted
     EXPECT_TRUE(cache.isCached(2));
@@ -138,9 +138,9 @@ TEST(PhaseCacheTest, GetCachedPhases) {
     PhaseCache cache(5);
     cache.setPhaseLoader(createMockLoader(20));
 
-    cache.getPhase(5);
-    cache.getPhase(2);
-    cache.getPhase(8);
+    (void)cache.getPhase(5);
+    (void)cache.getPhase(2);
+    (void)cache.getPhase(8);
 
     auto phases = cache.getCachedPhases();
     ASSERT_EQ(phases.size(), 3);
@@ -153,8 +153,8 @@ TEST(PhaseCacheTest, Clear) {
     PhaseCache cache(5);
     cache.setPhaseLoader(createMockLoader(20));
 
-    cache.getPhase(0);
-    cache.getPhase(1);
+    (void)cache.getPhase(0);
+    (void)cache.getPhase(1);
     EXPECT_EQ(cache.getCachedPhases().size(), 2);
 
     cache.clear();
@@ -167,8 +167,8 @@ TEST(PhaseCacheTest, Status) {
     cache.setPhaseLoader(createMockLoader(20));
     cache.setTotalPhases(20);
 
-    cache.getPhase(0);
-    cache.getPhase(1);
+    (void)cache.getPhase(0);
+    (void)cache.getPhase(1);
 
     auto status = cache.getStatus();
     EXPECT_EQ(status.cachedCount, 2);
@@ -256,7 +256,7 @@ TEST(TemporalNavigatorTest, NextPhaseWraps) {
     nav.setPhaseLoader(createMockLoader(3));
     nav.setLooping(true);
 
-    nav.goToPhase(2);  // Last phase
+    (void)nav.goToPhase(2);  // Last phase
     auto result = nav.nextPhase();
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(nav.currentPhase(), 0);  // Wrapped to start
@@ -268,7 +268,7 @@ TEST(TemporalNavigatorTest, NextPhaseNoWrap) {
     nav.setPhaseLoader(createMockLoader(3));
     nav.setLooping(false);
 
-    nav.goToPhase(2);
+    (void)nav.goToPhase(2);
     auto result = nav.nextPhase();
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(nav.currentPhase(), 2);  // Stays at end
@@ -366,7 +366,7 @@ TEST(TemporalNavigatorTest, TickWrapsWithLooping) {
     nav.setPhaseLoader(createMockLoader(3));
     nav.setLooping(true);
 
-    nav.goToPhase(2);
+    (void)nav.goToPhase(2);
     nav.play();
     auto result = nav.tick();
     ASSERT_TRUE(result.has_value());
@@ -379,7 +379,7 @@ TEST(TemporalNavigatorTest, TickStopsWithoutLooping) {
     nav.setPhaseLoader(createMockLoader(3));
     nav.setLooping(false);
 
-    nav.goToPhase(2);
+    (void)nav.goToPhase(2);
     nav.play();
     auto result = nav.tick();
     ASSERT_FALSE(result.has_value());
@@ -407,7 +407,7 @@ TEST(TemporalNavigatorTest, PhaseChangedCallback) {
     int lastPhase = -1;
     nav.setPhaseChangedCallback([&](int p) { lastPhase = p; });
 
-    nav.goToPhase(7);
+    (void)nav.goToPhase(7);
     EXPECT_EQ(lastPhase, 7);
 }
 
@@ -438,7 +438,7 @@ TEST(TemporalNavigatorTest, CacheStatusCallback) {
         lastStatus = s;
     });
 
-    nav.goToPhase(3);
+    (void)nav.goToPhase(3);
     EXPECT_EQ(lastStatus.cachedCount, 1);
     EXPECT_EQ(lastStatus.totalPhases, 10);
 }
