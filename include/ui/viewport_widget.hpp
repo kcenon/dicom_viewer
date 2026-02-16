@@ -15,6 +15,8 @@ class QVTKOpenGLNativeWidget;
 
 namespace dicom_viewer::ui {
 
+enum class ScrollMode;
+
 /**
  * @brief Rendering mode for viewport
  */
@@ -231,6 +233,9 @@ signals:
     /// Emitted when phase index changes
     void phaseIndexChanged(int phaseIndex);
 
+    /// Emitted when scroll wheel is used in Phase mode
+    void phaseScrollRequested(int delta);
+
 public slots:
     /// Set crosshair position from external source
     void setCrosshairPosition(double x, double y, double z);
@@ -238,8 +243,12 @@ public slots:
     /// Set the cardiac phase index for 4D display
     void setPhaseIndex(int phaseIndex);
 
+    /// Set scroll mode (Slice or Phase) and update indicator
+    void setScrollMode(ScrollMode mode);
+
 protected:
     void resizeEvent(QResizeEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     class Impl;

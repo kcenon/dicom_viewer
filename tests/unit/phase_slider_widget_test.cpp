@@ -4,6 +4,7 @@
 #include <QSignalSpy>
 
 #include "ui/widgets/phase_slider_widget.hpp"
+#include "ui/widgets/sp_mode_toggle.hpp"
 
 using namespace dicom_viewer::ui;
 
@@ -129,4 +130,72 @@ TEST(PhaseSliderWidgetTest, StopRequestedSignal) {
     emit widget.stopRequested();
 
     EXPECT_EQ(spy.count(), 1);
+}
+
+// =============================================================================
+// FPS control tests
+// =============================================================================
+
+TEST(PhaseSliderWidgetTest, DefaultFps) {
+    PhaseSliderWidget widget;
+    EXPECT_EQ(widget.fps(), 15);
+}
+
+TEST(PhaseSliderWidgetTest, SetFps) {
+    PhaseSliderWidget widget;
+    widget.setFps(30);
+    EXPECT_EQ(widget.fps(), 30);
+
+    widget.setFps(1);
+    EXPECT_EQ(widget.fps(), 1);
+
+    widget.setFps(60);
+    EXPECT_EQ(widget.fps(), 60);
+}
+
+TEST(PhaseSliderWidgetTest, FpsChangedSignal) {
+    PhaseSliderWidget widget;
+
+    QSignalSpy spy(&widget, &PhaseSliderWidget::fpsChanged);
+    widget.setFps(25);
+
+    EXPECT_EQ(spy.count(), 1);
+    EXPECT_EQ(spy.first().first().toInt(), 25);
+}
+
+// =============================================================================
+// Scroll mode tests
+// =============================================================================
+
+TEST(PhaseSliderWidgetTest, DefaultScrollMode) {
+    PhaseSliderWidget widget;
+    EXPECT_EQ(widget.scrollMode(), ScrollMode::Slice);
+}
+
+TEST(PhaseSliderWidgetTest, SetScrollMode) {
+    PhaseSliderWidget widget;
+
+    widget.setScrollMode(ScrollMode::Phase);
+    EXPECT_EQ(widget.scrollMode(), ScrollMode::Phase);
+
+    widget.setScrollMode(ScrollMode::Slice);
+    EXPECT_EQ(widget.scrollMode(), ScrollMode::Slice);
+}
+
+TEST(PhaseSliderWidgetTest, SetScrollMode_EmitsSignal) {
+    PhaseSliderWidget widget;
+
+    QSignalSpy spy(&widget, &PhaseSliderWidget::scrollModeChanged);
+    widget.setScrollMode(ScrollMode::Phase);
+
+    EXPECT_EQ(spy.count(), 1);
+}
+
+TEST(PhaseSliderWidgetTest, SetScrollMode_SameMode_NoSignal) {
+    PhaseSliderWidget widget;
+    // Default is Slice, setting Slice again should not emit
+    QSignalSpy spy(&widget, &PhaseSliderWidget::scrollModeChanged);
+    widget.setScrollMode(ScrollMode::Slice);
+
+    EXPECT_EQ(spy.count(), 0);
 }

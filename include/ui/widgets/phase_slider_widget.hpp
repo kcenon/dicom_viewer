@@ -45,6 +45,11 @@ public:
      */
     [[nodiscard]] ScrollMode scrollMode() const;
 
+    /**
+     * @brief Get current FPS setting
+     */
+    [[nodiscard]] int fps() const;
+
 public slots:
     /**
      * @brief Set the phase range (0 to max)
@@ -75,6 +80,18 @@ public slots:
      */
     void setControlsEnabled(bool enabled);
 
+    /**
+     * @brief Set the scroll mode programmatically
+     * @param mode Slice or Phase mode
+     */
+    void setScrollMode(ScrollMode mode);
+
+    /**
+     * @brief Set FPS for cine playback
+     * @param fps Frames per second (1-60)
+     */
+    void setFps(int fps);
+
 signals:
     /**
      * @brief User requested phase change via slider or spinbox
@@ -97,6 +114,12 @@ signals:
      * @param mode New scroll mode
      */
     void scrollModeChanged(ScrollMode mode);
+
+    /**
+     * @brief FPS changed by user
+     * @param fps New frames per second value
+     */
+    void fpsChanged(int fps);
 
 private:
     void setupUI();
