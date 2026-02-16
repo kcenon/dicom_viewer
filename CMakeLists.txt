@@ -332,6 +332,7 @@ add_library(dicom_viewer_core STATIC
     src/core/image/hounsfield_converter.cpp
     src/core/zip_archive.cpp
     src/core/project_manager.cpp
+    src/core/data_serializer.cpp
 )
 
 target_include_directories(dicom_viewer_core PUBLIC
