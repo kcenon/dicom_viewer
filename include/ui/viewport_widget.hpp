@@ -28,6 +28,15 @@ enum class ViewportMode {
 };
 
 /**
+ * @brief Slice orientation for 2D views
+ */
+enum class SliceOrientation {
+    Axial,      // XY plane (Z-axis slicing, default)
+    Coronal,    // XZ plane (Y-axis slicing)
+    Sagittal    // YZ plane (X-axis slicing)
+};
+
+/**
  * @brief VTK viewport widget for medical image visualization
  *
  * Wraps QVTKOpenGLNativeWidget and provides high-level interface
@@ -62,6 +71,17 @@ public:
      * @brief Get current viewport mode
      */
     ViewportMode getMode() const;
+
+    /**
+     * @brief Set slice orientation for 2D views
+     * @param orientation Axial, Coronal, or Sagittal
+     */
+    void setSliceOrientation(SliceOrientation orientation);
+
+    /**
+     * @brief Get current slice orientation
+     */
+    SliceOrientation getSliceOrientation() const;
 
     /**
      * @brief Set window/level for 2D views

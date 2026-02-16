@@ -1351,6 +1351,24 @@ target_include_directories(phase_slider_widget_test PRIVATE
 
 gtest_discover_tests(phase_slider_widget_test DISCOVERY_TIMEOUT 60)
 
+# Viewport layout manager tests
+add_executable(viewport_layout_manager_test
+    unit/viewport_layout_manager_test.cpp
+)
+
+target_link_libraries(viewport_layout_manager_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(viewport_layout_manager_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(viewport_layout_manager_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for Segmentation Command Stack and BrushStrokeCommand
 add_executable(segmentation_command_test
     unit/segmentation_command_test.cpp
