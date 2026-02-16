@@ -545,6 +545,7 @@ add_library(enhanced_dicom_service STATIC
     src/services/enhanced_dicom/functional_group_parser.cpp
     src/services/enhanced_dicom/frame_extractor.cpp
     src/services/enhanced_dicom/dimension_index_sorter.cpp
+    src/services/enhanced_dicom/series_classifier.cpp
 )
 
 target_link_libraries(enhanced_dicom_service PUBLIC
