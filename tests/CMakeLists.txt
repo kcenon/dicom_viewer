@@ -1402,6 +1402,24 @@ target_include_directories(project_manager_test PRIVATE
 
 gtest_discover_tests(project_manager_test DISCOVERY_TIMEOUT 60)
 
+# Unit tests for DataSerializer (NRRD serialization + ZIP project files)
+add_executable(data_serializer_test
+    unit/data_serializer_test.cpp
+)
+
+target_link_libraries(data_serializer_test PRIVATE
+    dicom_viewer_core
+    ${ITK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(data_serializer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(data_serializer_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for Hemodynamic Overlay Renderer
 add_executable(hemodynamic_overlay_renderer_test
     unit/hemodynamic_overlay_renderer_test.cpp
