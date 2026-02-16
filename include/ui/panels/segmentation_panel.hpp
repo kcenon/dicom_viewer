@@ -68,6 +68,13 @@ public:
      */
     void resetToDefaults();
 
+    /**
+     * @brief Update enabled state of undo/redo buttons
+     * @param canUndo Whether undo is available
+     * @param canRedo Whether redo is available
+     */
+    void setUndoRedoEnabled(bool canUndo, bool canRedo);
+
 signals:
     /**
      * @brief Emitted when segmentation tool changes
@@ -113,6 +120,16 @@ signals:
      * @brief Emitted when complete is requested for polygon/smart scissors
      */
     void completeRequested();
+
+    /**
+     * @brief Emitted when command stack undo is requested (Ctrl+Z)
+     */
+    void undoCommandRequested();
+
+    /**
+     * @brief Emitted when command stack redo is requested (Ctrl+Y)
+     */
+    void redoCommandRequested();
 
 private slots:
     void onToolButtonClicked(int toolId);

@@ -207,6 +207,18 @@ public:
     void undoSegmentationOperation();
 
     /**
+     * @brief Undo last segmentation command (command stack undo)
+     * @return true if an undo was performed
+     */
+    bool undoSegmentationCommand();
+
+    /**
+     * @brief Redo last undone segmentation command (command stack redo)
+     * @return true if a redo was performed
+     */
+    bool redoSegmentationCommand();
+
+    /**
      * @brief Complete current segmentation operation (polygon/smart scissors)
      */
     void completeSegmentationOperation();
@@ -255,6 +267,9 @@ signals:
 
     /// Emitted when scroll wheel is used in Phase mode
     void phaseScrollRequested(int delta);
+
+    /// Emitted when undo/redo availability changes for segmentation command stack
+    void segmentationUndoRedoChanged(bool canUndo, bool canRedo);
 
 public slots:
     /// Set crosshair position from external source

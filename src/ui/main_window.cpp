@@ -80,6 +80,10 @@ public:
     services::TemporalNavigator temporalNavigator;
     QTimer* cineTimer = nullptr;
 
+    // Edit menu actions
+    QAction* undoAction = nullptr;
+    QAction* redoAction = nullptr;
+
     // Measurement actions
     QAction* distanceAction = nullptr;
     QAction* angleAction = nullptr;
@@ -175,13 +179,17 @@ void MainWindow::setupMenuBar()
     // Edit menu
     auto editMenu = menuBar()->addMenu(tr("&Edit"));
 
-    auto undoAction = editMenu->addAction(tr("&Undo"));
-    undoAction->setShortcut(QKeySequence::Undo);
-    undoAction->setEnabled(false);
+    impl_->undoAction = editMenu->addAction(tr("&Undo"));
+    impl_->undoAction->setShortcut(QKeySequence::Undo);
+    impl_->undoAction->setEnabled(false);
+    connect(impl_->undoAction, &QAction::triggered,
+            this, [this]() { impl_->viewport->undoSegmentationCommand(); });
 
-    auto redoAction = editMenu->addAction(tr("&Redo"));
-    redoAction->setShortcut(QKeySequence::Redo);
-    redoAction->setEnabled(false);
+    impl_->redoAction = editMenu->addAction(tr("&Redo"));
+    impl_->redoAction->setShortcut(QKeySequence::Redo);
+    impl_->redoAction->setEnabled(false);
+    connect(impl_->redoAction, &QAction::triggered,
+            this, [this]() { impl_->viewport->redoSegmentationCommand(); });
 
     editMenu->addSeparator();
 
@@ -658,11 +666,23 @@ void MainWindow::setupConnections()
             impl_->viewport, &ViewportWidget::completeSegmentationOperation);
     connect(impl_->segmentationPanel, &SegmentationPanel::clearAllRequested,
             impl_->viewport, &ViewportWidget::clearAllSegmentation);
+    connect(impl_->segmentationPanel, &SegmentationPanel::undoCommandRequested,
+            impl_->viewport, &ViewportWidget::undoSegmentationCommand);
+    connect(impl_->segmentationPanel, &SegmentationPanel::redoCommandRequested,
+            impl_->viewport, &ViewportWidget::redoSegmentationCommand);
 
     // Segmentation status updates
     connect(impl_->viewport, &ViewportWidget::segmentationModified,
             this, [this](int /*sliceIndex*/) {
                 impl_->statusLabel->setText(tr("Segmentation modified"));
+            });
+
+    // Segmentation undo/redo availability → Edit menu + panel buttons
+    connect(impl_->viewport, &ViewportWidget::segmentationUndoRedoChanged,
+            this, [this](bool canUndo, bool canRedo) {
+                impl_->undoAction->setEnabled(canUndo);
+                impl_->redoAction->setEnabled(canRedo);
+                impl_->segmentationPanel->setUndoRedoEnabled(canUndo, canRedo);
             });
 
     // Measurement completed -> Status bar

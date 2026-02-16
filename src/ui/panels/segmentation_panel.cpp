@@ -45,6 +45,10 @@ public:
     QPushButton* clearAllButton = nullptr;
     QWidget* polygonActionsWidget = nullptr;
 
+    // Command stack undo/redo buttons
+    QPushButton* undoCommandButton = nullptr;
+    QPushButton* redoCommandButton = nullptr;
+
     // State
     services::SegmentationTool currentTool = services::SegmentationTool::None;
     int currentBrushSize = 5;
@@ -217,6 +221,19 @@ void SegmentationPanel::setupUI()
     actionsLayout->addWidget(impl_->completeButton);
     mainLayout->addWidget(impl_->polygonActionsWidget);
 
+    // History actions (Undo/Redo for command stack)
+    auto historyGroup = new QGroupBox(tr("History"));
+    auto historyLayout = new QHBoxLayout(historyGroup);
+    impl_->undoCommandButton = new QPushButton(tr("Undo"));
+    impl_->undoCommandButton->setToolTip(tr("Undo last segmentation operation (Ctrl+Z)"));
+    impl_->undoCommandButton->setEnabled(false);
+    impl_->redoCommandButton = new QPushButton(tr("Redo"));
+    impl_->redoCommandButton->setToolTip(tr("Redo last undone operation (Ctrl+Y)"));
+    impl_->redoCommandButton->setEnabled(false);
+    historyLayout->addWidget(impl_->undoCommandButton);
+    historyLayout->addWidget(impl_->redoCommandButton);
+    mainLayout->addWidget(historyGroup);
+
     // Clear all
     auto clearGroup = new QGroupBox(tr("Actions"));
     auto clearLayout = new QVBoxLayout(clearGroup);
@@ -268,6 +285,12 @@ void SegmentationPanel::setupConnections()
             this, &SegmentationPanel::onCompleteClicked);
     connect(impl_->clearAllButton, &QPushButton::clicked,
             this, &SegmentationPanel::onClearAllClicked);
+
+    // Command stack undo/redo
+    connect(impl_->undoCommandButton, &QPushButton::clicked,
+            this, &SegmentationPanel::undoCommandRequested);
+    connect(impl_->redoCommandButton, &QPushButton::clicked,
+            this, &SegmentationPanel::redoCommandRequested);
 }
 
 void SegmentationPanel::createToolSection() {}
@@ -395,6 +418,12 @@ void SegmentationPanel::onColorButtonClicked()
         impl_->updateColorButtonStyle(impl_->colorButton, impl_->currentColor);
         emit labelColorChanged(impl_->currentColor);
     }
+}
+
+void SegmentationPanel::setUndoRedoEnabled(bool canUndo, bool canRedo)
+{
+    impl_->undoCommandButton->setEnabled(canUndo);
+    impl_->redoCommandButton->setEnabled(canRedo);
 }
 
 void SegmentationPanel::onClearAllClicked()

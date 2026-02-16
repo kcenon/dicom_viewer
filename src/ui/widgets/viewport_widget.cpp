@@ -170,6 +170,12 @@ ViewportWidget::ViewportWidget(QWidget* parent)
             emit areaMeasurementCompleted(m.areaMm2, m.areaCm2, m.id);
         });
 
+    // Wire segmentation undo/redo availability signal
+    impl_->segmentationController->setUndoRedoCallback(
+        [this](bool canUndo, bool canRedo) {
+            emit segmentationUndoRedoChanged(canUndo, canRedo);
+        });
+
     setLayout(layout);
 }
 
@@ -497,6 +503,24 @@ void ViewportWidget::clearAllSegmentation()
 {
     impl_->segmentationController->clearAll();
     emit segmentationModified(impl_->currentSlice);
+}
+
+bool ViewportWidget::undoSegmentationCommand()
+{
+    bool result = impl_->segmentationController->undo();
+    if (result) {
+        emit segmentationModified(impl_->currentSlice);
+    }
+    return result;
+}
+
+bool ViewportWidget::redoSegmentationCommand()
+{
+    bool result = impl_->segmentationController->redo();
+    if (result) {
+        emit segmentationModified(impl_->currentSlice);
+    }
+    return result;
 }
 
 bool ViewportWidget::isSegmentationModeActive() const
