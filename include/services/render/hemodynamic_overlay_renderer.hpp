@@ -34,7 +34,9 @@ enum class OverlayType {
     VelocityMagnitude,  ///< Speed = sqrt(Vx^2 + Vy^2 + Vz^2) in cm/s
     VelocityX,          ///< X component of velocity
     VelocityY,          ///< Y component of velocity
-    VelocityZ           ///< Z component of velocity
+    VelocityZ,          ///< Z component of velocity
+    Vorticity,          ///< |curl(V)| vorticity magnitude in 1/s
+    EnergyLoss          ///< Viscous dissipation rate in W/m^3
 };
 
 /**
@@ -214,6 +216,20 @@ public:
      */
     [[nodiscard]] static std::expected<vtkSmartPointer<vtkImageData>, OverlayError>
     extractComponent(vtkSmartPointer<vtkImageData> velocityField, int component);
+
+    /**
+     * @brief Get the default colormap preset for an overlay type
+     *
+     * Default mappings:
+     * - VelocityMagnitude → Jet
+     * - VelocityX/Y/Z → CoolWarm (diverging, signed data)
+     * - Vorticity → CoolWarm
+     * - EnergyLoss → HotMetal
+     *
+     * @param type Overlay type
+     * @return Recommended colormap preset
+     */
+    [[nodiscard]] static ColormapPreset defaultColormapForType(OverlayType type) noexcept;
 
 private:
     class Impl;
