@@ -1,5 +1,6 @@
 #include "ui/main_window.hpp"
 #include "ui/viewport_widget.hpp"
+#include "ui/viewport_layout_manager.hpp"
 #include "ui/widgets/phase_slider_widget.hpp"
 #include "ui/widgets/sp_mode_toggle.hpp"
 #include "ui/panels/patient_browser.hpp"
@@ -36,6 +37,7 @@ namespace dicom_viewer::ui {
 
 class MainWindow::Impl {
 public:
+    ViewportLayoutManager* layoutManager = nullptr;
     ViewportWidget* viewport = nullptr;
     PatientBrowser* patientBrowser = nullptr;
     ToolsPanel* toolsPanel = nullptr;
@@ -119,8 +121,9 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
-    impl_->viewport = new ViewportWidget(this);
-    setCentralWidget(impl_->viewport);
+    impl_->layoutManager = new ViewportLayoutManager(this);
+    impl_->viewport = impl_->layoutManager->primaryViewport();
+    setCentralWidget(impl_->layoutManager);
 }
 
 void MainWindow::setupMenuBar()
@@ -405,6 +408,38 @@ void MainWindow::setupToolBar()
     auto resetAction = impl_->mainToolBar->addAction(tr("Reset"));
     connect(resetAction, &QAction::triggered, this, [this]() {
         impl_->viewport->resetCamera();
+    });
+
+    // Layout toggle buttons
+    impl_->mainToolBar->addSeparator();
+
+    auto* layoutGroup = new QActionGroup(this);
+    layoutGroup->setExclusive(true);
+
+    auto singleAction = impl_->mainToolBar->addAction(tr("1x1"));
+    singleAction->setCheckable(true);
+    singleAction->setChecked(true);
+    singleAction->setToolTip(tr("Single viewport"));
+    layoutGroup->addAction(singleAction);
+
+    auto dualAction = impl_->mainToolBar->addAction(tr("1x2"));
+    dualAction->setCheckable(true);
+    dualAction->setToolTip(tr("Dual split: 2D | 3D"));
+    layoutGroup->addAction(dualAction);
+
+    auto quadAction = impl_->mainToolBar->addAction(tr("2x2"));
+    quadAction->setCheckable(true);
+    quadAction->setToolTip(tr("Quad split: Axial | Sagittal | Coronal | 3D"));
+    layoutGroup->addAction(quadAction);
+
+    connect(singleAction, &QAction::triggered, this, [this]() {
+        impl_->layoutManager->setLayoutMode(LayoutMode::Single);
+    });
+    connect(dualAction, &QAction::triggered, this, [this]() {
+        impl_->layoutManager->setLayoutMode(LayoutMode::DualSplit);
+    });
+    connect(quadAction, &QAction::triggered, this, [this]() {
+        impl_->layoutManager->setLayoutMode(LayoutMode::QuadSplit);
     });
 }
 

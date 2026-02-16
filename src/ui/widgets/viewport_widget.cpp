@@ -50,6 +50,7 @@ public:
     std::unique_ptr<services::ManualSegmentationController> segmentationController;
 
     ViewportMode mode = ViewportMode::SingleSlice;
+    SliceOrientation sliceOrientation = SliceOrientation::Axial;
     ScrollMode scrollMode = ScrollMode::Slice;
     QLabel* spIndicator = nullptr;
     double windowWidth = 400.0;
@@ -223,6 +224,34 @@ ViewportMode ViewportWidget::getMode() const
 {
     return impl_->mode;
 }
+
+void ViewportWidget::setSliceOrientation(SliceOrientation orientation)
+{
+    impl_->sliceOrientation = orientation;
+
+    // Map enum to VTK orientation: 0=YZ(Sagittal), 1=XZ(Coronal), 2=XY(Axial)
+    int vtkOrientation = 2;  // Axial default
+    switch (orientation) {
+        case SliceOrientation::Sagittal: vtkOrientation = 0; break;
+        case SliceOrientation::Coronal:  vtkOrientation = 1; break;
+        case SliceOrientation::Axial:    vtkOrientation = 2; break;
+    }
+    impl_->sliceMapper->SetOrientation(vtkOrientation);
+
+    // Reset slice to middle of the new orientation axis
+    if (impl_->imageData) {
+        int* dims = impl_->imageData->GetDimensions();
+        impl_->currentSlice = dims[vtkOrientation] / 2;
+        impl_->sliceMapper->SetSliceNumber(impl_->currentSlice);
+        resetCamera();
+    }
+}
+
+SliceOrientation ViewportWidget::getSliceOrientation() const
+{
+    return impl_->sliceOrientation;
+}
+
 
 void ViewportWidget::setWindowLevel(double width, double center)
 {

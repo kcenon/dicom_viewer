@@ -581,6 +581,7 @@ target_link_libraries(cardiac_service PUBLIC
 add_library(dicom_viewer_ui STATIC
     src/ui/main_window.cpp
     src/ui/widgets/viewport_widget.cpp
+    src/ui/widgets/viewport_layout_manager.cpp
     src/ui/widgets/mpr_widget.cpp
     src/ui/widgets/mpr_view_widget.cpp
     src/ui/widgets/dr_viewer.cpp
@@ -595,6 +596,7 @@ add_library(dicom_viewer_ui STATIC
     # Headers with Q_OBJECT for AUTOMOC
     include/ui/main_window.hpp
     include/ui/viewport_widget.hpp
+    include/ui/viewport_layout_manager.hpp
     include/ui/mpr_view_widget.hpp
     include/ui/dr_viewer.hpp
     include/ui/widgets/phase_slider_widget.hpp
