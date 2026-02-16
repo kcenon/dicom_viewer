@@ -421,6 +421,7 @@ add_library(segmentation_service STATIC
     src/services/segmentation/brush_stroke_command.cpp
     src/services/segmentation/mask_boolean_operations.cpp
     src/services/segmentation/snapshot_command.cpp
+    src/services/segmentation/phase_tracker.cpp
 )
 
 target_link_libraries(segmentation_service PUBLIC
