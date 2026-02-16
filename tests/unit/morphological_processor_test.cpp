@@ -679,10 +679,10 @@ TEST_F(MorphologicalProcessorTest, DilationMergesNearbyRegions) {
         }
     }
 
-    // Cube 2: center at (22, 15, 15), radius 3 — gap of 4 voxels
+    // Cube 2: center at (19, 15, 15), radius 3 — gap of 4 voxels
     for (int z = 12; z <= 18; ++z) {
         for (int y = 12; y <= 18; ++y) {
-            for (int x = 19; x <= 25; ++x) {
+            for (int x = 16; x <= 22; ++x) {
                 idx[0] = x; idx[1] = y; idx[2] = z;
                 mask->SetPixel(idx, 1);
             }

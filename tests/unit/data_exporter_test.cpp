@@ -656,9 +656,14 @@ TEST_F(DataExporterTest, ExportWithUnicodeLabels) {
 
     ASSERT_TRUE(result.has_value());
 
-    std::string content = readFile(outputPath);
-    // Should have UTF-8 BOM
-    EXPECT_TRUE(content.substr(0, 3) == "\xEF\xBB\xBF");
+    // Read raw bytes to verify BOM (QTextStream-based readFile strips BOM)
+    std::ifstream rawFile(outputPath, std::ios::binary);
+    ASSERT_TRUE(rawFile.is_open());
+    char bom[3] = {};
+    rawFile.read(bom, 3);
+    EXPECT_EQ(static_cast<unsigned char>(bom[0]), 0xEF);
+    EXPECT_EQ(static_cast<unsigned char>(bom[1]), 0xBB);
+    EXPECT_EQ(static_cast<unsigned char>(bom[2]), 0xBF);
 }
 
 // =============================================================================
@@ -745,12 +750,26 @@ TEST_F(DataExporterTest, CsvColumnCountMatchesHeader) {
     size_t headerCommas = std::count(line.begin(), line.end(), ',');
     EXPECT_GT(headerCommas, 0u);
 
+    // Count delimiter commas outside quoted fields (RFC 4180 aware)
+    auto countCsvDelimiters = [](const std::string& row) -> size_t {
+        size_t count = 0;
+        bool inQuotes = false;
+        for (char ch : row) {
+            if (ch == '"') {
+                inQuotes = !inQuotes;
+            } else if (ch == ',' && !inQuotes) {
+                ++count;
+            }
+        }
+        return count;
+    };
+
     // Verify each data row has the same number of columns
     while (std::getline(stream, line)) {
         if (line.empty()) continue;
         // Skip BOM or metadata lines
         if (line[0] == '#' || line[0] == '\xEF') continue;
-        size_t dataCommas = std::count(line.begin(), line.end(), ',');
+        size_t dataCommas = countCsvDelimiters(line);
         EXPECT_EQ(dataCommas, headerCommas)
             << "Column mismatch in data row: " << line;
     }

@@ -590,6 +590,16 @@ LabelManager::importSegmentation(const std::filesystem::path& path) {
         using ReaderType = itk::ImageFileReader<LabelMapType>;
         auto reader = ReaderType::New();
         reader->SetFileName(path.string());
+
+        // Explicitly set ImageIO to avoid IO factory registration issues
+        auto ext = path.extension().string();
+        auto stem = path.stem().extension().string();
+        if (ext == ".nrrd" || ext == ".nhdr") {
+            reader->SetImageIO(itk::NrrdImageIO::New());
+        } else if (ext == ".nii" || (ext == ".gz" && stem == ".nii")) {
+            reader->SetImageIO(itk::NiftiImageIO::New());
+        }
+
         reader->Update();
 
         std::lock_guard lock(pImpl_->mutex_);
