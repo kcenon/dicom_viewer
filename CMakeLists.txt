@@ -496,6 +496,7 @@ add_library(export_service STATIC
     src/services/export/mesh_exporter.cpp
     src/services/export/dicom_sr_writer.cpp
     src/services/export/ensight_exporter.cpp
+    src/services/export/matlab_exporter.cpp
 )
 
 target_include_directories(export_service PUBLIC
