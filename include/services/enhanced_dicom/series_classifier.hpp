@@ -5,6 +5,10 @@
 
 #include <itkMetaDataDictionary.h>
 
+namespace dicom_viewer::core {
+struct SeriesInfo;
+}  // namespace dicom_viewer::core
+
 namespace dicom_viewer::services {
 
 /**
@@ -111,6 +115,19 @@ public:
      */
     [[nodiscard]] static std::vector<ClassifiedSeries> classifyStudy(
         const std::vector<std::string>& seriesFiles);
+
+    /**
+     * @brief Classify series from scan results
+     *
+     * Bridge between SeriesBuilder::scanForSeries() and classification.
+     * Reads the first DICOM file from each series to classify its type.
+     * Series with no slices are classified as Unknown.
+     *
+     * @param scannedSeries Results from SeriesBuilder::scanForSeries()
+     * @return Classification for each series (same order and size)
+     */
+    [[nodiscard]] static std::vector<ClassifiedSeries> classifyScannedSeries(
+        const std::vector<core::SeriesInfo>& scannedSeries);
 
     /**
      * @brief Check if a SeriesType is a 4D Flow component

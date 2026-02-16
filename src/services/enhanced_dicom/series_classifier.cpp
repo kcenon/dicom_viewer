@@ -1,5 +1,7 @@
 #include "services/enhanced_dicom/series_classifier.hpp"
 
+#include "core/series_builder.hpp"
+
 #include <algorithm>
 #include <string>
 
@@ -303,6 +305,27 @@ std::vector<ClassifiedSeries> SeriesClassifier::classifyStudy(
     results.reserve(seriesFiles.size());
     for (const auto& file : seriesFiles) {
         results.push_back(classifyFile(file));
+    }
+    return results;
+}
+
+std::vector<ClassifiedSeries> SeriesClassifier::classifyScannedSeries(
+    const std::vector<core::SeriesInfo>& scannedSeries) {
+    std::vector<ClassifiedSeries> results;
+    results.reserve(scannedSeries.size());
+    for (const auto& info : scannedSeries) {
+        if (info.slices.empty()) {
+            results.push_back(ClassifiedSeries{
+                SeriesType::Unknown,
+                info.seriesInstanceUid,
+                info.seriesDescription,
+                info.modality,
+                false
+            });
+        } else {
+            results.push_back(
+                classifyFile(info.slices.front().filePath.string()));
+        }
     }
     return results;
 }
