@@ -2,6 +2,7 @@
 #include "core/zip_archive.hpp"
 
 #include <chrono>
+#include <fstream>
 
 #include <nlohmann/json.hpp>
 
@@ -119,11 +120,58 @@ public:
     DisplaySettings displaySettings_;
     ViewState viewState_;
 
+    std::vector<RecentProject> recentProjects_;
+    std::filesystem::path recentProjectsPath_;
+
     StateChangeCallback stateChangeCallback_;
 
     void notifyStateChange() {
         if (stateChangeCallback_) {
             stateChangeCallback_();
+        }
+    }
+
+    void saveRecentProjects() {
+        if (recentProjectsPath_.empty()) {
+            return;
+        }
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto& rp : recentProjects_) {
+            arr.push_back({
+                {"path", rp.path.string()},
+                {"name", rp.name},
+                {"timestamp", rp.timestamp}
+            });
+        }
+        std::ofstream out(recentProjectsPath_);
+        if (out.is_open()) {
+            out << arr.dump(2);
+        }
+    }
+
+    void loadRecentProjects() {
+        if (recentProjectsPath_.empty() ||
+            !std::filesystem::exists(recentProjectsPath_)) {
+            return;
+        }
+        std::ifstream in(recentProjectsPath_);
+        if (!in.is_open()) {
+            return;
+        }
+        try {
+            auto arr = nlohmann::json::parse(in);
+            recentProjects_.clear();
+            for (const auto& item : arr) {
+                RecentProject rp;
+                rp.path = item.value("path", "");
+                rp.name = item.value("name", "");
+                rp.timestamp = item.value("timestamp", "");
+                if (!rp.path.empty()) {
+                    recentProjects_.push_back(std::move(rp));
+                }
+            }
+        } catch (...) {
+            // Ignore corrupt recent projects file
         }
     }
 };
@@ -181,6 +229,7 @@ ProjectManager::saveProject(const std::filesystem::path& path) {
 
     impl_->currentPath_ = path;
     impl_->modified_ = false;
+    addToRecent(path);
     impl_->notifyStateChange();
     return {};
 }
@@ -283,6 +332,7 @@ ProjectManager::loadProject(const std::filesystem::path& path) {
 
     impl_->currentPath_ = path;
     impl_->modified_ = false;
+    addToRecent(path);
     impl_->notifyStateChange();
     return {};
 }
@@ -341,6 +391,43 @@ void ProjectManager::setViewState(const ViewState& state) {
 
 const ViewState& ProjectManager::viewState() const noexcept {
     return impl_->viewState_;
+}
+
+void ProjectManager::addToRecent(const std::filesystem::path& path,
+                                 const std::string& name) {
+    std::string displayName = name.empty() ? path.stem().string() : name;
+    std::string ts = currentTimestamp();
+
+    // Remove existing entry with same path
+    auto& list = impl_->recentProjects_;
+    std::erase_if(list, [&](const RecentProject& rp) {
+        return rp.path == path;
+    });
+
+    // Insert at front
+    list.insert(list.begin(), RecentProject{path, displayName, ts});
+
+    // Trim to max
+    if (list.size() > static_cast<size_t>(kMaxRecentProjects)) {
+        list.resize(kMaxRecentProjects);
+    }
+
+    impl_->saveRecentProjects();
+}
+
+std::vector<RecentProject> ProjectManager::recentProjects() const {
+    return impl_->recentProjects_;
+}
+
+void ProjectManager::clearRecentProjects() {
+    impl_->recentProjects_.clear();
+    impl_->saveRecentProjects();
+}
+
+void ProjectManager::setRecentProjectsPath(
+    const std::filesystem::path& path) {
+    impl_->recentProjectsPath_ = path;
+    impl_->loadRecentProjects();
 }
 
 void ProjectManager::setStateChangeCallback(StateChangeCallback callback) {

@@ -366,3 +366,150 @@ TEST(ProjectManagerTest, FloFileIsValidZip) {
     ASSERT_TRUE(manifestStr.has_value());
     EXPECT_NE(manifestStr->find("dicom_viewer_project"), std::string::npos);
 }
+
+// =============================================================================
+// ProjectManager — Recent projects
+// =============================================================================
+
+TEST(ProjectManagerTest, AddToRecentBasic) {
+    ProjectManager pm;
+    EXPECT_TRUE(pm.recentProjects().empty());
+
+    pm.addToRecent("/path/to/project1.flo");
+    auto recent = pm.recentProjects();
+    ASSERT_EQ(recent.size(), 1);
+    EXPECT_EQ(recent[0].path, "/path/to/project1.flo");
+    EXPECT_EQ(recent[0].name, "project1");
+    EXPECT_FALSE(recent[0].timestamp.empty());
+}
+
+TEST(ProjectManagerTest, AddToRecentCustomName) {
+    ProjectManager pm;
+    pm.addToRecent("/path/to/project.flo", "My Study");
+    auto recent = pm.recentProjects();
+    ASSERT_EQ(recent.size(), 1);
+    EXPECT_EQ(recent[0].name, "My Study");
+}
+
+TEST(ProjectManagerTest, AddToRecentDeduplication) {
+    ProjectManager pm;
+    pm.addToRecent("/path/a.flo");
+    pm.addToRecent("/path/b.flo");
+    pm.addToRecent("/path/a.flo");  // Re-add moves to front
+
+    auto recent = pm.recentProjects();
+    ASSERT_EQ(recent.size(), 2);
+    EXPECT_EQ(recent[0].path, "/path/a.flo");  // Most recent
+    EXPECT_EQ(recent[1].path, "/path/b.flo");
+}
+
+TEST(ProjectManagerTest, AddToRecentMaxLimit) {
+    ProjectManager pm;
+    for (int i = 0; i < 15; ++i) {
+        pm.addToRecent("/path/project" + std::to_string(i) + ".flo");
+    }
+    auto recent = pm.recentProjects();
+    EXPECT_EQ(recent.size(), static_cast<size_t>(ProjectManager::kMaxRecentProjects));
+    // Most recent should be project14
+    EXPECT_EQ(recent[0].path, "/path/project14.flo");
+}
+
+TEST(ProjectManagerTest, ClearRecentProjects) {
+    ProjectManager pm;
+    pm.addToRecent("/path/a.flo");
+    pm.addToRecent("/path/b.flo");
+    EXPECT_EQ(pm.recentProjects().size(), 2);
+
+    pm.clearRecentProjects();
+    EXPECT_TRUE(pm.recentProjects().empty());
+}
+
+TEST(ProjectManagerTest, RecentProjectsPersistence) {
+    TempFile recentFile("recent.json");
+
+    {
+        ProjectManager pm;
+        pm.setRecentProjectsPath(recentFile.path());
+        pm.addToRecent("/path/study1.flo", "Study 1");
+        pm.addToRecent("/path/study2.flo", "Study 2");
+    }
+
+    // Load into new instance
+    ProjectManager pm2;
+    pm2.setRecentProjectsPath(recentFile.path());
+    auto recent = pm2.recentProjects();
+    ASSERT_EQ(recent.size(), 2);
+    EXPECT_EQ(recent[0].path, "/path/study2.flo");
+    EXPECT_EQ(recent[0].name, "Study 2");
+    EXPECT_EQ(recent[1].path, "/path/study1.flo");
+    EXPECT_EQ(recent[1].name, "Study 1");
+}
+
+TEST(ProjectManagerTest, RecentProjectsPersistenceCorruptFile) {
+    TempFile recentFile("corrupt_recent.json");
+
+    // Write garbage
+    {
+        std::ofstream out(recentFile.path());
+        out << "not valid json at all{{{";
+    }
+
+    ProjectManager pm;
+    pm.setRecentProjectsPath(recentFile.path());
+    EXPECT_TRUE(pm.recentProjects().empty());
+}
+
+TEST(ProjectManagerTest, SaveAutoAddsToRecent) {
+    TempFile tmp("auto_recent.flo");
+
+    ProjectManager pm;
+    pm.setPatientInfo(PatientInfo{"ID1", "Test", "", "", "", "CT"});
+    auto result = pm.saveProject(tmp.path());
+    ASSERT_TRUE(result.has_value());
+
+    auto recent = pm.recentProjects();
+    ASSERT_EQ(recent.size(), 1);
+    EXPECT_EQ(recent[0].path, tmp.path());
+}
+
+TEST(ProjectManagerTest, LoadAutoAddsToRecent) {
+    TempFile tmp("load_recent.flo");
+
+    // Save first
+    {
+        ProjectManager saver;
+        saver.setPatientInfo(PatientInfo{"ID1", "Test", "", "", "", "MR"});
+        (void)saver.saveProject(tmp.path());
+    }
+
+    // Load into fresh instance (no recent history from save)
+    ProjectManager loader;
+    auto result = loader.loadProject(tmp.path());
+    ASSERT_TRUE(result.has_value());
+
+    auto recent = loader.recentProjects();
+    ASSERT_EQ(recent.size(), 1);
+    EXPECT_EQ(recent[0].path, tmp.path());
+}
+
+TEST(ProjectManagerTest, ClearRecentPersists) {
+    TempFile recentFile("clear_persist.json");
+
+    {
+        ProjectManager pm;
+        pm.setRecentProjectsPath(recentFile.path());
+        pm.addToRecent("/path/a.flo");
+        pm.clearRecentProjects();
+    }
+
+    ProjectManager pm2;
+    pm2.setRecentProjectsPath(recentFile.path());
+    EXPECT_TRUE(pm2.recentProjects().empty());
+}
+
+TEST(ProjectManagerTest, NewProjectDoesNotClearRecent) {
+    ProjectManager pm;
+    pm.addToRecent("/path/a.flo");
+    pm.newProject();
+    EXPECT_EQ(pm.recentProjects().size(), 1);
+}
