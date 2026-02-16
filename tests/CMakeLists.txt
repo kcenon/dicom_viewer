@@ -1567,6 +1567,24 @@ target_include_directories(phase_tracker_test PRIVATE
 
 gtest_discover_tests(phase_tracker_test DISCOVERY_TIMEOUT 120)
 
+# Unit tests for HollowTool and MaskSmoother
+add_executable(hollow_smoother_test
+    unit/hollow_smoother_test.cpp
+)
+
+target_link_libraries(hollow_smoother_test PRIVATE
+    segmentation_service
+    ${ITK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(hollow_smoother_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(hollow_smoother_test DISCOVERY_TIMEOUT 120)
+
 # Unit tests for Ensight Gold format exporter
 add_executable(ensight_exporter_test
     unit/ensight_exporter_test.cpp

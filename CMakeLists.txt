@@ -422,6 +422,8 @@ add_library(segmentation_service STATIC
     src/services/segmentation/mask_boolean_operations.cpp
     src/services/segmentation/snapshot_command.cpp
     src/services/segmentation/phase_tracker.cpp
+    src/services/segmentation/hollow_tool.cpp
+    src/services/segmentation/mask_smoother.cpp
 )
 
 target_link_libraries(segmentation_service PUBLIC
