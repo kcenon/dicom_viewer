@@ -10,6 +10,9 @@
 #include <vtkActor.h>
 #include <vtkRenderer.h>
 
+class vtkLookupTable;
+class vtkPolyData;
+
 namespace dicom_viewer::services {
 
 /**
@@ -208,6 +211,78 @@ public:
     static SurfaceConfig getPresetSkin();
     static SurfaceConfig getPresetLung();
     static SurfaceConfig getPresetBloodVessels();
+
+    // ==================== Per-Vertex Scalar Coloring ====================
+
+    /**
+     * @brief Add a pre-built surface with per-vertex scalar coloring
+     *
+     * Accepts a vtkPolyData that already contains point data arrays
+     * (e.g., from VesselAnalyzer::computeWSS) and renders it with
+     * color mapping based on the specified scalar array.
+     *
+     * Unlike addSurface(), this bypasses the Marching Cubes pipeline
+     * and uses the provided mesh directly.
+     *
+     * @param name Display name for the surface
+     * @param surface vtkPolyData with point data arrays
+     * @param activeArrayName Name of the scalar array to use for coloring
+     * @return Index of the added surface
+     */
+    size_t addScalarSurface(const std::string& name,
+                            vtkSmartPointer<vtkPolyData> surface,
+                            const std::string& activeArrayName);
+
+    /**
+     * @brief Set scalar range for color mapping on a surface
+     *
+     * Controls the min/max values mapped to the colormap endpoints.
+     * Only effective on surfaces added via addScalarSurface().
+     *
+     * @param index Surface index
+     * @param minVal Minimum scalar value (mapped to colormap start)
+     * @param maxVal Maximum scalar value (mapped to colormap end)
+     */
+    void setSurfaceScalarRange(size_t index, double minVal, double maxVal);
+
+    /**
+     * @brief Get the scalar range for a surface
+     * @param index Surface index
+     * @return {min, max} pair, or {0,0} if index is invalid
+     */
+    [[nodiscard]] std::pair<double, double> surfaceScalarRange(size_t index) const;
+
+    /**
+     * @brief Set custom lookup table for scalar-to-color mapping
+     * @param index Surface index
+     * @param lut VTK lookup table
+     */
+    void setSurfaceLookupTable(size_t index, vtkSmartPointer<vtkLookupTable> lut);
+
+    // ==================== Hemodynamic Colormap Factories ====================
+
+    /**
+     * @brief Create WSS lookup table (blue-green-yellow-red sequential)
+     * @param maxWSS Maximum WSS value in Pa
+     * @return Configured lookup table for [0, maxWSS]
+     */
+    [[nodiscard]] static vtkSmartPointer<vtkLookupTable>
+    createWSSLookupTable(double maxWSS);
+
+    /**
+     * @brief Create OSI lookup table (blue-white-red diverging)
+     * @return Configured lookup table for [0, 0.5]
+     */
+    [[nodiscard]] static vtkSmartPointer<vtkLookupTable>
+    createOSILookupTable();
+
+    /**
+     * @brief Create RRT lookup table (yellow-orange-red sequential)
+     * @param maxRRT Maximum RRT value
+     * @return Configured lookup table for [0, maxRRT]
+     */
+    [[nodiscard]] static vtkSmartPointer<vtkLookupTable>
+    createRRTLookupTable(double maxRRT);
 
 private:
     class Impl;

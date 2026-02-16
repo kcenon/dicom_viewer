@@ -2,9 +2,14 @@
 
 #include "services/surface_renderer.hpp"
 
+#include <vtkFloatArray.h>
 #include <vtkImageData.h>
+#include <vtkLookupTable.h>
+#include <vtkPointData.h>
+#include <vtkPolyData.h>
 #include <vtkSmartPointer.h>
 #include <vtkRenderer.h>
+#include <vtkSphereSource.h>
 
 using namespace dicom_viewer::services;
 
@@ -505,4 +510,281 @@ TEST_F(SurfaceRendererTest, SurfaceNormalsAfterModification) {
     // The mesh was re-extracted, so surface normals are recomputed
     EXPECT_NE(dataBefore.triangleCount, dataAfter.triangleCount)
         << "Different isovalue should produce different mesh";
+}
+
+// =============================================================================
+// Per-Vertex Scalar Coloring (Issue #314)
+// =============================================================================
+
+namespace {
+
+/// Create a sphere vtkPolyData with a per-vertex scalar array
+vtkSmartPointer<vtkPolyData> createTestSphereWithScalars(
+    const std::string& arrayName, double maxVal = 10.0)
+{
+    auto sphere = vtkSmartPointer<vtkSphereSource>::New();
+    sphere->SetRadius(20.0);
+    sphere->SetThetaResolution(16);
+    sphere->SetPhiResolution(16);
+    sphere->Update();
+
+    auto polyData = vtkSmartPointer<vtkPolyData>::New();
+    polyData->DeepCopy(sphere->GetOutput());
+
+    auto scalars = vtkSmartPointer<vtkFloatArray>::New();
+    scalars->SetName(arrayName.c_str());
+    scalars->SetNumberOfComponents(1);
+    auto numPoints = polyData->GetNumberOfPoints();
+    scalars->SetNumberOfTuples(numPoints);
+
+    for (vtkIdType i = 0; i < numPoints; ++i) {
+        scalars->SetValue(i, static_cast<float>(i) / static_cast<float>(numPoints) * maxVal);
+    }
+
+    polyData->GetPointData()->AddArray(scalars);
+    polyData->GetPointData()->SetActiveScalars(arrayName.c_str());
+
+    return polyData;
+}
+
+} // anonymous namespace
+
+TEST_F(SurfaceRendererTest, AddScalarSurface) {
+    auto surface = createTestSphereWithScalars("WSS", 5.0);
+    size_t index = renderer->addScalarSurface("WSS Surface", surface, "WSS");
+
+    EXPECT_EQ(index, 0);
+    EXPECT_EQ(renderer->getSurfaceCount(), 1);
+
+    auto config = renderer->getSurfaceConfig(0);
+    EXPECT_EQ(config.name, "WSS Surface");
+}
+
+TEST_F(SurfaceRendererTest, ScalarSurfaceHasValidActor) {
+    auto surface = createTestSphereWithScalars("WSS", 5.0);
+    renderer->addScalarSurface("WSS Surface", surface, "WSS");
+
+    auto actor = renderer->getActor(0);
+    ASSERT_NE(actor, nullptr);
+    EXPECT_NE(actor->GetMapper(), nullptr);
+}
+
+TEST_F(SurfaceRendererTest, ScalarSurfaceAutoDetectsRange) {
+    auto surface = createTestSphereWithScalars("WSS", 8.0);
+    renderer->addScalarSurface("WSS", surface, "WSS");
+
+    auto [minVal, maxVal] = renderer->surfaceScalarRange(0);
+    EXPECT_NEAR(minVal, 0.0, 0.01);
+    EXPECT_NEAR(maxVal, 8.0, 0.1);
+}
+
+TEST_F(SurfaceRendererTest, SetSurfaceScalarRange) {
+    auto surface = createTestSphereWithScalars("WSS", 8.0);
+    renderer->addScalarSurface("WSS", surface, "WSS");
+
+    renderer->setSurfaceScalarRange(0, 0.0, 20.0);
+    auto [minVal, maxVal] = renderer->surfaceScalarRange(0);
+    EXPECT_DOUBLE_EQ(minVal, 0.0);
+    EXPECT_DOUBLE_EQ(maxVal, 20.0);
+}
+
+TEST_F(SurfaceRendererTest, SetSurfaceScalarRangeInvalidIndex) {
+    EXPECT_NO_THROW(renderer->setSurfaceScalarRange(99, 0.0, 10.0));
+}
+
+TEST_F(SurfaceRendererTest, SurfaceScalarRangeInvalidIndex) {
+    auto [minVal, maxVal] = renderer->surfaceScalarRange(99);
+    EXPECT_DOUBLE_EQ(minVal, 0.0);
+    EXPECT_DOUBLE_EQ(maxVal, 0.0);
+}
+
+TEST_F(SurfaceRendererTest, SetSurfaceLookupTable) {
+    auto surface = createTestSphereWithScalars("OSI", 0.5);
+    renderer->addScalarSurface("OSI", surface, "OSI");
+
+    auto lut = SurfaceRenderer::createOSILookupTable();
+    EXPECT_NO_THROW(renderer->setSurfaceLookupTable(0, lut));
+}
+
+TEST_F(SurfaceRendererTest, SetSurfaceLookupTableInvalidIndex) {
+    auto lut = vtkSmartPointer<vtkLookupTable>::New();
+    EXPECT_NO_THROW(renderer->setSurfaceLookupTable(99, lut));
+}
+
+TEST_F(SurfaceRendererTest, ScalarSurfaceCoexistsWithMarchingCubes) {
+    auto volume = createTestVolume();
+    renderer->setInputData(volume);
+    renderer->addPresetSurface(TissueType::Bone);
+
+    auto surface = createTestSphereWithScalars("WSS", 5.0);
+    renderer->addScalarSurface("WSS", surface, "WSS");
+
+    EXPECT_EQ(renderer->getSurfaceCount(), 2);
+
+    auto actors = renderer->getAllActors();
+    EXPECT_EQ(actors.size(), 2);
+    EXPECT_NE(actors[0].Get(), actors[1].Get());
+}
+
+TEST_F(SurfaceRendererTest, ScalarSurfaceAddedToRenderer) {
+    auto vtkRen = vtkSmartPointer<vtkRenderer>::New();
+    auto surface = createTestSphereWithScalars("WSS", 5.0);
+    renderer->addScalarSurface("WSS", surface, "WSS");
+
+    renderer->addToRenderer(vtkRen);
+    EXPECT_EQ(vtkRen->GetActors()->GetNumberOfItems(), 1);
+}
+
+TEST_F(SurfaceRendererTest, ScalarSurfaceVisibilityToggle) {
+    auto surface = createTestSphereWithScalars("WSS", 5.0);
+    renderer->addScalarSurface("WSS", surface, "WSS");
+
+    renderer->setSurfaceVisibility(0, false);
+    auto config = renderer->getSurfaceConfig(0);
+    EXPECT_FALSE(config.visible);
+
+    renderer->setSurfaceVisibility(0, true);
+    config = renderer->getSurfaceConfig(0);
+    EXPECT_TRUE(config.visible);
+}
+
+TEST_F(SurfaceRendererTest, RemoveScalarSurface) {
+    auto surface = createTestSphereWithScalars("WSS", 5.0);
+    renderer->addScalarSurface("WSS", surface, "WSS");
+    EXPECT_EQ(renderer->getSurfaceCount(), 1);
+
+    renderer->removeSurface(0);
+    EXPECT_EQ(renderer->getSurfaceCount(), 0);
+}
+
+TEST_F(SurfaceRendererTest, ScalarSurfaceTriangleCount) {
+    auto surface = createTestSphereWithScalars("WSS", 5.0);
+    renderer->addScalarSurface("WSS", surface, "WSS");
+
+    auto data = renderer->getSurfaceData(0);
+    EXPECT_GT(data.triangleCount, 0u);
+    EXPECT_EQ(data.name, "WSS");
+}
+
+// =============================================================================
+// Hemodynamic Colormap Factories (Issue #314)
+// =============================================================================
+
+TEST_F(SurfaceRendererTest, CreateWSSLookupTable) {
+    auto lut = SurfaceRenderer::createWSSLookupTable(5.0);
+    ASSERT_NE(lut, nullptr);
+    EXPECT_EQ(lut->GetNumberOfTableValues(), 256);
+
+    auto range = lut->GetRange();
+    EXPECT_DOUBLE_EQ(range[0], 0.0);
+    EXPECT_DOUBLE_EQ(range[1], 5.0);
+
+    // At min (0): should be blue-ish
+    double rgba[4];
+    lut->GetTableValue(0, rgba);
+    EXPECT_GT(rgba[2], rgba[0]);  // Blue > Red at min
+
+    // At max (255): should be red-ish
+    lut->GetTableValue(255, rgba);
+    EXPECT_GT(rgba[0], rgba[2]);  // Red > Blue at max
+}
+
+TEST_F(SurfaceRendererTest, CreateOSILookupTable) {
+    auto lut = SurfaceRenderer::createOSILookupTable();
+    ASSERT_NE(lut, nullptr);
+    EXPECT_EQ(lut->GetNumberOfTableValues(), 256);
+
+    auto range = lut->GetRange();
+    EXPECT_DOUBLE_EQ(range[0], 0.0);
+    EXPECT_DOUBLE_EQ(range[1], 0.5);
+
+    // At min (0): should be blue
+    double rgba[4];
+    lut->GetTableValue(0, rgba);
+    EXPECT_NEAR(rgba[0], 0.0, 0.01);
+    EXPECT_NEAR(rgba[1], 0.0, 0.01);
+    EXPECT_NEAR(rgba[2], 1.0, 0.01);
+
+    // At middle (128): should be white
+    lut->GetTableValue(128, rgba);
+    EXPECT_GT(rgba[0], 0.9);
+    EXPECT_GT(rgba[1], 0.9);
+    EXPECT_GT(rgba[2], 0.9);
+
+    // At max (255): should be red
+    lut->GetTableValue(255, rgba);
+    EXPECT_NEAR(rgba[0], 1.0, 0.01);
+    EXPECT_NEAR(rgba[1], 0.0, 0.01);
+    EXPECT_NEAR(rgba[2], 0.0, 0.01);
+}
+
+TEST_F(SurfaceRendererTest, CreateRRTLookupTable) {
+    auto lut = SurfaceRenderer::createRRTLookupTable(100.0);
+    ASSERT_NE(lut, nullptr);
+    EXPECT_EQ(lut->GetNumberOfTableValues(), 256);
+
+    auto range = lut->GetRange();
+    EXPECT_DOUBLE_EQ(range[0], 0.0);
+    EXPECT_DOUBLE_EQ(range[1], 100.0);
+
+    // At min: should be light/warm color (high green component)
+    double rgba[4];
+    lut->GetTableValue(0, rgba);
+    EXPECT_DOUBLE_EQ(rgba[0], 1.0);  // Full red at all values
+    EXPECT_GT(rgba[1], 0.8);          // High green at start
+
+    // At max: should be dark red (low green)
+    lut->GetTableValue(255, rgba);
+    EXPECT_DOUBLE_EQ(rgba[0], 1.0);  // Full red
+    EXPECT_LT(rgba[1], 0.3);          // Low green at end
+}
+
+TEST_F(SurfaceRendererTest, WSSLookupTableAppliedToScalarSurface) {
+    auto surface = createTestSphereWithScalars("WSS", 5.0);
+    renderer->addScalarSurface("WSS Surface", surface, "WSS");
+
+    auto lut = SurfaceRenderer::createWSSLookupTable(5.0);
+    renderer->setSurfaceLookupTable(0, lut);
+    renderer->setSurfaceScalarRange(0, 0.0, 5.0);
+
+    auto [minVal, maxVal] = renderer->surfaceScalarRange(0);
+    EXPECT_DOUBLE_EQ(minVal, 0.0);
+    EXPECT_DOUBLE_EQ(maxVal, 5.0);
+}
+
+TEST_F(SurfaceRendererTest, MultipleScalarArraysOnSameSurface) {
+    auto sphere = vtkSmartPointer<vtkSphereSource>::New();
+    sphere->SetRadius(20.0);
+    sphere->SetThetaResolution(12);
+    sphere->SetPhiResolution(12);
+    sphere->Update();
+
+    auto polyData = vtkSmartPointer<vtkPolyData>::New();
+    polyData->DeepCopy(sphere->GetOutput());
+
+    auto numPoints = polyData->GetNumberOfPoints();
+
+    // Add WSS array
+    auto wssArray = vtkSmartPointer<vtkFloatArray>::New();
+    wssArray->SetName("WSS");
+    wssArray->SetNumberOfTuples(numPoints);
+    for (vtkIdType i = 0; i < numPoints; ++i) {
+        wssArray->SetValue(i, static_cast<float>(i) * 0.05f);
+    }
+    polyData->GetPointData()->AddArray(wssArray);
+
+    // Add OSI array
+    auto osiArray = vtkSmartPointer<vtkFloatArray>::New();
+    osiArray->SetName("OSI");
+    osiArray->SetNumberOfTuples(numPoints);
+    for (vtkIdType i = 0; i < numPoints; ++i) {
+        osiArray->SetValue(i, 0.5f * static_cast<float>(i) / static_cast<float>(numPoints));
+    }
+    polyData->GetPointData()->AddArray(osiArray);
+
+    // Render with WSS array active
+    size_t idx = renderer->addScalarSurface("Hemodynamics", polyData, "WSS");
+    auto actor = renderer->getActor(idx);
+    ASSERT_NE(actor, nullptr);
+    EXPECT_NE(actor->GetMapper(), nullptr);
 }
