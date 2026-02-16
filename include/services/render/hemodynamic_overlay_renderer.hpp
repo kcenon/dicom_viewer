@@ -36,7 +36,9 @@ enum class OverlayType {
     VelocityY,          ///< Y component of velocity
     VelocityZ,          ///< Z component of velocity
     Vorticity,          ///< |curl(V)| vorticity magnitude in 1/s
-    EnergyLoss          ///< Viscous dissipation rate in W/m^3
+    EnergyLoss,         ///< Viscous dissipation rate in W/m^3
+    Streamline,         ///< 2D flow streamlines on slice plane
+    VelocityTexture     ///< Line Integral Convolution (LIC) texture
 };
 
 /**

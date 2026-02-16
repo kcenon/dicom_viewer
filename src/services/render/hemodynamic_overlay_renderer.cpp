@@ -488,6 +488,10 @@ ColormapPreset HemodynamicOverlayRenderer::defaultColormapForType(OverlayType ty
             return ColormapPreset::CoolWarm;
         case OverlayType::EnergyLoss:
             return ColormapPreset::HotMetal;
+        case OverlayType::Streamline:
+            return ColormapPreset::Jet;
+        case OverlayType::VelocityTexture:
+            return ColormapPreset::Viridis;
     }
     return ColormapPreset::Jet;
 }

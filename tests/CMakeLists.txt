@@ -1483,6 +1483,33 @@ vtk_module_autoinit(
 
 gtest_discover_tests(hemodynamic_overlay_renderer_test DISCOVERY_TIMEOUT 60)
 
+# Unit tests for Streamline Overlay Renderer
+add_executable(streamline_overlay_renderer_test
+    unit/streamline_overlay_renderer_test.cpp
+)
+
+target_link_directories(streamline_overlay_renderer_test PRIVATE
+    /opt/homebrew/lib
+)
+
+target_link_libraries(streamline_overlay_renderer_test PRIVATE
+    render_service
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(streamline_overlay_renderer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS streamline_overlay_renderer_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(streamline_overlay_renderer_test DISCOVERY_TIMEOUT 60)
+
 # Volume Renderer Overlay Tests
 add_executable(volume_renderer_overlay_test
     unit/volume_renderer_overlay_test.cpp
