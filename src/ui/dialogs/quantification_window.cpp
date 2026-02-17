@@ -5,10 +5,13 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QFileDialog>
+#include <QFont>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QPainter>
+#include <QPrinter>
 #include <QPushButton>
 #include <QSplitter>
 #include <QTableWidget>
@@ -70,6 +73,7 @@ public:
     QPushButton* copyChartDataBtn = nullptr;
     QPushButton* copyChartImageBtn = nullptr;
     QPushButton* exportCsvBtn = nullptr;
+    QPushButton* exportPdfBtn = nullptr;
     QPushButton* flipFlowBtn = nullptr;
 
     // Data
@@ -162,9 +166,13 @@ void QuantificationWindow::setupUI()
     impl_->copySummaryBtn = new QPushButton(tr("Copy Summary"), impl_->leftPanel);
     leftLayout->addWidget(impl_->copySummaryBtn);
 
-    // Export CSV button
+    // Export buttons row
+    auto* exportBtnLayout = new QHBoxLayout();
     impl_->exportCsvBtn = new QPushButton(tr("Export CSV..."), impl_->leftPanel);
-    leftLayout->addWidget(impl_->exportCsvBtn);
+    impl_->exportPdfBtn = new QPushButton(tr("Export PDF..."), impl_->leftPanel);
+    exportBtnLayout->addWidget(impl_->exportCsvBtn);
+    exportBtnLayout->addWidget(impl_->exportPdfBtn);
+    leftLayout->addLayout(exportBtnLayout);
 
     impl_->mainSplitter->addWidget(impl_->leftPanel);
 
@@ -218,8 +226,9 @@ void QuantificationWindow::setupConnections()
         QApplication::clipboard()->setPixmap(image);
     });
 
-    // Export CSV button
+    // Export buttons
     connect(impl_->exportCsvBtn, &QPushButton::clicked, this, &QuantificationWindow::exportCsv);
+    connect(impl_->exportPdfBtn, &QPushButton::clicked, this, &QuantificationWindow::exportPdf);
 
     // Flow direction flip button
     connect(impl_->flipFlowBtn, &QPushButton::toggled, this, [this](bool checked) {
@@ -423,6 +432,110 @@ void QuantificationWindow::updateTable()
             new QTableWidgetItem(QString("%1 %2").arg(row.max, 0, 'f', 2).arg(unit)));
         impl_->statsTable->setItem(r, 4,
             new QTableWidgetItem(QString("%1 %2").arg(row.min, 0, 'f', 2).arg(unit)));
+    }
+}
+
+void QuantificationWindow::exportPdf()
+{
+    QString filePath = QFileDialog::getSaveFileName(
+        this, tr("Export PDF"), QString(),
+        tr("PDF Files (*.pdf);;All Files (*)"));
+    if (filePath.isEmpty()) return;
+
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName(filePath);
+    printer.setPageSize(QPageSize(QPageSize::A4));
+
+    QPainter painter;
+    if (!painter.begin(&printer)) return;
+
+    renderReport(painter, printer.pageLayout().paintRectPixels(printer.resolution()));
+    painter.end();
+}
+
+void QuantificationWindow::renderReport(QPainter& painter, const QRectF& pageRect) const
+{
+    const double w = pageRect.width();
+    double y = pageRect.top();
+
+    // Title
+    QFont titleFont("Helvetica", 16, QFont::Bold);
+    painter.setFont(titleFont);
+    painter.drawText(QRectF(pageRect.left(), y, w, 40), Qt::AlignLeft | Qt::AlignVCenter,
+                     tr("Quantification Report"));
+    y += 50;
+
+    // Separator line
+    painter.setPen(QPen(Qt::gray, 1));
+    painter.drawLine(QPointF(pageRect.left(), y), QPointF(pageRect.right(), y));
+    y += 15;
+
+    // Statistics table
+    QFont headerFont("Helvetica", 10, QFont::Bold);
+    QFont bodyFont("Helvetica", 10);
+
+    const int colCount = 5;
+    const double colWidth = w / colCount;
+    const double rowHeight = 22;
+
+    // Table header
+    painter.setFont(headerFont);
+    const QString headers[] = {
+        tr("Parameter"), tr("Mean"), tr("Std Dev"), tr("Max"), tr("Min")};
+    for (int c = 0; c < colCount; ++c) {
+        painter.drawText(
+            QRectF(pageRect.left() + c * colWidth, y, colWidth, rowHeight),
+            Qt::AlignLeft | Qt::AlignVCenter, headers[c]);
+    }
+    y += rowHeight;
+
+    // Header underline
+    painter.drawLine(QPointF(pageRect.left(), y), QPointF(pageRect.right(), y));
+    y += 4;
+
+    // Data rows
+    painter.setFont(bodyFont);
+    for (const auto& row : impl_->rows) {
+        auto* box = const_cast<Impl*>(impl_.get())->checkBoxFor(row.parameter);
+        if (box && !box->isChecked()) continue;
+
+        QString unit = parameterUnit(row.parameter);
+        QString vals[] = {
+            parameterName(row.parameter),
+            QString("%1 %2").arg(row.mean, 0, 'f', 2).arg(unit),
+            QString("%1 %2").arg(row.stdDev, 0, 'f', 2).arg(unit),
+            QString("%1 %2").arg(row.max, 0, 'f', 2).arg(unit),
+            QString("%1 %2").arg(row.min, 0, 'f', 2).arg(unit),
+        };
+
+        for (int c = 0; c < colCount; ++c) {
+            painter.drawText(
+                QRectF(pageRect.left() + c * colWidth, y, colWidth, rowHeight),
+                Qt::AlignLeft | Qt::AlignVCenter, vals[c]);
+        }
+        y += rowHeight;
+    }
+
+    y += 20;
+
+    // Graph image (fill remaining space, max 40% of page height)
+    if (impl_->graphWidget && impl_->graphWidget->seriesCount() > 0) {
+        double maxGraphHeight = pageRect.height() * 0.4;
+        double availableHeight = pageRect.bottom() - y - 10;
+        double graphHeight = std::min(maxGraphHeight, availableHeight);
+        if (graphHeight > 50) {
+            QPixmap chartPix = impl_->graphWidget->chartImage();
+            if (!chartPix.isNull()) {
+                double aspectRatio = static_cast<double>(chartPix.width()) / chartPix.height();
+                double graphWidth = std::min(w, graphHeight * aspectRatio);
+                graphHeight = graphWidth / aspectRatio;
+
+                painter.drawPixmap(
+                    QRectF(pageRect.left(), y, graphWidth, graphHeight).toRect(),
+                    chartPix);
+            }
+        }
     }
 }
 
