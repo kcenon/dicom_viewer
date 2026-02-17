@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QClipboard>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QTableWidget>
 
