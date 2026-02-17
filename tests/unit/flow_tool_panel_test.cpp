@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QSignalSpy>
 
+#include "services/segmentation/label_manager.hpp"
 #include "ui/panels/flow_tool_panel.hpp"
 
 using namespace dicom_viewer::ui;
@@ -228,5 +229,171 @@ TEST(FlowToolPanelTest, Display3D_SignalNotEmittedOnProgrammatic) {
     ASSERT_TRUE(spy.isValid());
 
     panel.setDisplay3DEnabled(Display3DItem::Vorticity, true);
+    EXPECT_EQ(spy.count(), 0);
+}
+
+// =============================================================================
+// Mask section
+// =============================================================================
+
+TEST(FlowToolPanelTest, MaskCount_InitiallyZero) {
+    FlowToolPanel panel;
+    EXPECT_EQ(panel.maskCount(), 0);
+}
+
+TEST(FlowToolPanelTest, MaskSection_NoLabelManager) {
+    FlowToolPanel panel;
+    // Should not crash when no LabelManager is set
+    panel.refreshMaskList();
+    EXPECT_EQ(panel.maskCount(), 0);
+}
+
+TEST(FlowToolPanelTest, MaskSection_SetNullLabelManager) {
+    FlowToolPanel panel;
+    panel.setLabelManager(nullptr);
+    panel.refreshMaskList();
+    EXPECT_EQ(panel.maskCount(), 0);
+}
+
+TEST(FlowToolPanelTest, MaskSection_WithLabelManager) {
+    FlowToolPanel panel;
+    dicom_viewer::services::LabelManager manager;
+    auto result = manager.initializeLabelMap(16, 16, 16);
+    ASSERT_TRUE(result.has_value());
+
+    auto label1 = manager.addLabel("Aorta");
+    ASSERT_TRUE(label1.has_value());
+    auto label2 = manager.addLabel("Ventricle");
+    ASSERT_TRUE(label2.has_value());
+
+    panel.setLabelManager(&manager);
+    EXPECT_EQ(panel.maskCount(), 2);
+}
+
+TEST(FlowToolPanelTest, MaskSection_RefreshUpdatesCount) {
+    FlowToolPanel panel;
+    dicom_viewer::services::LabelManager manager;
+    auto result = manager.initializeLabelMap(16, 16, 16);
+    ASSERT_TRUE(result.has_value());
+
+    panel.setLabelManager(&manager);
+    EXPECT_EQ(panel.maskCount(), 0);
+
+    auto label1 = manager.addLabel("Aorta");
+    ASSERT_TRUE(label1.has_value());
+
+    // Must manually refresh to sync
+    panel.refreshMaskList();
+    EXPECT_EQ(panel.maskCount(), 1);
+}
+
+TEST(FlowToolPanelTest, MaskSection_LoadSignal) {
+    FlowToolPanel panel;
+    QSignalSpy spy(&panel, &FlowToolPanel::maskLoadRequested);
+    ASSERT_TRUE(spy.isValid());
+    // Signal exists and spy is valid (button click requires user interaction)
+    EXPECT_EQ(spy.count(), 0);
+}
+
+TEST(FlowToolPanelTest, MaskSection_RemoveSignal) {
+    FlowToolPanel panel;
+    QSignalSpy spy(&panel, &FlowToolPanel::maskRemoveRequested);
+    ASSERT_TRUE(spy.isValid());
+    EXPECT_EQ(spy.count(), 0);
+}
+
+TEST(FlowToolPanelTest, MaskSection_VisibilitySignal) {
+    FlowToolPanel panel;
+    QSignalSpy spy(&panel, &FlowToolPanel::maskVisibilityToggled);
+    ASSERT_TRUE(spy.isValid());
+    EXPECT_EQ(spy.count(), 0);
+}
+
+// =============================================================================
+// 3D Object list section
+// =============================================================================
+
+TEST(FlowToolPanelTest, ObjectCount_InitiallyZero) {
+    FlowToolPanel panel;
+    EXPECT_EQ(panel.objectCount(), 0);
+}
+
+TEST(FlowToolPanelTest, AddObject_IncreasesCount) {
+    FlowToolPanel panel;
+    panel.addObject("Volume");
+    EXPECT_EQ(panel.objectCount(), 1);
+    panel.addObject("Surface");
+    EXPECT_EQ(panel.objectCount(), 2);
+}
+
+TEST(FlowToolPanelTest, AddObject_NoDuplicates) {
+    FlowToolPanel panel;
+    panel.addObject("Volume");
+    panel.addObject("Volume");
+    EXPECT_EQ(panel.objectCount(), 1);
+}
+
+TEST(FlowToolPanelTest, RemoveObject) {
+    FlowToolPanel panel;
+    panel.addObject("Volume");
+    panel.addObject("Surface");
+    EXPECT_EQ(panel.objectCount(), 2);
+
+    panel.removeObject("Volume");
+    EXPECT_EQ(panel.objectCount(), 1);
+}
+
+TEST(FlowToolPanelTest, RemoveObject_NonExistent) {
+    FlowToolPanel panel;
+    panel.addObject("Volume");
+    panel.removeObject("NonExistent");
+    EXPECT_EQ(panel.objectCount(), 1);
+}
+
+TEST(FlowToolPanelTest, ObjectVisibility_DefaultTrue) {
+    FlowToolPanel panel;
+    panel.addObject("Volume");
+    EXPECT_TRUE(panel.isObjectVisible("Volume"));
+}
+
+TEST(FlowToolPanelTest, ObjectVisibility_InitialFalse) {
+    FlowToolPanel panel;
+    panel.addObject("Volume", false);
+    EXPECT_FALSE(panel.isObjectVisible("Volume"));
+}
+
+TEST(FlowToolPanelTest, ObjectVisibility_SetProgrammatic) {
+    FlowToolPanel panel;
+    panel.addObject("Volume");
+    EXPECT_TRUE(panel.isObjectVisible("Volume"));
+
+    panel.setObjectVisible("Volume", false);
+    EXPECT_FALSE(panel.isObjectVisible("Volume"));
+
+    panel.setObjectVisible("Volume", true);
+    EXPECT_TRUE(panel.isObjectVisible("Volume"));
+}
+
+TEST(FlowToolPanelTest, ObjectVisibility_NonExistent) {
+    FlowToolPanel panel;
+    EXPECT_FALSE(panel.isObjectVisible("NonExistent"));
+}
+
+TEST(FlowToolPanelTest, ObjectVisibility_SetProgrammatic_NoSignal) {
+    FlowToolPanel panel;
+    panel.addObject("Volume");
+
+    QSignalSpy spy(&panel, &FlowToolPanel::objectVisibilityToggled);
+    ASSERT_TRUE(spy.isValid());
+
+    // Programmatic change should not emit signal (blockSignals)
+    panel.setObjectVisible("Volume", false);
+    EXPECT_EQ(spy.count(), 0);
+}
+
+TEST(FlowToolPanelTest, ObjectVisibilitySignal_Exists) {
+    FlowToolPanel panel;
+    QSignalSpy spy(&panel, &FlowToolPanel::objectVisibilityToggled);
+    ASSERT_TRUE(spy.isValid());
     EXPECT_EQ(spy.count(), 0);
 }

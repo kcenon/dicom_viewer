@@ -1,7 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <QWidget>
+
+namespace dicom_viewer::services {
+class LabelManager;
+}
 
 namespace dicom_viewer::ui {
 
@@ -59,8 +64,10 @@ enum class Display3DItem {
  * Flow Tool Panel
  * +-- Settings (Phase/Slice info)
  * +-- Series (Mag/RL/AP/FH/PC-MRA toggle buttons)
+ * +-- Mask (Mask list with checkboxes + color swatches, Load/Remove)
  * +-- Display 2D (Mask/Velocity/Streamline/EnergyLoss/Vorticity/VelTexture)
  * +-- Display 3D (MaskVol/Surface/Cine/Mag/Vel/ASC/Streamline/EL/WSS/OSI/AFI/RRT/Vorticity)
+ * +-- 3D Object (Object visibility list)
  * @endcode
  *
  * @trace SRS-FR-046, PRD FR-015
@@ -90,6 +97,21 @@ public:
      * @brief Check if a 3D display item is enabled
      */
     [[nodiscard]] bool isDisplay3DEnabled(Display3DItem item) const;
+
+    /**
+     * @brief Get the number of masks in the list
+     */
+    [[nodiscard]] int maskCount() const;
+
+    /**
+     * @brief Get the number of 3D objects in the list
+     */
+    [[nodiscard]] int objectCount() const;
+
+    /**
+     * @brief Check if a named 3D object is visible
+     */
+    [[nodiscard]] bool isObjectVisible(const QString& name) const;
 
     /**
      * @brief Enable or disable the panel based on data availability
@@ -134,6 +156,33 @@ public slots:
      */
     void setDisplay3DRange(Display3DItem item, double minVal, double maxVal);
 
+    /**
+     * @brief Set the LabelManager for mask list synchronization
+     */
+    void setLabelManager(services::LabelManager* manager);
+
+    /**
+     * @brief Refresh mask list from current LabelManager state
+     */
+    void refreshMaskList();
+
+    /**
+     * @brief Add a named 3D object to the object list
+     * @param name Object display name
+     * @param visible Initial visibility
+     */
+    void addObject(const QString& name, bool visible = true);
+
+    /**
+     * @brief Remove a named 3D object from the object list
+     */
+    void removeObject(const QString& name);
+
+    /**
+     * @brief Set visibility of a named 3D object programmatically
+     */
+    void setObjectVisible(const QString& name, bool visible);
+
 signals:
     /**
      * @brief Emitted when the user selects a different velocity series
@@ -163,13 +212,40 @@ signals:
      */
     void display3DRangeChanged(Display3DItem item, double minVal, double maxVal);
 
+    /**
+     * @brief Emitted when user clicks Load to import a mask file
+     */
+    void maskLoadRequested();
+
+    /**
+     * @brief Emitted when user clicks Remove for the selected mask
+     * @param labelId Label ID to remove
+     */
+    void maskRemoveRequested(uint8_t labelId);
+
+    /**
+     * @brief Emitted when a mask visibility checkbox is toggled
+     * @param labelId Label ID
+     * @param visible New visibility state
+     */
+    void maskVisibilityToggled(uint8_t labelId, bool visible);
+
+    /**
+     * @brief Emitted when a 3D object visibility checkbox is toggled
+     * @param name Object name
+     * @param visible New visibility state
+     */
+    void objectVisibilityToggled(const QString& name, bool visible);
+
 private:
     void setupUI();
     void setupConnections();
     void createSettingsSection();
     void createSeriesSection();
+    void createMaskSection();
     void createDisplay2DSection();
     void createDisplay3DSection();
+    void create3DObjectSection();
 
     class Impl;
     std::unique_ptr<Impl> impl_;

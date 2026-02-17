@@ -1,5 +1,6 @@
 #include "ui/panels/flow_tool_panel.hpp"
 
+#include "services/segmentation/label_manager.hpp"
 #include "ui/display_3d_controller.hpp"
 
 #include <QButtonGroup>
@@ -8,6 +9,8 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QListWidget>
+#include <QPixmap>
 #include <QPushButton>
 #include <QToolBox>
 #include <QVBoxLayout>
@@ -46,6 +49,15 @@ public:
     };
     std::map<Display3DItem, RangeControl> display3DRanges;
 
+    // Mask section
+    QListWidget* maskList = nullptr;
+    QPushButton* maskLoadButton = nullptr;
+    QPushButton* maskRemoveButton = nullptr;
+    services::LabelManager* labelManager = nullptr;
+
+    // 3D Object list section
+    QListWidget* objectList = nullptr;
+
     FlowSeries currentSeries = FlowSeries::Magnitude;
     bool flowDataAvailable = false;
 };
@@ -78,6 +90,28 @@ bool FlowToolPanel::isDisplay3DEnabled(Display3DItem item) const
     auto it = impl_->display3DChecks.find(item);
     if (it == impl_->display3DChecks.end()) return false;
     return it->second->isChecked();
+}
+
+int FlowToolPanel::maskCount() const
+{
+    return impl_->maskList ? impl_->maskList->count() : 0;
+}
+
+int FlowToolPanel::objectCount() const
+{
+    return impl_->objectList ? impl_->objectList->count() : 0;
+}
+
+bool FlowToolPanel::isObjectVisible(const QString& name) const
+{
+    if (!impl_->objectList) return false;
+    for (int i = 0; i < impl_->objectList->count(); ++i) {
+        auto* item = impl_->objectList->item(i);
+        if (item->text() == name) {
+            return item->checkState() == Qt::Checked;
+        }
+    }
+    return false;
 }
 
 void FlowToolPanel::setFlowDataAvailable(bool available)
@@ -155,6 +189,81 @@ void FlowToolPanel::setDisplay3DRange(Display3DItem item, double minVal, double 
     rc.maxSpin->blockSignals(false);
 }
 
+void FlowToolPanel::setLabelManager(services::LabelManager* manager)
+{
+    impl_->labelManager = manager;
+    refreshMaskList();
+}
+
+void FlowToolPanel::refreshMaskList()
+{
+    if (!impl_->maskList) return;
+
+    impl_->maskList->blockSignals(true);
+    impl_->maskList->clear();
+
+    if (impl_->labelManager) {
+        auto labels = impl_->labelManager->getAllLabels();
+        for (const auto& label : labels) {
+            auto* item = new QListWidgetItem();
+            item->setText(QString::fromStdString(label.name));
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+            item->setCheckState(label.visible ? Qt::Checked : Qt::Unchecked);
+            item->setData(Qt::UserRole, static_cast<int>(label.id));
+
+            // Color swatch as decoration icon
+            QPixmap swatch(12, 12);
+            auto rgba = label.color.toRGBA8();
+            swatch.fill(QColor(rgba[0], rgba[1], rgba[2], rgba[3]));
+            item->setIcon(QIcon(swatch));
+
+            impl_->maskList->addItem(item);
+        }
+    }
+
+    impl_->maskList->blockSignals(false);
+}
+
+void FlowToolPanel::addObject(const QString& name, bool visible)
+{
+    if (!impl_->objectList) return;
+
+    // Avoid duplicates
+    for (int i = 0; i < impl_->objectList->count(); ++i) {
+        if (impl_->objectList->item(i)->text() == name) return;
+    }
+
+    auto* item = new QListWidgetItem(name);
+    item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+    item->setCheckState(visible ? Qt::Checked : Qt::Unchecked);
+    impl_->objectList->addItem(item);
+}
+
+void FlowToolPanel::removeObject(const QString& name)
+{
+    if (!impl_->objectList) return;
+    for (int i = 0; i < impl_->objectList->count(); ++i) {
+        if (impl_->objectList->item(i)->text() == name) {
+            delete impl_->objectList->takeItem(i);
+            return;
+        }
+    }
+}
+
+void FlowToolPanel::setObjectVisible(const QString& name, bool visible)
+{
+    if (!impl_->objectList) return;
+    for (int i = 0; i < impl_->objectList->count(); ++i) {
+        auto* item = impl_->objectList->item(i);
+        if (item->text() == name) {
+            impl_->objectList->blockSignals(true);
+            item->setCheckState(visible ? Qt::Checked : Qt::Unchecked);
+            impl_->objectList->blockSignals(false);
+            return;
+        }
+    }
+}
+
 void FlowToolPanel::setupUI()
 {
     auto* mainLayout = new QVBoxLayout(this);
@@ -166,8 +275,10 @@ void FlowToolPanel::setupUI()
 
     createSettingsSection();
     createSeriesSection();
+    createMaskSection();
     createDisplay2DSection();
     createDisplay3DSection();
+    create3DObjectSection();
 
     mainLayout->addStretch(1);
 }
@@ -232,6 +343,31 @@ void FlowToolPanel::createSeriesSection()
     layout->addStretch(1);
 
     impl_->toolBox->addItem(seriesWidget, tr("Series"));
+}
+
+void FlowToolPanel::createMaskSection()
+{
+    auto* maskWidget = new QWidget();
+    auto* layout = new QVBoxLayout(maskWidget);
+    layout->setContentsMargins(8, 4, 8, 4);
+    layout->setSpacing(4);
+
+    impl_->maskList = new QListWidget();
+    impl_->maskList->setSelectionMode(QAbstractItemView::SingleSelection);
+    impl_->maskList->setMaximumHeight(120);
+    layout->addWidget(impl_->maskList);
+
+    auto* buttonLayout = new QHBoxLayout();
+    buttonLayout->setSpacing(4);
+    impl_->maskLoadButton = new QPushButton(tr("Load"));
+    impl_->maskRemoveButton = new QPushButton(tr("Remove"));
+    impl_->maskRemoveButton->setEnabled(false);
+    buttonLayout->addWidget(impl_->maskLoadButton);
+    buttonLayout->addWidget(impl_->maskRemoveButton);
+    layout->addLayout(buttonLayout);
+
+    layout->addStretch(1);
+    impl_->toolBox->addItem(maskWidget, tr("Mask"));
 }
 
 void FlowToolPanel::createDisplay2DSection()
@@ -335,6 +471,22 @@ void FlowToolPanel::createDisplay3DSection()
     impl_->toolBox->addItem(widget, tr("Display 3D"));
 }
 
+void FlowToolPanel::create3DObjectSection()
+{
+    auto* objectWidget = new QWidget();
+    auto* layout = new QVBoxLayout(objectWidget);
+    layout->setContentsMargins(8, 4, 8, 4);
+    layout->setSpacing(4);
+
+    impl_->objectList = new QListWidget();
+    impl_->objectList->setSelectionMode(QAbstractItemView::SingleSelection);
+    impl_->objectList->setMaximumHeight(120);
+    layout->addWidget(impl_->objectList);
+
+    layout->addStretch(1);
+    impl_->toolBox->addItem(objectWidget, tr("3D Object"));
+}
+
 void FlowToolPanel::setupConnections()
 {
     connect(impl_->seriesGroup, &QButtonGroup::idClicked,
@@ -375,6 +527,41 @@ void FlowToolPanel::setupConnections()
             emit display3DRangeChanged(item, r.minSpin->value(), r.maxSpin->value());
         });
     }
+
+    // Mask list item checkbox changes
+    connect(impl_->maskList, &QListWidget::itemChanged,
+            this, [this](QListWidgetItem* item) {
+        auto labelId = static_cast<uint8_t>(item->data(Qt::UserRole).toInt());
+        bool visible = item->checkState() == Qt::Checked;
+        emit maskVisibilityToggled(labelId, visible);
+    });
+
+    // Mask list selection → enable/disable Remove button
+    connect(impl_->maskList, &QListWidget::currentRowChanged,
+            this, [this](int row) {
+        impl_->maskRemoveButton->setEnabled(row >= 0);
+    });
+
+    // Mask Load button
+    connect(impl_->maskLoadButton, &QPushButton::clicked,
+            this, [this]() { emit maskLoadRequested(); });
+
+    // Mask Remove button
+    connect(impl_->maskRemoveButton, &QPushButton::clicked,
+            this, [this]() {
+        auto* current = impl_->maskList->currentItem();
+        if (current) {
+            auto labelId = static_cast<uint8_t>(current->data(Qt::UserRole).toInt());
+            emit maskRemoveRequested(labelId);
+        }
+    });
+
+    // 3D Object list item checkbox changes
+    connect(impl_->objectList, &QListWidget::itemChanged,
+            this, [this](QListWidgetItem* item) {
+        bool visible = item->checkState() == Qt::Checked;
+        emit objectVisibilityToggled(item->text(), visible);
+    });
 }
 
 } // namespace dicom_viewer::ui
