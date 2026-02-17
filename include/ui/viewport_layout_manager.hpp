@@ -67,6 +67,18 @@ public:
      */
     [[nodiscard]] int viewportCount() const;
 
+    /**
+     * @brief Get the active (focused) viewport index
+     * @return 0-based index of the last-interacted viewport
+     */
+    [[nodiscard]] int activeViewportIndex() const;
+
+    /**
+     * @brief Get the active viewport widget
+     * @return Pointer to the active viewport
+     */
+    [[nodiscard]] ViewportWidget* activeViewport() const;
+
 public slots:
     /**
      * @brief Switch layout mode
@@ -74,12 +86,25 @@ public slots:
      */
     void setLayoutMode(LayoutMode mode);
 
+    /**
+     * @brief Set the active viewport by index
+     * @param index 0-based viewport index
+     */
+    void setActiveViewport(int index);
+
 signals:
     /**
      * @brief Emitted when layout mode changes
      * @param mode New layout mode
      */
     void layoutModeChanged(LayoutMode mode);
+
+    /**
+     * @brief Emitted when active viewport changes
+     * @param viewport The newly active viewport
+     * @param index The viewport index
+     */
+    void activeViewportChanged(ViewportWidget* viewport, int index);
 
 private:
     void buildSingleLayout();

@@ -157,3 +157,62 @@ TEST(ViewportWidgetOrientationTest, SetOrientation) {
     widget.setSliceOrientation(SliceOrientation::Axial);
     EXPECT_EQ(widget.getSliceOrientation(), SliceOrientation::Axial);
 }
+
+// =============================================================================
+// Active viewport tracking
+// =============================================================================
+
+TEST(ViewportLayoutManagerTest, DefaultActiveViewport) {
+    ViewportLayoutManager manager;
+    EXPECT_EQ(manager.activeViewportIndex(), 0);
+    EXPECT_EQ(manager.activeViewport(), manager.primaryViewport());
+}
+
+TEST(ViewportLayoutManagerTest, SetActiveViewport_QuadSplit) {
+    ViewportLayoutManager manager;
+    manager.setLayoutMode(LayoutMode::QuadSplit);
+
+    manager.setActiveViewport(2);
+    EXPECT_EQ(manager.activeViewportIndex(), 2);
+    EXPECT_EQ(manager.activeViewport(), manager.viewport(2));
+}
+
+TEST(ViewportLayoutManagerTest, SetActiveViewport_OutOfRange_Ignored) {
+    ViewportLayoutManager manager;
+    manager.setLayoutMode(LayoutMode::DualSplit);
+
+    manager.setActiveViewport(5);
+    EXPECT_EQ(manager.activeViewportIndex(), 0);  // unchanged
+}
+
+TEST(ViewportLayoutManagerTest, ActiveViewportChanged_Signal) {
+    ViewportLayoutManager manager;
+    manager.setLayoutMode(LayoutMode::QuadSplit);
+
+    bool signalReceived = false;
+    int receivedIndex = -1;
+    ViewportWidget* receivedVp = nullptr;
+
+    QObject::connect(&manager, &ViewportLayoutManager::activeViewportChanged,
+                     [&](ViewportWidget* vp, int index) {
+        signalReceived = true;
+        receivedVp = vp;
+        receivedIndex = index;
+    });
+
+    manager.setActiveViewport(3);
+    EXPECT_TRUE(signalReceived);
+    EXPECT_EQ(receivedIndex, 3);
+    EXPECT_EQ(receivedVp, manager.viewport(3));
+}
+
+TEST(ViewportLayoutManagerTest, SetActiveViewport_SameIndex_NoSignal) {
+    ViewportLayoutManager manager;
+    bool signalReceived = false;
+
+    QObject::connect(&manager, &ViewportLayoutManager::activeViewportChanged,
+                     [&](ViewportWidget*, int) { signalReceived = true; });
+
+    manager.setActiveViewport(0);  // already 0
+    EXPECT_FALSE(signalReceived);
+}

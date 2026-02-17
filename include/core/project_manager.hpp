@@ -64,6 +64,7 @@ struct ViewState {
     int sliceIndex = 0;
     int phaseIndex = 0;
     std::string activeView = "axial";  ///< axial, sagittal, coronal
+    std::string layoutMode = "single"; ///< single, dual, quad
 };
 
 /**

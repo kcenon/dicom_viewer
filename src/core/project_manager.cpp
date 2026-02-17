@@ -82,7 +82,8 @@ nlohmann::json viewStateToJson(const ViewState& v) {
     return {
         {"slice_index", v.sliceIndex},
         {"phase_index", v.phaseIndex},
-        {"active_view", v.activeView}
+        {"active_view", v.activeView},
+        {"layout_mode", v.layoutMode}
     };
 }
 
@@ -91,6 +92,7 @@ ViewState viewStateFromJson(const nlohmann::json& j) {
     v.sliceIndex = j.value("slice_index", 0);
     v.phaseIndex = j.value("phase_index", 0);
     v.activeView = j.value("active_view", "axial");
+    v.layoutMode = j.value("layout_mode", "single");
     return v;
 }
 
