@@ -1754,3 +1754,26 @@ target_include_directories(flow_tool_panel_test PRIVATE
 )
 
 gtest_discover_tests(flow_tool_panel_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Hemodynamic Surface Manager
+add_executable(hemodynamic_surface_manager_test
+    unit/hemodynamic_surface_manager_test.cpp
+)
+
+target_link_libraries(hemodynamic_surface_manager_test PRIVATE
+    render_service
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(hemodynamic_surface_manager_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS hemodynamic_surface_manager_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(hemodynamic_surface_manager_test DISCOVERY_TIMEOUT 60)
