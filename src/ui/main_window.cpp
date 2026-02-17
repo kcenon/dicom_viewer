@@ -13,6 +13,9 @@
 #include "ui/dialogs/pacs_config_dialog.hpp"
 #include "ui/quantification_window.hpp"
 #include "core/project_manager.hpp"
+#include "core/series_builder.hpp"
+#include "core/dicom_loader.hpp"
+#include "services/enhanced_dicom/series_classifier.hpp"
 #include "services/pacs_config_manager.hpp"
 #include "services/dicom_store_scp.hpp"
 #include "services/measurement/roi_statistics.hpp"
@@ -1231,10 +1234,102 @@ void MainWindow::onOpenDirectory()
         this, tr("Open DICOM Directory"), QString(),
         QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
 
-    if (!dir.isEmpty()) {
-        impl_->statusLabel->setText(tr("Loading %1...").arg(dir));
-        // TODO: Load DICOM series through controller
+    if (dir.isEmpty()) return;
+
+    impl_->statusLabel->setText(tr("Scanning %1...").arg(dir));
+    QApplication::processEvents();
+
+    // 1. Scan directory for DICOM series
+    core::SeriesBuilder builder;
+    auto scanResult = builder.scanForSeries(
+        std::filesystem::path(dir.toStdString()));
+    if (!scanResult) {
+        QMessageBox::warning(this, tr("DICOM Import Error"),
+            tr("Failed to scan directory:\n%1")
+                .arg(QString::fromStdString(scanResult.error().message)));
+        impl_->statusLabel->setText(tr("Ready"));
+        return;
     }
+
+    auto& scannedSeries = *scanResult;
+    if (scannedSeries.empty()) {
+        impl_->statusLabel->setText(tr("No DICOM series found in %1").arg(dir));
+        return;
+    }
+
+    // 2. Classify all series
+    auto classifications =
+        services::SeriesClassifier::classifyScannedSeries(scannedSeries);
+
+    // 3. Read metadata and populate PatientBrowser
+    impl_->patientBrowser->clear();
+    core::DicomLoader loader;
+
+    std::map<std::string, bool> addedPatients;
+    std::map<std::string, bool> addedStudies;
+
+    for (size_t i = 0; i < scannedSeries.size(); ++i) {
+        const auto& series = scannedSeries[i];
+        if (series.slices.empty()) continue;
+
+        auto metaResult = loader.loadFile(series.slices[0].filePath);
+        if (!metaResult) continue;
+
+        const auto& meta = *metaResult;
+
+        // Add patient (once per unique patient ID)
+        if (!addedPatients.contains(meta.patientId)) {
+            PatientInfo pi;
+            pi.patientId = QString::fromStdString(meta.patientId);
+            pi.patientName = QString::fromStdString(meta.patientName);
+            pi.birthDate = QString::fromStdString(meta.patientBirthDate);
+            pi.sex = QString::fromStdString(meta.patientSex);
+            impl_->patientBrowser->addPatient(pi);
+            addedPatients[meta.patientId] = true;
+        }
+
+        // Add study (once per unique study UID)
+        if (!addedStudies.contains(meta.studyInstanceUid)) {
+            StudyInfo si;
+            si.studyInstanceUid =
+                QString::fromStdString(meta.studyInstanceUid);
+            si.studyDate = QString::fromStdString(meta.studyDate);
+            si.studyDescription =
+                QString::fromStdString(meta.studyDescription);
+            si.accessionNumber =
+                QString::fromStdString(meta.accessionNumber);
+            si.modality = QString::fromStdString(meta.modality);
+            impl_->patientBrowser->addStudy(
+                QString::fromStdString(meta.patientId), si);
+            addedStudies[meta.studyInstanceUid] = true;
+        }
+
+        // Add series with classification
+        SeriesInfo uiSeries;
+        uiSeries.seriesInstanceUid =
+            QString::fromStdString(series.seriesInstanceUid);
+        uiSeries.seriesNumber =
+            QString::fromStdString(meta.seriesNumber);
+        uiSeries.seriesDescription =
+            QString::fromStdString(series.seriesDescription);
+        uiSeries.modality = QString::fromStdString(series.modality);
+        uiSeries.numberOfImages = static_cast<int>(series.sliceCount);
+
+        if (i < classifications.size()) {
+            uiSeries.seriesType = QString::fromStdString(
+                services::seriesToString(classifications[i].type));
+            uiSeries.is4DFlow = classifications[i].is4DFlow;
+        }
+
+        impl_->patientBrowser->addSeries(
+            QString::fromStdString(meta.studyInstanceUid), uiSeries);
+    }
+
+    impl_->patientBrowser->expandAll();
+    impl_->statusLabel->setText(
+        tr("Loaded %1 series from %2")
+            .arg(scannedSeries.size())
+            .arg(dir));
 }
 
 void MainWindow::onOpenFile()
