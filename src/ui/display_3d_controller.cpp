@@ -1,6 +1,7 @@
 #include "ui/display_3d_controller.hpp"
 
 #include "services/hemodynamic_surface_manager.hpp"
+#include "services/render/asc_view_controller.hpp"
 #include "services/surface_renderer.hpp"
 #include "services/volume_renderer.hpp"
 
@@ -24,6 +25,7 @@ public:
     services::VolumeRenderer* volumeRenderer = nullptr;
     services::SurfaceRenderer* surfaceRenderer = nullptr;
     services::HemodynamicSurfaceManager* hemoManager = nullptr;
+    services::AscViewController* ascController = nullptr;
 
     vtkSmartPointer<vtkActor> streamlineActor;
     vtkSmartPointer<vtkActor> maskVolumeActor;
@@ -73,6 +75,11 @@ void Display3DController::setSurfaceActor(vtkSmartPointer<vtkActor> actor)
     impl_->surfaceActor = std::move(actor);
 }
 
+void Display3DController::setAscController(services::AscViewController* controller)
+{
+    impl_->ascController = controller;
+}
+
 void Display3DController::handleToggle(Display3DItem item, bool enabled)
 {
     auto idx = static_cast<int>(item);
@@ -110,7 +117,9 @@ void Display3DController::handleToggle(Display3DItem item, bool enabled)
         break;
 
     case Display3DItem::ASC:
-        // Stub: ASC view not yet implemented
+        if (impl_->ascController) {
+            impl_->ascController->setVisible(enabled);
+        }
         break;
 
     case Display3DItem::Streamline:
