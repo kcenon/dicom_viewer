@@ -161,15 +161,6 @@ QString FlowGraphWidget::chartDataText() const
 
 QPixmap FlowGraphWidget::chartImage() const
 {
-    QPixmap pixmap(size());
-    pixmap.fill(Qt::white);
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-    const_cast<FlowGraphWidget*>(this)->paintEvent(nullptr);
-    // Re-render onto pixmap
-    painter.end();
-
-    // Proper off-screen rendering
     QPixmap offscreen(size());
     offscreen.fill(palette().color(QPalette::Window));
     const_cast<FlowGraphWidget*>(this)->render(&offscreen);
