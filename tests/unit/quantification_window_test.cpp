@@ -193,8 +193,14 @@ TEST(QuantificationWindowTest, SummaryCopied_Signal) {
     QSignalSpy spy(&window, &QuantificationWindow::summaryCopied);
     ASSERT_TRUE(spy.isValid());
 
-    // Simulate Copy Summary button click by finding and clicking it
-    auto* btn = window.findChild<QPushButton*>();
+    // Find "Copy Summary" button specifically (multiple QPushButtons exist)
+    QPushButton* btn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Copy Summary") {
+            btn = b;
+            break;
+        }
+    }
     ASSERT_NE(btn, nullptr);
     btn->click();
 

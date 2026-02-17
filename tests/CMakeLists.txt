@@ -1839,3 +1839,21 @@ target_include_directories(quantification_window_test PRIVATE
 )
 
 gtest_discover_tests(quantification_window_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for FlowGraphWidget (QPainter-based time-series chart)
+add_executable(flow_graph_widget_test
+    unit/flow_graph_widget_test.cpp
+)
+
+target_link_libraries(flow_graph_widget_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(flow_graph_widget_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(flow_graph_widget_test DISCOVERY_TIMEOUT 60)

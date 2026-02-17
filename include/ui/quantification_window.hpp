@@ -8,6 +8,8 @@
 
 namespace dicom_viewer::ui {
 
+class FlowGraphWidget;
+
 /**
  * @brief Measurement parameter identifiers for quantification
  */
@@ -92,6 +94,12 @@ public:
      * @return Tab-separated summary string
      */
     [[nodiscard]] QString summaryText() const;
+
+    /**
+     * @brief Get the embedded flow graph widget
+     * @return Pointer to the FlowGraphWidget
+     */
+    [[nodiscard]] FlowGraphWidget* graphWidget() const;
 
 signals:
     /**
