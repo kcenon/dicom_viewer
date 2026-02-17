@@ -1821,3 +1821,21 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(asc_view_controller_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for QuantificationWindow
+add_executable(quantification_window_test
+    unit/quantification_window_test.cpp
+)
+
+target_link_libraries(quantification_window_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(quantification_window_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(quantification_window_test DISCOVERY_TIMEOUT 60)

@@ -11,6 +11,7 @@
 #include "ui/panels/flow_tool_panel.hpp"
 #include "ui/display_3d_controller.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
+#include "ui/quantification_window.hpp"
 #include "core/project_manager.hpp"
 #include "services/pacs_config_manager.hpp"
 #include "services/dicom_store_scp.hpp"
@@ -110,6 +111,9 @@ public:
     // Active viewport W/L connections
     QMetaObject::Connection activeWlToToolsConn;
     QMetaObject::Connection toolsToActiveWlConn;
+
+    // Quantification window
+    QuantificationWindow* quantificationWindow = nullptr;
 
     // Display 3D controller
     std::unique_ptr<Display3DController> display3DController;
@@ -366,6 +370,21 @@ void MainWindow::setupMenuBar()
     impl_->showStatisticsAction = toolsMenu->addAction(tr("&Show ROI Statistics"));
     connect(impl_->showStatisticsAction, &QAction::triggered,
             this, &MainWindow::onShowRoiStatistics);
+
+    auto quantificationAction = toolsMenu->addAction(tr("&Quantification..."));
+    quantificationAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));
+    connect(quantificationAction, &QAction::triggered, this, [this]() {
+        if (!impl_->quantificationWindow) {
+            impl_->quantificationWindow = new QuantificationWindow(this);
+            impl_->quantificationWindow->setAttribute(Qt::WA_DeleteOnClose);
+            connect(impl_->quantificationWindow, &QObject::destroyed, this, [this]() {
+                impl_->quantificationWindow = nullptr;
+            });
+        }
+        impl_->quantificationWindow->show();
+        impl_->quantificationWindow->raise();
+        impl_->quantificationWindow->activateWindow();
+    });
 
     toolsMenu->addSeparator();
 
