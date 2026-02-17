@@ -695,6 +695,12 @@ void MainWindow::setupConnections()
         impl_->display3DController->handleToggle(item, enabled);
     });
 
+    // Flow tool panel Display 3D range changes → Display3DController
+    connect(impl_->flowToolPanel, &FlowToolPanel::display3DRangeChanged,
+            this, [this](Display3DItem item, double minVal, double maxVal) {
+        impl_->display3DController->setScalarRange(item, minVal, maxVal);
+    });
+
     // Patient browser -> Load series
     connect(impl_->patientBrowser, &PatientBrowser::seriesLoadRequested,
             this, [this](const QString& /*seriesUid*/, const QString& /*path*/) {

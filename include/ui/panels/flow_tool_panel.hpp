@@ -126,6 +126,14 @@ public slots:
      */
     void setDisplay3DEnabled(Display3DItem item, bool enabled);
 
+    /**
+     * @brief Set the scalar range for a 3D display item programmatically
+     * @param item The display item (must have colormap)
+     * @param minVal Minimum scalar value
+     * @param maxVal Maximum scalar value
+     */
+    void setDisplay3DRange(Display3DItem item, double minVal, double maxVal);
+
 signals:
     /**
      * @brief Emitted when the user selects a different velocity series
@@ -146,6 +154,14 @@ signals:
      * @param enabled True if checked
      */
     void display3DToggled(Display3DItem item, bool enabled);
+
+    /**
+     * @brief Emitted when a 3D display item's scalar range is changed
+     * @param item The display item
+     * @param minVal New minimum scalar value
+     * @param maxVal New maximum scalar value
+     */
+    void display3DRangeChanged(Display3DItem item, double minVal, double maxVal);
 
 private:
     void setupUI();

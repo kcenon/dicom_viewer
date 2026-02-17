@@ -96,6 +96,33 @@ public:
      */
     void handleToggle(Display3DItem item, bool enabled);
 
+    // --- Scalar range control ---
+
+    /**
+     * @brief Set the colormap scalar range for a Display 3D item
+     *
+     * Routes range changes to the appropriate renderer:
+     * - WSS/OSI/AFI/RRT → SurfaceRenderer::setSurfaceScalarRange + LUT rebuild
+     * - Velocity/Vorticity/EnergyLoss/Magnitude → VolumeRenderer TF rebuild
+     * - Other items are no-op
+     *
+     * @param item The Display3DItem to configure
+     * @param minVal Minimum scalar value (mapped to colormap start)
+     * @param maxVal Maximum scalar value (mapped to colormap end)
+     */
+    void setScalarRange(Display3DItem item, double minVal, double maxVal);
+
+    /**
+     * @brief Get the current scalar range for a Display 3D item
+     * @return {min, max} pair, or {0, 0} if item has no range
+     */
+    [[nodiscard]] std::pair<double, double> scalarRange(Display3DItem item) const;
+
+    /**
+     * @brief Check if a Display 3D item supports colormap range adjustment
+     */
+    [[nodiscard]] static bool hasColormapRange(Display3DItem item);
+
     // --- State queries ---
 
     /**
