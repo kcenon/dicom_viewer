@@ -1,4 +1,5 @@
 #include "ui/quantification_window.hpp"
+#include "ui/widgets/flow_graph_widget.hpp"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -61,8 +62,11 @@ public:
     QCheckBox* regurgitantFractionCheck = nullptr;
     QCheckBox* strokeVolumeCheck = nullptr;
 
-    // Right placeholder
+    // Right panel
     QWidget* rightPanel = nullptr;
+    FlowGraphWidget* graphWidget = nullptr;
+    QPushButton* copyChartDataBtn = nullptr;
+    QPushButton* copyChartImageBtn = nullptr;
 
     // Data
     std::vector<QuantificationRow> rows;
@@ -155,15 +159,22 @@ void QuantificationWindow::setupUI()
 
     impl_->mainSplitter->addWidget(impl_->leftPanel);
 
-    // --- Right panel (placeholder for future graph/views) ---
+    // --- Right panel (flow graph + copy buttons) ---
     impl_->rightPanel = new QWidget(impl_->mainSplitter);
     auto* rightLayout = new QVBoxLayout(impl_->rightPanel);
 
-    auto* placeholderLabel = new QLabel(tr("Graph and views will be displayed here."),
-                                        impl_->rightPanel);
-    placeholderLabel->setAlignment(Qt::AlignCenter);
-    placeholderLabel->setStyleSheet("color: #888; font-style: italic;");
-    rightLayout->addWidget(placeholderLabel);
+    impl_->graphWidget = new FlowGraphWidget(impl_->rightPanel);
+    impl_->graphWidget->setXAxisLabel(tr("Cardiac Phase"));
+    impl_->graphWidget->setYAxisLabel(tr("Flow Rate (mL/s)"));
+    rightLayout->addWidget(impl_->graphWidget, 1);
+
+    auto* chartBtnLayout = new QHBoxLayout();
+    impl_->copyChartDataBtn = new QPushButton(tr("Copy Chart Data"), impl_->rightPanel);
+    impl_->copyChartImageBtn = new QPushButton(tr("Copy Chart Image"), impl_->rightPanel);
+    chartBtnLayout->addStretch();
+    chartBtnLayout->addWidget(impl_->copyChartDataBtn);
+    chartBtnLayout->addWidget(impl_->copyChartImageBtn);
+    rightLayout->addLayout(chartBtnLayout);
 
     impl_->mainSplitter->addWidget(impl_->rightPanel);
 
@@ -178,6 +189,18 @@ void QuantificationWindow::setupConnections()
         QString text = summaryText();
         QApplication::clipboard()->setText(text);
         emit summaryCopied(text);
+    });
+
+    // Copy Chart Data button
+    connect(impl_->copyChartDataBtn, &QPushButton::clicked, this, [this]() {
+        QString text = impl_->graphWidget->chartDataText();
+        QApplication::clipboard()->setText(text);
+    });
+
+    // Copy Chart Image button
+    connect(impl_->copyChartImageBtn, &QPushButton::clicked, this, [this]() {
+        QPixmap image = impl_->graphWidget->chartImage();
+        QApplication::clipboard()->setPixmap(image);
     });
 
     // Parameter checkboxes → signal + table update
@@ -251,6 +274,11 @@ QString QuantificationWindow::summaryText() const
     }
 
     return text;
+}
+
+FlowGraphWidget* QuantificationWindow::graphWidget() const
+{
+    return impl_->graphWidget;
 }
 
 void QuantificationWindow::updateTable()
