@@ -1777,3 +1777,26 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(hemodynamic_surface_manager_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Display3DController
+add_executable(display_3d_controller_test
+    unit/display_3d_controller_test.cpp
+)
+
+target_link_libraries(display_3d_controller_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(display_3d_controller_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS display_3d_controller_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(display_3d_controller_test DISCOVERY_TIMEOUT 60)
