@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QClipboard>
+#include <QFileDialog>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -11,6 +12,7 @@
 #include <QPushButton>
 #include <QSplitter>
 #include <QTableWidget>
+#include <QTextStream>
 #include <QVBoxLayout>
 
 namespace dicom_viewer::ui {
@@ -67,9 +69,12 @@ public:
     FlowGraphWidget* graphWidget = nullptr;
     QPushButton* copyChartDataBtn = nullptr;
     QPushButton* copyChartImageBtn = nullptr;
+    QPushButton* exportCsvBtn = nullptr;
+    QPushButton* flipFlowBtn = nullptr;
 
     // Data
     std::vector<QuantificationRow> rows;
+    bool flowFlipped = false;
 
     QCheckBox* checkBoxFor(MeasurementParameter param)
     {
@@ -157,6 +162,10 @@ void QuantificationWindow::setupUI()
     impl_->copySummaryBtn = new QPushButton(tr("Copy Summary"), impl_->leftPanel);
     leftLayout->addWidget(impl_->copySummaryBtn);
 
+    // Export CSV button
+    impl_->exportCsvBtn = new QPushButton(tr("Export CSV..."), impl_->leftPanel);
+    leftLayout->addWidget(impl_->exportCsvBtn);
+
     impl_->mainSplitter->addWidget(impl_->leftPanel);
 
     // --- Right panel (flow graph + copy buttons) ---
@@ -168,10 +177,16 @@ void QuantificationWindow::setupUI()
     impl_->graphWidget->setYAxisLabel(tr("Flow Rate (mL/s)"));
     rightLayout->addWidget(impl_->graphWidget, 1);
 
+    // Flow direction flip button
+    impl_->flipFlowBtn = new QPushButton(tr("Flip Flow Direction"), impl_->rightPanel);
+    impl_->flipFlowBtn->setCheckable(true);
+    impl_->flipFlowBtn->setToolTip(tr("Negate flow rate values for reversed vessel orientation"));
+
     auto* chartBtnLayout = new QHBoxLayout();
+    chartBtnLayout->addWidget(impl_->flipFlowBtn);
+    chartBtnLayout->addStretch();
     impl_->copyChartDataBtn = new QPushButton(tr("Copy Chart Data"), impl_->rightPanel);
     impl_->copyChartImageBtn = new QPushButton(tr("Copy Chart Image"), impl_->rightPanel);
-    chartBtnLayout->addStretch();
     chartBtnLayout->addWidget(impl_->copyChartDataBtn);
     chartBtnLayout->addWidget(impl_->copyChartImageBtn);
     rightLayout->addLayout(chartBtnLayout);
@@ -202,6 +217,18 @@ void QuantificationWindow::setupConnections()
         QPixmap image = impl_->graphWidget->chartImage();
         QApplication::clipboard()->setPixmap(image);
     });
+
+    // Export CSV button
+    connect(impl_->exportCsvBtn, &QPushButton::clicked, this, &QuantificationWindow::exportCsv);
+
+    // Flow direction flip button
+    connect(impl_->flipFlowBtn, &QPushButton::toggled, this, [this](bool checked) {
+        setFlowDirectionFlipped(checked);
+    });
+
+    // Graph phase click → propagate as phase change request
+    connect(impl_->graphWidget, &FlowGraphWidget::phaseClicked, this,
+            &QuantificationWindow::phaseChangeRequested);
 
     // Parameter checkboxes → signal + table update
     auto connectCheck = [this](QCheckBox* box, MeasurementParameter param) {
@@ -279,6 +306,97 @@ QString QuantificationWindow::summaryText() const
 FlowGraphWidget* QuantificationWindow::graphWidget() const
 {
     return impl_->graphWidget;
+}
+
+void QuantificationWindow::exportCsv()
+{
+    QString filePath = QFileDialog::getSaveFileName(
+        this, tr("Export CSV"), QString(),
+        tr("CSV Files (*.csv);;All Files (*)"));
+    if (filePath.isEmpty()) return;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+
+    QTextStream out(&file);
+
+    // Statistics section
+    out << "Parameter,Mean,Std Dev,Max,Min,Unit\n";
+    for (const auto& row : impl_->rows) {
+        if (!impl_->checkBoxFor(row.parameter)->isChecked()) continue;
+        out << parameterName(row.parameter) << ","
+            << QString::number(row.mean, 'f', 3) << ","
+            << QString::number(row.stdDev, 'f', 3) << ","
+            << QString::number(row.max, 'f', 3) << ","
+            << QString::number(row.min, 'f', 3) << ","
+            << parameterUnit(row.parameter) << "\n";
+    }
+
+    // Time-series section (if graph has data)
+    if (impl_->graphWidget->seriesCount() > 0) {
+        out << "\n";
+        // Header
+        out << "Phase";
+        for (int i = 0; i < impl_->graphWidget->seriesCount(); ++i) {
+            out << "," << impl_->graphWidget->series(i).planeName;
+        }
+        out << "\n";
+
+        // Find max phases
+        int maxPhases = 0;
+        for (int i = 0; i < impl_->graphWidget->seriesCount(); ++i) {
+            int sz = static_cast<int>(impl_->graphWidget->series(i).values.size());
+            maxPhases = std::max(maxPhases, sz);
+        }
+
+        // Data rows
+        for (int p = 0; p < maxPhases; ++p) {
+            out << (p + 1);
+            for (int i = 0; i < impl_->graphWidget->seriesCount(); ++i) {
+                out << ",";
+                auto s = impl_->graphWidget->series(i);
+                if (p < static_cast<int>(s.values.size())) {
+                    out << QString::number(s.values[p], 'f', 3);
+                }
+            }
+            out << "\n";
+        }
+    }
+}
+
+void QuantificationWindow::setFlowDirectionFlipped(bool flipped)
+{
+    if (impl_->flowFlipped == flipped) return;
+    impl_->flowFlipped = flipped;
+    impl_->flipFlowBtn->setChecked(flipped);
+    applyFlowDirectionToGraph();
+    emit flowDirectionFlipped(flipped);
+}
+
+bool QuantificationWindow::isFlowDirectionFlipped() const
+{
+    return impl_->flowFlipped;
+}
+
+void QuantificationWindow::applyFlowDirectionToGraph()
+{
+    // Re-add all series with negated values if flipped
+    int count = impl_->graphWidget->seriesCount();
+    if (count == 0) return;
+
+    std::vector<FlowTimeSeries> series;
+    for (int i = 0; i < count; ++i) {
+        series.push_back(impl_->graphWidget->series(i));
+    }
+
+    impl_->graphWidget->clearSeries();
+
+    for (auto& s : series) {
+        for (auto& v : s.values) {
+            v = -v;
+        }
+        impl_->graphWidget->addSeries(s);
+    }
 }
 
 void QuantificationWindow::updateTable()

@@ -101,6 +101,24 @@ public:
      */
     [[nodiscard]] FlowGraphWidget* graphWidget() const;
 
+    /**
+     * @brief Export statistics and time-series data to CSV file
+     *
+     * Opens a file dialog and writes comma-separated data.
+     */
+    void exportCsv();
+
+    /**
+     * @brief Set flow direction flip state
+     * @param flipped True to negate all flow rate values
+     */
+    void setFlowDirectionFlipped(bool flipped);
+
+    /**
+     * @brief Check if flow direction is flipped
+     */
+    [[nodiscard]] bool isFlowDirectionFlipped() const;
+
 signals:
     /**
      * @brief Emitted when parameter checkbox state changes
@@ -115,10 +133,23 @@ signals:
      */
     void summaryCopied(const QString& text);
 
+    /**
+     * @brief Emitted when user clicks a phase on the flow graph
+     * @param phaseIndex Clicked phase index
+     */
+    void phaseChangeRequested(int phaseIndex);
+
+    /**
+     * @brief Emitted when flow direction flip state changes
+     * @param flipped New flip state
+     */
+    void flowDirectionFlipped(bool flipped);
+
 private:
     void setupUI();
     void setupConnections();
     void updateTable();
+    void applyFlowDirectionToGraph();
 
     class Impl;
     std::unique_ptr<Impl> impl_;

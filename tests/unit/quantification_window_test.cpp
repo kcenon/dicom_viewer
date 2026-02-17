@@ -8,6 +8,7 @@
 #include <QTableWidget>
 
 #include "ui/quantification_window.hpp"
+#include "ui/widgets/flow_graph_widget.hpp"
 
 using namespace dicom_viewer::ui;
 
@@ -227,4 +228,123 @@ TEST(QuantificationWindowTest, AllParametersDisabled_ZeroRows) {
 
     window.setParameterEnabled(MeasurementParameter::FlowRate, false);
     EXPECT_EQ(window.rowCount(), 0);
+}
+
+// =============================================================================
+// Phase sync
+// =============================================================================
+
+TEST(QuantificationWindowTest, PhaseChangeRequested_Signal) {
+    QuantificationWindow window;
+    window.resize(1000, 600);
+
+    auto* graph = window.graphWidget();
+    ASSERT_NE(graph, nullptr);
+
+    FlowTimeSeries s;
+    s.planeName = "Test";
+    s.color = Qt::blue;
+    s.values = {1.0, 2.0, 3.0};
+    graph->addSeries(s);
+
+    QSignalSpy spy(&window, &QuantificationWindow::phaseChangeRequested);
+    ASSERT_TRUE(spy.isValid());
+
+    // Simulate clicking a phase on the graph
+    emit graph->phaseClicked(1);
+
+    EXPECT_EQ(spy.count(), 1);
+    EXPECT_EQ(spy.at(0).at(0).toInt(), 1);
+}
+
+// =============================================================================
+// Flow direction flip
+// =============================================================================
+
+TEST(QuantificationWindowTest, FlowDirectionFlip_Default) {
+    QuantificationWindow window;
+    EXPECT_FALSE(window.isFlowDirectionFlipped());
+}
+
+TEST(QuantificationWindowTest, FlowDirectionFlip_NegatesValues) {
+    QuantificationWindow window;
+
+    auto* graph = window.graphWidget();
+    FlowTimeSeries s;
+    s.planeName = "Test";
+    s.color = Qt::blue;
+    s.values = {10.0, -5.0, 20.0};
+    graph->addSeries(s);
+
+    window.setFlowDirectionFlipped(true);
+    EXPECT_TRUE(window.isFlowDirectionFlipped());
+
+    // Values should be negated
+    auto flipped = graph->series(0);
+    EXPECT_DOUBLE_EQ(flipped.values[0], -10.0);
+    EXPECT_DOUBLE_EQ(flipped.values[1], 5.0);
+    EXPECT_DOUBLE_EQ(flipped.values[2], -20.0);
+}
+
+TEST(QuantificationWindowTest, FlowDirectionFlip_Signal) {
+    QuantificationWindow window;
+
+    QSignalSpy spy(&window, &QuantificationWindow::flowDirectionFlipped);
+    ASSERT_TRUE(spy.isValid());
+
+    window.setFlowDirectionFlipped(true);
+    EXPECT_EQ(spy.count(), 1);
+    EXPECT_TRUE(spy.at(0).at(0).toBool());
+}
+
+TEST(QuantificationWindowTest, FlowDirectionFlip_DoubleFlipRestores) {
+    QuantificationWindow window;
+
+    auto* graph = window.graphWidget();
+    FlowTimeSeries s;
+    s.planeName = "Test";
+    s.color = Qt::blue;
+    s.values = {10.0, 20.0, 30.0};
+    graph->addSeries(s);
+
+    window.setFlowDirectionFlipped(true);
+    window.setFlowDirectionFlipped(false);
+    EXPECT_FALSE(window.isFlowDirectionFlipped());
+
+    // Values should be restored
+    auto restored = graph->series(0);
+    EXPECT_DOUBLE_EQ(restored.values[0], 10.0);
+    EXPECT_DOUBLE_EQ(restored.values[1], 20.0);
+    EXPECT_DOUBLE_EQ(restored.values[2], 30.0);
+}
+
+// =============================================================================
+// Export CSV button presence
+// =============================================================================
+
+TEST(QuantificationWindowTest, ExportCsvButton_Exists) {
+    QuantificationWindow window;
+
+    QPushButton* btn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Export CSV...") {
+            btn = b;
+            break;
+        }
+    }
+    EXPECT_NE(btn, nullptr);
+}
+
+TEST(QuantificationWindowTest, FlipFlowButton_Exists) {
+    QuantificationWindow window;
+
+    QPushButton* btn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Flip Flow Direction") {
+            btn = b;
+            break;
+        }
+    }
+    ASSERT_NE(btn, nullptr);
+    EXPECT_TRUE(btn->isCheckable());
 }
