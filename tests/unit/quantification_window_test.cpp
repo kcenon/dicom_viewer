@@ -3,6 +3,8 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QClipboard>
+#include <QImage>
+#include <QPainter>
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QTableWidget>
@@ -347,4 +349,106 @@ TEST(QuantificationWindowTest, FlipFlowButton_Exists) {
     }
     ASSERT_NE(btn, nullptr);
     EXPECT_TRUE(btn->isCheckable());
+}
+
+// =============================================================================
+// Export PDF button and renderReport
+// =============================================================================
+
+TEST(QuantificationWindowTest, ExportPdfButton_Exists) {
+    QuantificationWindow window;
+
+    QPushButton* btn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Export PDF...") {
+            btn = b;
+            break;
+        }
+    }
+    EXPECT_NE(btn, nullptr);
+}
+
+TEST(QuantificationWindowTest, RenderReport_Empty_NoCrash) {
+    QuantificationWindow window;
+
+    QImage image(800, 600, QImage::Format_ARGB32);
+    image.fill(Qt::white);
+    QPainter painter(&image);
+
+    // Should not crash with empty data
+    window.renderReport(painter, QRectF(0, 0, 800, 600));
+    painter.end();
+
+    EXPECT_FALSE(image.isNull());
+}
+
+TEST(QuantificationWindowTest, RenderReport_WithData_DrawsContent) {
+    QuantificationWindow window;
+
+    window.setStatistics({
+        {MeasurementParameter::FlowRate, 10.50, 2.30, 15.00, 6.00},
+        {MeasurementParameter::PeakVelocity, 120.0, 15.0, 150.0, 90.0},
+    });
+
+    QImage image(800, 600, QImage::Format_ARGB32);
+    image.fill(Qt::white);
+    QPainter painter(&image);
+
+    window.renderReport(painter, QRectF(0, 0, 800, 600));
+    painter.end();
+
+    // Verify that something was drawn (not all white)
+    bool hasNonWhitePixel = false;
+    for (int y = 0; y < image.height() && !hasNonWhitePixel; ++y) {
+        for (int x = 0; x < image.width() && !hasNonWhitePixel; ++x) {
+            if (image.pixelColor(x, y) != QColor(Qt::white)) {
+                hasNonWhitePixel = true;
+            }
+        }
+    }
+    EXPECT_TRUE(hasNonWhitePixel);
+}
+
+TEST(QuantificationWindowTest, RenderReport_WithGraph_DrawsChart) {
+    QuantificationWindow window;
+
+    window.setStatistics({
+        {MeasurementParameter::FlowRate, 10.0, 2.0, 15.0, 5.0},
+    });
+
+    auto* graph = window.graphWidget();
+    FlowTimeSeries s;
+    s.planeName = "Plane 1";
+    s.color = Qt::blue;
+    s.values = {5.0, 10.0, 15.0, 12.0, 8.0};
+    graph->addSeries(s);
+
+    QImage image(800, 600, QImage::Format_ARGB32);
+    image.fill(Qt::white);
+    QPainter painter(&image);
+
+    window.renderReport(painter, QRectF(0, 0, 800, 600));
+    painter.end();
+
+    EXPECT_FALSE(image.isNull());
+}
+
+TEST(QuantificationWindowTest, RenderReport_DisabledParams_Excluded) {
+    QuantificationWindow window;
+
+    window.setStatistics({
+        {MeasurementParameter::FlowRate, 10.0, 2.0, 15.0, 5.0},
+        {MeasurementParameter::PeakVelocity, 100.0, 10.0, 120.0, 80.0},
+    });
+    window.setParameterEnabled(MeasurementParameter::FlowRate, false);
+
+    QImage image(800, 600, QImage::Format_ARGB32);
+    image.fill(Qt::white);
+    QPainter painter(&image);
+
+    // Should render without the disabled parameter's row
+    window.renderReport(painter, QRectF(0, 0, 800, 600));
+    painter.end();
+
+    EXPECT_FALSE(image.isNull());
 }

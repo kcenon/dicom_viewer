@@ -5,6 +5,9 @@
 #include <vector>
 
 #include <QMainWindow>
+#include <QRectF>
+
+class QPainter;
 
 namespace dicom_viewer::ui {
 
@@ -107,6 +110,25 @@ public:
      * Opens a file dialog and writes comma-separated data.
      */
     void exportCsv();
+
+    /**
+     * @brief Export summary report to PDF file
+     *
+     * Generates a PDF containing the statistics table and flow graph image.
+     * Opens a file dialog for path selection.
+     */
+    void exportPdf();
+
+    /**
+     * @brief Render PDF report content to a QPainter
+     *
+     * Draws the statistics table and graph onto the given painter.
+     * Used by exportPdf() and useful for testing.
+     *
+     * @param painter Configured QPainter (from QPrinter or QPixmap)
+     * @param pageRect Bounding rectangle for content layout
+     */
+    void renderReport(QPainter& painter, const QRectF& pageRect) const;
 
     /**
      * @brief Set flow direction flip state
