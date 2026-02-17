@@ -1875,3 +1875,21 @@ target_include_directories(patient_browser_test PRIVATE
 )
 
 gtest_discover_tests(patient_browser_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for MaskWizard (skeleton wizard navigation)
+add_executable(mask_wizard_test
+    unit/mask_wizard_test.cpp
+)
+
+target_link_libraries(mask_wizard_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(mask_wizard_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(mask_wizard_test DISCOVERY_TIMEOUT 60)
