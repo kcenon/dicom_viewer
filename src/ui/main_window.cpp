@@ -9,6 +9,7 @@
 #include "ui/panels/segmentation_panel.hpp"
 #include "ui/panels/overlay_control_panel.hpp"
 #include "ui/panels/flow_tool_panel.hpp"
+#include "ui/display_3d_controller.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
 #include "services/pacs_config_manager.hpp"
 #include "services/dicom_store_scp.hpp"
@@ -108,6 +109,9 @@ public:
     // Active viewport W/L connections
     QMetaObject::Connection activeWlToToolsConn;
     QMetaObject::Connection toolsToActiveWlConn;
+
+    // Display 3D controller
+    std::unique_ptr<Display3DController> display3DController;
 };
 
 MainWindow::MainWindow(QWidget* parent)
@@ -122,6 +126,9 @@ MainWindow::MainWindow(QWidget* parent)
 
     // Initialize Storage SCP
     impl_->storageScp = std::make_unique<services::DicomStoreSCP>();
+
+    // Initialize Display 3D controller
+    impl_->display3DController = std::make_unique<Display3DController>();
 
     applyDarkTheme();
     setupUI();
@@ -680,6 +687,12 @@ void MainWindow::setupConnections()
         static const char* names[] = {"Magnitude", "RL", "AP", "FH", "PC-MRA"};
         impl_->statusLabel->setText(
             tr("Series: %1").arg(names[static_cast<int>(series)]));
+    });
+
+    // Flow tool panel Display 3D toggles → Display3DController
+    connect(impl_->flowToolPanel, &FlowToolPanel::display3DToggled,
+            this, [this](Display3DItem item, bool enabled) {
+        impl_->display3DController->handleToggle(item, enabled);
     });
 
     // Patient browser -> Load series
