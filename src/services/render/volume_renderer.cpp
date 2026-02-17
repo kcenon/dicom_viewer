@@ -529,4 +529,58 @@ VolumeRenderer::createVelocityOpacityFunction(double maxVelocity, double baseOpa
     return opacityTF;
 }
 
+vtkSmartPointer<vtkColorTransferFunction>
+VolumeRenderer::createVorticityColorFunction(double maxVorticity)
+{
+    auto colorTF = vtkSmartPointer<vtkColorTransferFunction>::New();
+    // Blue-white-red colormap for vorticity magnitude
+    colorTF->AddRGBPoint(0.0, 0.0, 0.0, 0.5);                       // Dark blue
+    colorTF->AddRGBPoint(maxVorticity * 0.15, 0.0, 0.0, 1.0);       // Blue
+    colorTF->AddRGBPoint(maxVorticity * 0.35, 0.5, 0.5, 1.0);       // Light blue
+    colorTF->AddRGBPoint(maxVorticity * 0.5, 1.0, 1.0, 1.0);        // White
+    colorTF->AddRGBPoint(maxVorticity * 0.65, 1.0, 0.5, 0.5);       // Light red
+    colorTF->AddRGBPoint(maxVorticity * 0.85, 1.0, 0.0, 0.0);       // Red
+    colorTF->AddRGBPoint(maxVorticity, 0.5, 0.0, 0.0);              // Dark red
+    return colorTF;
+}
+
+vtkSmartPointer<vtkPiecewiseFunction>
+VolumeRenderer::createVorticityOpacityFunction(double maxVorticity, double baseOpacity)
+{
+    auto opacityTF = vtkSmartPointer<vtkPiecewiseFunction>::New();
+    // Low vorticity = transparent, high vorticity = visible
+    opacityTF->AddPoint(0.0, 0.0);
+    opacityTF->AddPoint(maxVorticity * 0.1, 0.0);                    // Below 10% → invisible
+    opacityTF->AddPoint(maxVorticity * 0.2, baseOpacity * 0.2);      // Fade in
+    opacityTF->AddPoint(maxVorticity * 0.5, baseOpacity * 0.5);      // Mid range
+    opacityTF->AddPoint(maxVorticity, baseOpacity);                   // Full opacity at max
+    return opacityTF;
+}
+
+vtkSmartPointer<vtkColorTransferFunction>
+VolumeRenderer::createEnergyLossColorFunction(double maxEnergyLoss)
+{
+    auto colorTF = vtkSmartPointer<vtkColorTransferFunction>::New();
+    // Hot metal colormap: black → red → yellow → white
+    colorTF->AddRGBPoint(0.0, 0.0, 0.0, 0.0);                       // Black
+    colorTF->AddRGBPoint(maxEnergyLoss * 0.25, 0.5, 0.0, 0.0);      // Dark red
+    colorTF->AddRGBPoint(maxEnergyLoss * 0.5, 1.0, 0.0, 0.0);       // Red
+    colorTF->AddRGBPoint(maxEnergyLoss * 0.75, 1.0, 0.75, 0.0);     // Orange-yellow
+    colorTF->AddRGBPoint(maxEnergyLoss, 1.0, 1.0, 0.8);             // Near white
+    return colorTF;
+}
+
+vtkSmartPointer<vtkPiecewiseFunction>
+VolumeRenderer::createEnergyLossOpacityFunction(double maxEnergyLoss, double baseOpacity)
+{
+    auto opacityTF = vtkSmartPointer<vtkPiecewiseFunction>::New();
+    // Low energy loss = transparent, high energy loss = visible
+    opacityTF->AddPoint(0.0, 0.0);
+    opacityTF->AddPoint(maxEnergyLoss * 0.05, 0.0);                  // Below 5% → invisible
+    opacityTF->AddPoint(maxEnergyLoss * 0.15, baseOpacity * 0.2);    // Fade in
+    opacityTF->AddPoint(maxEnergyLoss * 0.5, baseOpacity * 0.6);     // Mid range
+    opacityTF->AddPoint(maxEnergyLoss, baseOpacity);                  // Full opacity at max
+    return opacityTF;
+}
+
 } // namespace dicom_viewer::services

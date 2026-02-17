@@ -236,6 +236,44 @@ public:
     [[nodiscard]] static vtkSmartPointer<vtkPiecewiseFunction>
     createVelocityOpacityFunction(double maxVelocity, double baseOpacity = 0.3);
 
+    // ==================== Convenience: Vorticity Overlay ====================
+
+    /**
+     * @brief Create a blue-white-red colormap for vorticity magnitude
+     * @param maxVorticity Maximum vorticity in 1/s
+     * @return Configured color transfer function
+     */
+    [[nodiscard]] static vtkSmartPointer<vtkColorTransferFunction>
+    createVorticityColorFunction(double maxVorticity);
+
+    /**
+     * @brief Create an opacity transfer function for vorticity overlay
+     * @param maxVorticity Maximum vorticity in 1/s
+     * @param baseOpacity Base opacity for visible regions (0.0-1.0)
+     * @return Configured opacity transfer function
+     */
+    [[nodiscard]] static vtkSmartPointer<vtkPiecewiseFunction>
+    createVorticityOpacityFunction(double maxVorticity, double baseOpacity = 0.3);
+
+    // ==================== Convenience: Energy Loss Overlay ====================
+
+    /**
+     * @brief Create a hot metal colormap for energy loss (viscous dissipation)
+     * @param maxEnergyLoss Maximum energy loss in W/m^3
+     * @return Configured color transfer function
+     */
+    [[nodiscard]] static vtkSmartPointer<vtkColorTransferFunction>
+    createEnergyLossColorFunction(double maxEnergyLoss);
+
+    /**
+     * @brief Create an opacity transfer function for energy loss overlay
+     * @param maxEnergyLoss Maximum energy loss in W/m^3
+     * @param baseOpacity Base opacity for visible regions (0.0-1.0)
+     * @return Configured opacity transfer function
+     */
+    [[nodiscard]] static vtkSmartPointer<vtkPiecewiseFunction>
+    createEnergyLossOpacityFunction(double maxEnergyLoss, double baseOpacity = 0.3);
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
