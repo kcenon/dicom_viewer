@@ -1857,3 +1857,21 @@ target_include_directories(flow_graph_widget_test PRIVATE
 )
 
 gtest_discover_tests(flow_graph_widget_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for PatientBrowser (classification display)
+add_executable(patient_browser_test
+    unit/patient_browser_test.cpp
+)
+
+target_link_libraries(patient_browser_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(patient_browser_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(patient_browser_test DISCOVERY_TIMEOUT 60)

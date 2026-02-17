@@ -158,9 +158,15 @@ void PatientBrowser::addSeries(const QString& studyUid, const SeriesInfo& series
     if (!parentItem) return;
 
     auto item = new QTreeWidgetItem(parentItem, SeriesItem);
-    item->setText(0, series.seriesDescription.isEmpty() ?
-                     QString("Series %1").arg(series.seriesNumber) :
-                     series.seriesDescription);
+
+    QString displayName = series.seriesDescription.isEmpty()
+        ? QString("Series %1").arg(series.seriesNumber)
+        : series.seriesDescription;
+    if (!series.seriesType.isEmpty() && series.seriesType != "Unknown") {
+        displayName += QString(" [%1]").arg(series.seriesType);
+    }
+
+    item->setText(0, displayName);
     item->setText(1, QString::number(series.numberOfImages));
     item->setText(2, series.modality);
     item->setData(0, UidRole, series.seriesInstanceUid);

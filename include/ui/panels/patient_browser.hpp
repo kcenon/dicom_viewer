@@ -39,6 +39,8 @@ struct SeriesInfo {
     QString seriesDescription;
     QString modality;
     int numberOfImages = 0;
+    QString seriesType;    ///< Classification result (e.g., "4D Flow Magnitude", "CT")
+    bool is4DFlow = false; ///< true for 4D Flow magnitude or phase series
 };
 
 /**
