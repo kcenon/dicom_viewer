@@ -28,6 +28,7 @@ TEST(MaskWizardTest, HasFourPages) {
 
 TEST(MaskWizardTest, InitialStepIsCrop) {
     MaskWizard wizard;
+    wizard.restart();  // QWizard requires restart() to initialize currentId()
     EXPECT_EQ(wizard.currentStep(), MaskWizardStep::Crop);
 }
 
@@ -48,12 +49,14 @@ TEST(MaskWizardTest, PageTitlesAreSet) {
 
 TEST(MaskWizardTest, NextAdvancesToThreshold) {
     MaskWizard wizard;
+    wizard.restart();
     wizard.next();
     EXPECT_EQ(wizard.currentStep(), MaskWizardStep::Threshold);
 }
 
 TEST(MaskWizardTest, FullForwardNavigation) {
     MaskWizard wizard;
+    wizard.restart();
 
     wizard.next();
     EXPECT_EQ(wizard.currentStep(), MaskWizardStep::Threshold);
@@ -67,6 +70,7 @@ TEST(MaskWizardTest, FullForwardNavigation) {
 
 TEST(MaskWizardTest, BackReturnsToSeparate) {
     MaskWizard wizard;
+    wizard.restart();
     wizard.next();  // Threshold
     wizard.next();  // Separate
     wizard.next();  // Track
