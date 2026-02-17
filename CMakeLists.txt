@@ -593,6 +593,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/panels/statistics_panel.cpp
     src/ui/panels/segmentation_panel.cpp
     src/ui/panels/overlay_control_panel.cpp
+    src/ui/panels/flow_tool_panel.cpp
     src/ui/dialogs/settings_dialog.cpp
     src/ui/dialogs/pacs_config_dialog.cpp
     # Headers with Q_OBJECT for AUTOMOC
@@ -608,6 +609,7 @@ add_library(dicom_viewer_ui STATIC
     include/ui/panels/statistics_panel.hpp
     include/ui/panels/segmentation_panel.hpp
     include/ui/panels/overlay_control_panel.hpp
+    include/ui/panels/flow_tool_panel.hpp
     include/ui/dialogs/pacs_config_dialog.hpp
 )
 

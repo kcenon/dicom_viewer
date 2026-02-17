@@ -1736,3 +1736,21 @@ target_include_directories(overlay_control_panel_test PRIVATE
 )
 
 gtest_discover_tests(overlay_control_panel_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for Flow Tool Panel
+add_executable(flow_tool_panel_test
+    unit/flow_tool_panel_test.cpp
+)
+
+target_link_libraries(flow_tool_panel_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(flow_tool_panel_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(flow_tool_panel_test DISCOVERY_TIMEOUT 60)
