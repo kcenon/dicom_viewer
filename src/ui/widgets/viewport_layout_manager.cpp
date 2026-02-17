@@ -12,6 +12,7 @@ namespace dicom_viewer::ui {
 class ViewportLayoutManager::Impl {
 public:
     LayoutMode mode = LayoutMode::Single;
+    int activeIndex = 0;
     QStackedWidget* stack = nullptr;
 
     // Layout containers (one per mode)
@@ -67,6 +68,24 @@ int ViewportLayoutManager::viewportCount() const
         case LayoutMode::QuadSplit: return 4;
     }
     return 1;
+}
+
+int ViewportLayoutManager::activeViewportIndex() const
+{
+    return impl_->activeIndex;
+}
+
+ViewportWidget* ViewportLayoutManager::activeViewport() const
+{
+    return impl_->viewports[impl_->activeIndex];
+}
+
+void ViewportLayoutManager::setActiveViewport(int index)
+{
+    if (index < 0 || index >= viewportCount()) return;
+    if (impl_->activeIndex == index) return;
+    impl_->activeIndex = index;
+    emit activeViewportChanged(impl_->viewports[index], index);
 }
 
 void ViewportLayoutManager::setLayoutMode(LayoutMode mode)
@@ -137,52 +156,59 @@ void ViewportLayoutManager::buildDualLayout()
 
 void ViewportLayoutManager::buildQuadLayout()
 {
-    impl_->quadContainer = new QWidget(impl_->stack);
-    auto* grid = new QGridLayout(impl_->quadContainer);
-    grid->setContentsMargins(0, 0, 0, 0);
-    grid->setSpacing(2);
+    // Outer vertical splitter: top row | bottom row
+    auto* outerSplitter = new QSplitter(Qt::Vertical, impl_->stack);
+    outerSplitter->setHandleWidth(3);
 
-    // Create viewports for each quadrant if not already present
+    // Top row: Axial | Sagittal
+    auto* topSplitter = new QSplitter(Qt::Horizontal, outerSplitter);
+    topSplitter->setHandleWidth(3);
+
+    // Bottom row: Coronal | 3D
+    auto* bottomSplitter = new QSplitter(Qt::Horizontal, outerSplitter);
+    bottomSplitter->setHandleWidth(3);
+
     // 0: Axial (top-left)
     if (!impl_->viewports[0]) {
-        impl_->viewports[0] = new ViewportWidget(impl_->quadContainer);
+        impl_->viewports[0] = new ViewportWidget(topSplitter);
     }
-    impl_->viewports[0]->setParent(impl_->quadContainer);
+    impl_->viewports[0]->setParent(topSplitter);
     impl_->viewports[0]->setSliceOrientation(SliceOrientation::Axial);
+    topSplitter->addWidget(impl_->viewports[0]);
 
     // 1: Sagittal (top-right)
     if (!impl_->viewports[1]) {
-        impl_->viewports[1] = new ViewportWidget(impl_->quadContainer);
+        impl_->viewports[1] = new ViewportWidget(topSplitter);
     }
-    impl_->viewports[1]->setParent(impl_->quadContainer);
+    impl_->viewports[1]->setParent(topSplitter);
     impl_->viewports[1]->setSliceOrientation(SliceOrientation::Sagittal);
+    topSplitter->addWidget(impl_->viewports[1]);
 
     // 2: Coronal (bottom-left)
     if (!impl_->viewports[2]) {
-        impl_->viewports[2] = new ViewportWidget(impl_->quadContainer);
+        impl_->viewports[2] = new ViewportWidget(bottomSplitter);
     }
-    impl_->viewports[2]->setParent(impl_->quadContainer);
+    impl_->viewports[2]->setParent(bottomSplitter);
     impl_->viewports[2]->setSliceOrientation(SliceOrientation::Coronal);
+    bottomSplitter->addWidget(impl_->viewports[2]);
 
     // 3: 3D (bottom-right)
     if (!impl_->viewports[3]) {
-        impl_->viewports[3] = new ViewportWidget(impl_->quadContainer);
+        impl_->viewports[3] = new ViewportWidget(bottomSplitter);
         impl_->viewports[3]->setMode(ViewportMode::VolumeRendering);
     }
-    impl_->viewports[3]->setParent(impl_->quadContainer);
+    impl_->viewports[3]->setParent(bottomSplitter);
+    bottomSplitter->addWidget(impl_->viewports[3]);
 
-    grid->addWidget(impl_->viewports[0], 0, 0);
-    grid->addWidget(impl_->viewports[1], 0, 1);
-    grid->addWidget(impl_->viewports[2], 1, 0);
-    grid->addWidget(impl_->viewports[3], 1, 1);
+    // Equal split for both rows and columns
+    topSplitter->setSizes({1, 1});
+    bottomSplitter->setSizes({1, 1});
+    outerSplitter->addWidget(topSplitter);
+    outerSplitter->addWidget(bottomSplitter);
+    outerSplitter->setSizes({1, 1});
 
-    // Equal stretch
-    grid->setRowStretch(0, 1);
-    grid->setRowStretch(1, 1);
-    grid->setColumnStretch(0, 1);
-    grid->setColumnStretch(1, 1);
-
-    impl_->stack->addWidget(impl_->quadContainer);
+    impl_->quadContainer = outerSplitter;
+    impl_->stack->addWidget(outerSplitter);
     impl_->layoutBuilt[2] = true;
 }
 

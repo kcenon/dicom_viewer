@@ -167,7 +167,7 @@ TEST(ProjectManagerTest, SaveLoadRoundtrip) {
         "1.2.3.4.5.6.7.8"
     });
     saver.setDisplaySettings(DisplaySettings{400.0, 1500.0, true, 0.7});
-    saver.setViewState(ViewState{42, 3, "coronal"});
+    saver.setViewState(ViewState{42, 3, "coronal", "quad"});
 
     // Save
     auto saveResult = saver.saveProject(tmp.path());
@@ -200,6 +200,7 @@ TEST(ProjectManagerTest, SaveLoadRoundtrip) {
     EXPECT_EQ(loader.viewState().sliceIndex, 42);
     EXPECT_EQ(loader.viewState().phaseIndex, 3);
     EXPECT_EQ(loader.viewState().activeView, "coronal");
+    EXPECT_EQ(loader.viewState().layoutMode, "quad");
 
     // Verify state after load
     EXPECT_FALSE(loader.isModified());

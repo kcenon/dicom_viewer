@@ -95,6 +95,15 @@ public:
     QAction* ellipseRoiAction = nullptr;
     QAction* polygonRoiAction = nullptr;
     QAction* freehandRoiAction = nullptr;
+
+    // Layout actions
+    QAction* singleLayoutAction = nullptr;
+    QAction* dualLayoutAction = nullptr;
+    QAction* quadLayoutAction = nullptr;
+
+    // Active viewport W/L connections
+    QMetaObject::Connection activeWlToToolsConn;
+    QMetaObject::Connection toolsToActiveWlConn;
 };
 
 MainWindow::MainWindow(QWidget* parent)
@@ -433,29 +442,29 @@ void MainWindow::setupToolBar()
     auto* layoutGroup = new QActionGroup(this);
     layoutGroup->setExclusive(true);
 
-    auto singleAction = impl_->mainToolBar->addAction(tr("1x1"));
-    singleAction->setCheckable(true);
-    singleAction->setChecked(true);
-    singleAction->setToolTip(tr("Single viewport"));
-    layoutGroup->addAction(singleAction);
+    impl_->singleLayoutAction = impl_->mainToolBar->addAction(tr("1x1"));
+    impl_->singleLayoutAction->setCheckable(true);
+    impl_->singleLayoutAction->setChecked(true);
+    impl_->singleLayoutAction->setToolTip(tr("Single viewport"));
+    layoutGroup->addAction(impl_->singleLayoutAction);
 
-    auto dualAction = impl_->mainToolBar->addAction(tr("1x2"));
-    dualAction->setCheckable(true);
-    dualAction->setToolTip(tr("Dual split: 2D | 3D"));
-    layoutGroup->addAction(dualAction);
+    impl_->dualLayoutAction = impl_->mainToolBar->addAction(tr("1x2"));
+    impl_->dualLayoutAction->setCheckable(true);
+    impl_->dualLayoutAction->setToolTip(tr("Dual split: 2D | 3D"));
+    layoutGroup->addAction(impl_->dualLayoutAction);
 
-    auto quadAction = impl_->mainToolBar->addAction(tr("2x2"));
-    quadAction->setCheckable(true);
-    quadAction->setToolTip(tr("Quad split: Axial | Sagittal | Coronal | 3D"));
-    layoutGroup->addAction(quadAction);
+    impl_->quadLayoutAction = impl_->mainToolBar->addAction(tr("2x2"));
+    impl_->quadLayoutAction->setCheckable(true);
+    impl_->quadLayoutAction->setToolTip(tr("Quad split: Axial | Sagittal | Coronal | 3D"));
+    layoutGroup->addAction(impl_->quadLayoutAction);
 
-    connect(singleAction, &QAction::triggered, this, [this]() {
+    connect(impl_->singleLayoutAction, &QAction::triggered, this, [this]() {
         impl_->layoutManager->setLayoutMode(LayoutMode::Single);
     });
-    connect(dualAction, &QAction::triggered, this, [this]() {
+    connect(impl_->dualLayoutAction, &QAction::triggered, this, [this]() {
         impl_->layoutManager->setLayoutMode(LayoutMode::DualSplit);
     });
-    connect(quadAction, &QAction::triggered, this, [this]() {
+    connect(impl_->quadLayoutAction, &QAction::triggered, this, [this]() {
         impl_->layoutManager->setLayoutMode(LayoutMode::QuadSplit);
     });
 }
@@ -649,9 +658,13 @@ void MainWindow::setupConnections()
                 // TODO: Load series through controller
             });
 
-    // Tools panel -> Viewport
-    connect(impl_->toolsPanel, &ToolsPanel::windowLevelChanged,
-            impl_->viewport, &ViewportWidget::setWindowLevel);
+    // Tools panel -> Active viewport (bidirectional W/L sync)
+    impl_->toolsToActiveWlConn = connect(
+        impl_->toolsPanel, &ToolsPanel::windowLevelChanged,
+        impl_->viewport, &ViewportWidget::setWindowLevel);
+    impl_->activeWlToToolsConn = connect(
+        impl_->viewport, &ViewportWidget::windowLevelChanged,
+        impl_->toolsPanel, &ToolsPanel::setWindowLevel);
 
     connect(impl_->toolsPanel, &ToolsPanel::presetSelected,
             impl_->viewport, &ViewportWidget::applyPreset);
@@ -661,9 +674,35 @@ void MainWindow::setupConnections()
                 impl_->viewport->setMode(static_cast<ViewportMode>(mode));
             });
 
-    // Viewport -> Tools panel (bidirectional sync)
-    connect(impl_->viewport, &ViewportWidget::windowLevelChanged,
+    // Active viewport switching: reconnect ToolsPanel W/L to active viewport
+    connect(impl_->layoutManager, &ViewportLayoutManager::activeViewportChanged,
+            this, [this](ViewportWidget* vp, int /*index*/) {
+        // Disconnect old connections
+        QObject::disconnect(impl_->toolsToActiveWlConn);
+        QObject::disconnect(impl_->activeWlToToolsConn);
+        // Reconnect to the new active viewport
+        impl_->toolsToActiveWlConn = connect(
+            impl_->toolsPanel, &ToolsPanel::windowLevelChanged,
+            vp, &ViewportWidget::setWindowLevel);
+        impl_->activeWlToToolsConn = connect(
+            vp, &ViewportWidget::windowLevelChanged,
             impl_->toolsPanel, &ToolsPanel::setWindowLevel);
+    });
+
+    // Install click-to-activate on all viewports via layout mode change
+    connect(impl_->layoutManager, &ViewportLayoutManager::layoutModeChanged,
+            this, [this](LayoutMode /*mode*/) {
+        int count = impl_->layoutManager->viewportCount();
+        for (int i = 0; i < count; ++i) {
+            auto* vp = impl_->layoutManager->viewport(i);
+            if (vp) {
+                vp->installEventFilter(this);
+            }
+        }
+    });
+
+    // Install event filter on initial primary viewport
+    impl_->viewport->installEventFilter(this);
 
     // Viewport -> Status bar
     connect(impl_->viewport, &ViewportWidget::voxelValueChanged,
@@ -792,6 +831,8 @@ void MainWindow::saveLayout()
     QSettings settings("DicomViewer", "DicomViewer");
     settings.setValue("mainWindow/geometry", saveGeometry());
     settings.setValue("mainWindow/state", saveState());
+    settings.setValue("mainWindow/layoutMode",
+                      static_cast<int>(impl_->layoutManager->layoutMode()));
 }
 
 void MainWindow::restoreLayout()
@@ -799,6 +840,24 @@ void MainWindow::restoreLayout()
     QSettings settings("DicomViewer", "DicomViewer");
     restoreGeometry(settings.value("mainWindow/geometry").toByteArray());
     restoreState(settings.value("mainWindow/state").toByteArray());
+
+    // Restore viewport layout mode
+    auto mode = static_cast<LayoutMode>(
+        settings.value("mainWindow/layoutMode", 0).toInt());
+    impl_->layoutManager->setLayoutMode(mode);
+
+    // Update toolbar button state
+    switch (mode) {
+        case LayoutMode::Single:
+            impl_->singleLayoutAction->setChecked(true);
+            break;
+        case LayoutMode::DualSplit:
+            impl_->dualLayoutAction->setChecked(true);
+            break;
+        case LayoutMode::QuadSplit:
+            impl_->quadLayoutAction->setChecked(true);
+            break;
+    }
 }
 
 void MainWindow::registerShortcuts()
@@ -1021,6 +1080,23 @@ void MainWindow::onResetLayout()
     impl_->patientBrowserDock->show();
     impl_->toolsPanelDock->show();
     impl_->toolsPanelDock->raise();  // Show Tools tab
+}
+
+bool MainWindow::eventFilter(QObject* watched, QEvent* event)
+{
+    if (event->type() == QEvent::MouseButtonPress) {
+        // Check if clicked widget is a viewport or child of one
+        auto* widget = qobject_cast<QWidget*>(watched);
+        int count = impl_->layoutManager->viewportCount();
+        for (int i = 0; i < count; ++i) {
+            auto* vp = impl_->layoutManager->viewport(i);
+            if (vp && (widget == vp || vp->isAncestorOf(widget))) {
+                impl_->layoutManager->setActiveViewport(i);
+                break;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::onToggleFullScreen()
