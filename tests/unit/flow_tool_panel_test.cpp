@@ -124,3 +124,109 @@ TEST(FlowToolPanelTest, SetFlowDataAvailable_EnableDisable) {
     // Series selection should persist even when disabled
     EXPECT_EQ(panel.selectedSeries(), FlowSeries::FH);
 }
+
+// =============================================================================
+// Display 2D checkboxes
+// =============================================================================
+
+TEST(FlowToolPanelTest, Display2D_AllDisabledByDefault) {
+    FlowToolPanel panel;
+    EXPECT_FALSE(panel.isDisplay2DEnabled(Display2DItem::Mask));
+    EXPECT_FALSE(panel.isDisplay2DEnabled(Display2DItem::Velocity));
+    EXPECT_FALSE(panel.isDisplay2DEnabled(Display2DItem::Streamline));
+    EXPECT_FALSE(panel.isDisplay2DEnabled(Display2DItem::EnergyLoss));
+    EXPECT_FALSE(panel.isDisplay2DEnabled(Display2DItem::Vorticity));
+    EXPECT_FALSE(panel.isDisplay2DEnabled(Display2DItem::VelocityTexture));
+}
+
+TEST(FlowToolPanelTest, Display2D_SetEnabled) {
+    FlowToolPanel panel;
+    panel.setFlowDataAvailable(true);
+
+    panel.setDisplay2DEnabled(Display2DItem::Velocity, true);
+    EXPECT_TRUE(panel.isDisplay2DEnabled(Display2DItem::Velocity));
+    EXPECT_FALSE(panel.isDisplay2DEnabled(Display2DItem::Mask));
+
+    panel.setDisplay2DEnabled(Display2DItem::Velocity, false);
+    EXPECT_FALSE(panel.isDisplay2DEnabled(Display2DItem::Velocity));
+}
+
+TEST(FlowToolPanelTest, Display2D_MultipleCheckboxes) {
+    FlowToolPanel panel;
+    panel.setFlowDataAvailable(true);
+
+    panel.setDisplay2DEnabled(Display2DItem::Vorticity, true);
+    panel.setDisplay2DEnabled(Display2DItem::EnergyLoss, true);
+
+    EXPECT_TRUE(panel.isDisplay2DEnabled(Display2DItem::Vorticity));
+    EXPECT_TRUE(panel.isDisplay2DEnabled(Display2DItem::EnergyLoss));
+    EXPECT_FALSE(panel.isDisplay2DEnabled(Display2DItem::Streamline));
+}
+
+TEST(FlowToolPanelTest, Display2D_SignalNotEmittedOnProgrammatic) {
+    FlowToolPanel panel;
+    panel.setFlowDataAvailable(true);
+
+    QSignalSpy spy(&panel, &FlowToolPanel::display2DToggled);
+    ASSERT_TRUE(spy.isValid());
+
+    panel.setDisplay2DEnabled(Display2DItem::Velocity, true);
+    EXPECT_EQ(spy.count(), 0);
+}
+
+// =============================================================================
+// Display 3D checkboxes
+// =============================================================================
+
+TEST(FlowToolPanelTest, Display3D_AllDisabledByDefault) {
+    FlowToolPanel panel;
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::MaskVolume));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::Surface));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::Cine));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::Magnitude));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::Velocity));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::ASC));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::Streamline));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::EnergyLoss));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::WSS));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::OSI));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::AFI));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::RRT));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::Vorticity));
+}
+
+TEST(FlowToolPanelTest, Display3D_SetEnabled) {
+    FlowToolPanel panel;
+    panel.setFlowDataAvailable(true);
+
+    panel.setDisplay3DEnabled(Display3DItem::WSS, true);
+    EXPECT_TRUE(panel.isDisplay3DEnabled(Display3DItem::WSS));
+
+    panel.setDisplay3DEnabled(Display3DItem::WSS, false);
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::WSS));
+}
+
+TEST(FlowToolPanelTest, Display3D_MultipleSurfaceParams) {
+    FlowToolPanel panel;
+    panel.setFlowDataAvailable(true);
+
+    panel.setDisplay3DEnabled(Display3DItem::WSS, true);
+    panel.setDisplay3DEnabled(Display3DItem::OSI, true);
+    panel.setDisplay3DEnabled(Display3DItem::RRT, true);
+
+    EXPECT_TRUE(panel.isDisplay3DEnabled(Display3DItem::WSS));
+    EXPECT_TRUE(panel.isDisplay3DEnabled(Display3DItem::OSI));
+    EXPECT_TRUE(panel.isDisplay3DEnabled(Display3DItem::RRT));
+    EXPECT_FALSE(panel.isDisplay3DEnabled(Display3DItem::AFI));
+}
+
+TEST(FlowToolPanelTest, Display3D_SignalNotEmittedOnProgrammatic) {
+    FlowToolPanel panel;
+    panel.setFlowDataAvailable(true);
+
+    QSignalSpy spy(&panel, &FlowToolPanel::display3DToggled);
+    ASSERT_TRUE(spy.isValid());
+
+    panel.setDisplay3DEnabled(Display3DItem::Vorticity, true);
+    EXPECT_EQ(spy.count(), 0);
+}

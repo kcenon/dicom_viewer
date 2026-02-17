@@ -1,12 +1,15 @@
 #include "ui/panels/flow_tool_panel.hpp"
 
 #include <QButtonGroup>
+#include <QCheckBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QToolBox>
 #include <QVBoxLayout>
+
+#include <map>
 
 namespace dicom_viewer::ui {
 
@@ -26,6 +29,12 @@ public:
     QPushButton* fhButton = nullptr;
     QPushButton* pcmraButton = nullptr;
 
+    // Display 2D checkboxes
+    std::map<Display2DItem, QCheckBox*> display2DChecks;
+
+    // Display 3D checkboxes
+    std::map<Display3DItem, QCheckBox*> display3DChecks;
+
     FlowSeries currentSeries = FlowSeries::Magnitude;
     bool flowDataAvailable = false;
 };
@@ -44,6 +53,20 @@ FlowToolPanel::~FlowToolPanel() = default;
 FlowSeries FlowToolPanel::selectedSeries() const
 {
     return impl_->currentSeries;
+}
+
+bool FlowToolPanel::isDisplay2DEnabled(Display2DItem item) const
+{
+    auto it = impl_->display2DChecks.find(item);
+    if (it == impl_->display2DChecks.end()) return false;
+    return it->second->isChecked();
+}
+
+bool FlowToolPanel::isDisplay3DEnabled(Display3DItem item) const
+{
+    auto it = impl_->display3DChecks.find(item);
+    if (it == impl_->display3DChecks.end()) return false;
+    return it->second->isChecked();
 }
 
 void FlowToolPanel::setFlowDataAvailable(bool available)
@@ -90,6 +113,24 @@ void FlowToolPanel::setSelectedSeries(FlowSeries series)
     }
 }
 
+void FlowToolPanel::setDisplay2DEnabled(Display2DItem item, bool enabled)
+{
+    auto it = impl_->display2DChecks.find(item);
+    if (it == impl_->display2DChecks.end()) return;
+    it->second->blockSignals(true);
+    it->second->setChecked(enabled);
+    it->second->blockSignals(false);
+}
+
+void FlowToolPanel::setDisplay3DEnabled(Display3DItem item, bool enabled)
+{
+    auto it = impl_->display3DChecks.find(item);
+    if (it == impl_->display3DChecks.end()) return;
+    it->second->blockSignals(true);
+    it->second->setChecked(enabled);
+    it->second->blockSignals(false);
+}
+
 void FlowToolPanel::setupUI()
 {
     auto* mainLayout = new QVBoxLayout(this);
@@ -101,7 +142,8 @@ void FlowToolPanel::setupUI()
 
     createSettingsSection();
     createSeriesSection();
-    createPlaceholderSections();
+    createDisplay2DSection();
+    createDisplay3DSection();
 
     mainLayout->addStretch(1);
 }
@@ -168,27 +210,73 @@ void FlowToolPanel::createSeriesSection()
     impl_->toolBox->addItem(seriesWidget, tr("Series"));
 }
 
-void FlowToolPanel::createPlaceholderSections()
+void FlowToolPanel::createDisplay2DSection()
 {
-    // Display 2D placeholder (to be populated by #331)
-    auto* display2dWidget = new QWidget();
-    auto* layout2d = new QVBoxLayout(display2dWidget);
-    layout2d->setContentsMargins(8, 4, 8, 4);
-    auto* placeholder2d = new QLabel(tr("No overlay controls available"));
-    placeholder2d->setStyleSheet("color: #888;");
-    layout2d->addWidget(placeholder2d);
-    layout2d->addStretch(1);
-    impl_->toolBox->addItem(display2dWidget, tr("Display 2D"));
+    auto* widget = new QWidget();
+    auto* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(8, 4, 8, 4);
+    layout->setSpacing(2);
 
-    // Display 3D placeholder (to be populated by #331)
-    auto* display3dWidget = new QWidget();
-    auto* layout3d = new QVBoxLayout(display3dWidget);
-    layout3d->setContentsMargins(8, 4, 8, 4);
-    auto* placeholder3d = new QLabel(tr("No 3D controls available"));
-    placeholder3d->setStyleSheet("color: #888;");
-    layout3d->addWidget(placeholder3d);
-    layout3d->addStretch(1);
-    impl_->toolBox->addItem(display3dWidget, tr("Display 3D"));
+    struct Item {
+        Display2DItem id;
+        const char* label;
+    };
+
+    const Item items[] = {
+        { Display2DItem::Mask,            "Mask" },
+        { Display2DItem::Velocity,        "Velocity" },
+        { Display2DItem::Streamline,      "Streamline" },
+        { Display2DItem::EnergyLoss,      "Energy Loss" },
+        { Display2DItem::Vorticity,       "Vorticity" },
+        { Display2DItem::VelocityTexture, "Vel Texture" },
+    };
+
+    for (const auto& item : items) {
+        auto* cb = new QCheckBox(tr(item.label));
+        layout->addWidget(cb);
+        impl_->display2DChecks[item.id] = cb;
+    }
+
+    layout->addStretch(1);
+    impl_->toolBox->addItem(widget, tr("Display 2D"));
+}
+
+void FlowToolPanel::createDisplay3DSection()
+{
+    auto* widget = new QWidget();
+    auto* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(8, 4, 8, 4);
+    layout->setSpacing(2);
+
+    struct Item {
+        Display3DItem id;
+        const char* label;
+    };
+
+    const Item items[] = {
+        { Display3DItem::MaskVolume,  "Mask Vol" },
+        { Display3DItem::Surface,     "Surface" },
+        { Display3DItem::Cine,        "Cine" },
+        { Display3DItem::Magnitude,   "Magnitude" },
+        { Display3DItem::Velocity,    "Velocity" },
+        { Display3DItem::ASC,         "ASC" },
+        { Display3DItem::Streamline,  "Streamline" },
+        { Display3DItem::EnergyLoss,  "Energy Loss" },
+        { Display3DItem::WSS,         "WSS" },
+        { Display3DItem::OSI,         "OSI" },
+        { Display3DItem::AFI,         "AFI" },
+        { Display3DItem::RRT,         "RRT" },
+        { Display3DItem::Vorticity,   "Vorticity" },
+    };
+
+    for (const auto& item : items) {
+        auto* cb = new QCheckBox(tr(item.label));
+        layout->addWidget(cb);
+        impl_->display3DChecks[item.id] = cb;
+    }
+
+    layout->addStretch(1);
+    impl_->toolBox->addItem(widget, tr("Display 3D"));
 }
 
 void FlowToolPanel::setupConnections()
@@ -201,6 +289,22 @@ void FlowToolPanel::setupConnections()
             emit seriesSelectionChanged(series);
         }
     });
+
+    // Display 2D checkbox connections
+    for (auto& [item, cb] : impl_->display2DChecks) {
+        connect(cb, &QCheckBox::toggled,
+                this, [this, item](bool checked) {
+            emit display2DToggled(item, checked);
+        });
+    }
+
+    // Display 3D checkbox connections
+    for (auto& [item, cb] : impl_->display3DChecks) {
+        connect(cb, &QCheckBox::toggled,
+                this, [this, item](bool checked) {
+            emit display3DToggled(item, checked);
+        });
+    }
 }
 
 } // namespace dicom_viewer::ui
