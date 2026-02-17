@@ -11,6 +11,7 @@
 #include "ui/panels/flow_tool_panel.hpp"
 #include "ui/display_3d_controller.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
+#include "ui/dialogs/mask_wizard.hpp"
 #include "ui/quantification_window.hpp"
 #include "core/project_manager.hpp"
 #include "core/series_builder.hpp"
@@ -298,6 +299,19 @@ void MainWindow::setupMenuBar()
     auto thresholdSegAction = seg2dMenu->addAction(tr("&Threshold Segmentation"));
     thresholdSegAction->setEnabled(false);
     thresholdSegAction->setToolTip(tr("Threshold-based segmentation (not yet implemented)"));
+
+    seg2dMenu->addSeparator();
+
+    auto maskWizardAction = seg2dMenu->addAction(tr("&Mask Wizard..."));
+    maskWizardAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
+    connect(maskWizardAction, &QAction::triggered, this, [this]() {
+        auto* wizard = new MaskWizard(this);
+        wizard->setAttribute(Qt::WA_DeleteOnClose);
+        connect(wizard, &MaskWizard::wizardCompleted, this, [this]() {
+            statusBar()->showMessage(tr("Mask Wizard completed"), 3000);
+        });
+        wizard->show();
+    });
 
     // =========================================================================
     // Data Correction menu
