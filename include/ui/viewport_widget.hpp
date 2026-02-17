@@ -234,6 +234,17 @@ public:
      */
     bool isSegmentationModeActive() const;
 
+    /**
+     * @brief Show/hide MPR crosshair intersection lines
+     * @param visible True to show crosshair lines
+     */
+    void setCrosshairLinesVisible(bool visible);
+
+    /**
+     * @brief Check if crosshair lines are visible
+     */
+    [[nodiscard]] bool isCrosshairLinesVisible() const;
+
 signals:
     /// Emitted when crosshair position changes (world coordinates)
     void crosshairPositionChanged(double x, double y, double z);

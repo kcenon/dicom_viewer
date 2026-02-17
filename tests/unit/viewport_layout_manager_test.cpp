@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <QApplication>
+#include <QSignalSpy>
 
 #include "ui/viewport_layout_manager.hpp"
 #include "ui/viewport_widget.hpp"
@@ -215,4 +216,109 @@ TEST(ViewportLayoutManagerTest, SetActiveViewport_SameIndex_NoSignal) {
 
     manager.setActiveViewport(0);  // already 0
     EXPECT_FALSE(signalReceived);
+}
+
+// =============================================================================
+// Crosshair linking
+// =============================================================================
+
+TEST(ViewportLayoutManagerTest, CrosshairLink_DefaultDisabled) {
+    ViewportLayoutManager manager;
+    EXPECT_FALSE(manager.isCrosshairLinkEnabled());
+}
+
+TEST(ViewportLayoutManagerTest, CrosshairLink_EnableDisable) {
+    ViewportLayoutManager manager;
+    manager.setLayoutMode(LayoutMode::QuadSplit);
+
+    manager.setCrosshairLinkEnabled(true);
+    EXPECT_TRUE(manager.isCrosshairLinkEnabled());
+
+    manager.setCrosshairLinkEnabled(false);
+    EXPECT_FALSE(manager.isCrosshairLinkEnabled());
+}
+
+TEST(ViewportLayoutManagerTest, CrosshairLink_Signal) {
+    ViewportLayoutManager manager;
+    manager.setLayoutMode(LayoutMode::QuadSplit);
+
+    QSignalSpy spy(&manager, &ViewportLayoutManager::crosshairLinkEnabledChanged);
+    ASSERT_TRUE(spy.isValid());
+
+    manager.setCrosshairLinkEnabled(true);
+    EXPECT_EQ(spy.count(), 1);
+    EXPECT_TRUE(spy.at(0).at(0).toBool());
+
+    manager.setCrosshairLinkEnabled(false);
+    EXPECT_EQ(spy.count(), 2);
+    EXPECT_FALSE(spy.at(1).at(0).toBool());
+}
+
+TEST(ViewportLayoutManagerTest, CrosshairLink_SameValue_NoSignal) {
+    ViewportLayoutManager manager;
+
+    QSignalSpy spy(&manager, &ViewportLayoutManager::crosshairLinkEnabledChanged);
+    ASSERT_TRUE(spy.isValid());
+
+    manager.setCrosshairLinkEnabled(false);  // already false
+    EXPECT_EQ(spy.count(), 0);
+}
+
+TEST(ViewportLayoutManagerTest, CrosshairLink_EnableShowsLines) {
+    ViewportLayoutManager manager;
+    manager.setLayoutMode(LayoutMode::QuadSplit);
+
+    manager.setCrosshairLinkEnabled(true);
+    // 2D viewports (0-2) should have crosshair lines visible
+    for (int i = 0; i < 3; ++i) {
+        EXPECT_TRUE(manager.viewport(i)->isCrosshairLinesVisible())
+            << "viewport " << i;
+    }
+    // 3D viewport also gets lines set (no-op in rendering)
+    EXPECT_TRUE(manager.viewport(3)->isCrosshairLinesVisible());
+}
+
+TEST(ViewportLayoutManagerTest, CrosshairLink_DisableHidesLines) {
+    ViewportLayoutManager manager;
+    manager.setLayoutMode(LayoutMode::QuadSplit);
+
+    manager.setCrosshairLinkEnabled(true);
+    manager.setCrosshairLinkEnabled(false);
+
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_FALSE(manager.viewport(i)->isCrosshairLinesVisible())
+            << "viewport " << i;
+    }
+}
+
+TEST(ViewportLayoutManagerTest, CrosshairLink_ReconnectsOnLayoutChange) {
+    ViewportLayoutManager manager;
+    manager.setCrosshairLinkEnabled(true);
+
+    // Switch to QuadSplit while linking is enabled
+    manager.setLayoutMode(LayoutMode::QuadSplit);
+
+    // All viewports should have crosshair lines visible
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_TRUE(manager.viewport(i)->isCrosshairLinesVisible())
+            << "viewport " << i;
+    }
+}
+
+// =============================================================================
+// ViewportWidget crosshair lines
+// =============================================================================
+
+TEST(ViewportWidgetCrosshairTest, CrosshairLines_DefaultHidden) {
+    ViewportWidget widget;
+    EXPECT_FALSE(widget.isCrosshairLinesVisible());
+}
+
+TEST(ViewportWidgetCrosshairTest, CrosshairLines_SetVisible) {
+    ViewportWidget widget;
+    widget.setCrosshairLinesVisible(true);
+    EXPECT_TRUE(widget.isCrosshairLinesVisible());
+
+    widget.setCrosshairLinesVisible(false);
+    EXPECT_FALSE(widget.isCrosshairLinesVisible());
 }

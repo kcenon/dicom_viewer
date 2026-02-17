@@ -79,6 +79,11 @@ public:
      */
     [[nodiscard]] ViewportWidget* activeViewport() const;
 
+    /**
+     * @brief Check if crosshair linking between viewports is enabled
+     */
+    [[nodiscard]] bool isCrosshairLinkEnabled() const;
+
 public slots:
     /**
      * @brief Switch layout mode
@@ -91,6 +96,17 @@ public slots:
      * @param index 0-based viewport index
      */
     void setActiveViewport(int index);
+
+    /**
+     * @brief Enable or disable crosshair linking between viewports
+     *
+     * When enabled, clicking on any 2D viewport synchronizes the
+     * crosshair position (and thus slice) across all other viewports.
+     * MPR crosshair intersection lines are shown on 2D viewports.
+     *
+     * @param enabled True to enable linking
+     */
+    void setCrosshairLinkEnabled(bool enabled);
 
 signals:
     /**
@@ -106,10 +122,18 @@ signals:
      */
     void activeViewportChanged(ViewportWidget* viewport, int index);
 
+    /**
+     * @brief Emitted when crosshair link mode changes
+     * @param enabled True if linking is now enabled
+     */
+    void crosshairLinkEnabledChanged(bool enabled);
+
 private:
     void buildSingleLayout();
     void buildDualLayout();
     void buildQuadLayout();
+    void setupCrosshairLinking();
+    void teardownCrosshairLinking();
 
     class Impl;
     std::unique_ptr<Impl> impl_;

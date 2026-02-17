@@ -24,6 +24,11 @@ public:
     // Index 0 is always the "primary" viewport.
     ViewportWidget* viewports[4] = {};
     bool layoutBuilt[3] = {};  // Track which layouts have been built
+
+    // Crosshair linking
+    bool crosshairLinkEnabled = false;
+    bool propagatingCrosshair = false;  // Guard against feedback loops
+    QList<QMetaObject::Connection> crosshairConnections;
 };
 
 ViewportLayoutManager::ViewportLayoutManager(QWidget* parent)
@@ -106,6 +111,12 @@ void ViewportLayoutManager::setLayoutMode(LayoutMode mode)
             if (!impl_->layoutBuilt[2]) buildQuadLayout();
             impl_->stack->setCurrentIndex(2);
             break;
+    }
+
+    // Reconnect crosshair linking for new layout
+    if (impl_->crosshairLinkEnabled) {
+        teardownCrosshairLinking();
+        setupCrosshairLinking();
     }
 
     emit layoutModeChanged(mode);
@@ -210,6 +221,73 @@ void ViewportLayoutManager::buildQuadLayout()
     impl_->quadContainer = outerSplitter;
     impl_->stack->addWidget(outerSplitter);
     impl_->layoutBuilt[2] = true;
+}
+
+bool ViewportLayoutManager::isCrosshairLinkEnabled() const
+{
+    return impl_->crosshairLinkEnabled;
+}
+
+void ViewportLayoutManager::setCrosshairLinkEnabled(bool enabled)
+{
+    if (impl_->crosshairLinkEnabled == enabled) return;
+    impl_->crosshairLinkEnabled = enabled;
+
+    if (enabled) {
+        setupCrosshairLinking();
+    } else {
+        teardownCrosshairLinking();
+    }
+
+    emit crosshairLinkEnabledChanged(enabled);
+}
+
+void ViewportLayoutManager::setupCrosshairLinking()
+{
+    teardownCrosshairLinking();
+
+    int count = viewportCount();
+    for (int src = 0; src < count; ++src) {
+        auto* srcVp = impl_->viewports[src];
+        if (!srcVp) continue;
+
+        // Enable crosshair lines on 2D viewports
+        srcVp->setCrosshairLinesVisible(true);
+
+        // Connect crosshair signal to all other viewports
+        auto conn = connect(srcVp, &ViewportWidget::crosshairPositionChanged,
+                            this, [this, src](double x, double y, double z) {
+            if (impl_->propagatingCrosshair) return;
+            impl_->propagatingCrosshair = true;
+
+            int cnt = viewportCount();
+            for (int dst = 0; dst < cnt; ++dst) {
+                if (dst == src) continue;
+                auto* dstVp = impl_->viewports[dst];
+                if (dstVp) {
+                    dstVp->setCrosshairPosition(x, y, z);
+                }
+            }
+
+            impl_->propagatingCrosshair = false;
+        });
+        impl_->crosshairConnections.append(conn);
+    }
+}
+
+void ViewportLayoutManager::teardownCrosshairLinking()
+{
+    for (auto& conn : impl_->crosshairConnections) {
+        disconnect(conn);
+    }
+    impl_->crosshairConnections.clear();
+
+    // Hide crosshair lines on all viewports
+    for (int i = 0; i < 4; ++i) {
+        if (impl_->viewports[i]) {
+            impl_->viewports[i]->setCrosshairLinesVisible(false);
+        }
+    }
 }
 
 } // namespace dicom_viewer::ui
