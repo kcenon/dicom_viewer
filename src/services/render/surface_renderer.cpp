@@ -613,4 +613,38 @@ vtkSmartPointer<vtkLookupTable> SurfaceRenderer::createRRTLookupTable(double max
     return lut;
 }
 
+vtkSmartPointer<vtkLookupTable> SurfaceRenderer::createAFILookupTable(double maxAFI)
+{
+    auto lut = vtkSmartPointer<vtkLookupTable>::New();
+    lut->SetNumberOfTableValues(256);
+    lut->SetRange(0.0, maxAFI);
+
+    lut->Build();
+
+    // Sequential colormap: green → yellow → red
+    // AFI < 1: below-average WSS (green/safe)
+    // AFI ≈ 1: average WSS (yellow/transition)
+    // AFI > 1: above-average WSS (red/risk)
+    for (int i = 0; i < 256; ++i) {
+        double t = static_cast<double>(i) / 255.0;
+        double r, g, b;
+        if (t < 0.5) {
+            // Green → Yellow
+            double s = t / 0.5;
+            r = s;
+            g = 0.8 + 0.2 * s;  // 0.8 → 1.0
+            b = 0.0;
+        } else {
+            // Yellow → Red
+            double s = (t - 0.5) / 0.5;
+            r = 1.0;
+            g = 1.0 - s;  // 1.0 → 0.0
+            b = 0.0;
+        }
+        lut->SetTableValue(i, r, g, b, 1.0);
+    }
+
+    return lut;
+}
+
 } // namespace dicom_viewer::services

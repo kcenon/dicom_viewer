@@ -284,6 +284,18 @@ public:
     [[nodiscard]] static vtkSmartPointer<vtkLookupTable>
     createRRTLookupTable(double maxRRT);
 
+    /**
+     * @brief Create AFI lookup table (green-yellow-red sequential)
+     *
+     * AFI (Aneurysm Formation Indicator) = TAWSS / mean_TAWSS.
+     * Green (AFI < 1, below average) → Yellow (AFI ≈ 1) → Red (AFI > 1, above average).
+     *
+     * @param maxAFI Maximum AFI value for range (default: 2.0)
+     * @return Configured lookup table for [0, maxAFI]
+     */
+    [[nodiscard]] static vtkSmartPointer<vtkLookupTable>
+    createAFILookupTable(double maxAFI = 2.0);
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;

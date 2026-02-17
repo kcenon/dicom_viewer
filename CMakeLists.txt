@@ -372,6 +372,7 @@ add_library(render_service STATIC
     src/services/render/oblique_reslice_renderer.cpp
     src/services/render/hemodynamic_overlay_renderer.cpp
     src/services/render/streamline_overlay_renderer.cpp
+    src/services/render/hemodynamic_surface_manager.cpp
 )
 
 target_link_libraries(render_service PUBLIC
