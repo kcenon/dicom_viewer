@@ -38,7 +38,8 @@ enum class OverlayType {
     Vorticity,          ///< |curl(V)| vorticity magnitude in 1/s
     EnergyLoss,         ///< Viscous dissipation rate in W/m^3
     Streamline,         ///< 2D flow streamlines on slice plane
-    VelocityTexture     ///< Line Integral Convolution (LIC) texture
+    VelocityTexture,    ///< Line Integral Convolution (LIC) texture
+    Mask                ///< Segmentation mask overlay (per-label color)
 };
 
 /**
@@ -195,6 +196,12 @@ public:
      * @param plane MPR plane to update
      */
     void updatePlane(MPRPlane plane);
+
+    /**
+     * @brief Get the time taken by the last update() call
+     * @return Duration in milliseconds, or 0.0 if update() has not been called
+     */
+    [[nodiscard]] double lastRenderTimeMs() const noexcept;
 
     // ==================== Utility ====================
 

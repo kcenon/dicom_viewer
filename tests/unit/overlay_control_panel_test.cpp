@@ -24,6 +24,7 @@ QApplication app(argc, argv);
 TEST(OverlayControlPanelTest, DefaultConstruction) {
     OverlayControlPanel panel;
     // All overlays should be disabled by default
+    EXPECT_FALSE(panel.isOverlayEnabled(OverlayType::Mask));
     EXPECT_FALSE(panel.isOverlayEnabled(OverlayType::VelocityMagnitude));
     EXPECT_FALSE(panel.isOverlayEnabled(OverlayType::VelocityX));
     EXPECT_FALSE(panel.isOverlayEnabled(OverlayType::VelocityY));
@@ -168,4 +169,33 @@ TEST(OverlayControlPanelTest, UnknownTypeReturnsDefaults) {
     auto [minVal, maxVal] = panel.overlayScalarRange(unknownType);
     EXPECT_DOUBLE_EQ(minVal, 0.0);
     EXPECT_DOUBLE_EQ(maxVal, 100.0);
+}
+
+// =============================================================================
+// Mask overlay type
+// =============================================================================
+
+TEST(OverlayControlPanelTest, MaskOverlay_DefaultDisabled) {
+    OverlayControlPanel panel;
+    EXPECT_FALSE(panel.isOverlayEnabled(OverlayType::Mask));
+}
+
+TEST(OverlayControlPanelTest, MaskOverlay_DefaultOpacity) {
+    OverlayControlPanel panel;
+    EXPECT_DOUBLE_EQ(panel.overlayOpacity(OverlayType::Mask), 0.5);
+}
+
+TEST(OverlayControlPanelTest, MaskOverlay_NoScalarRange) {
+    OverlayControlPanel panel;
+    // Mask uses per-label coloring, no scalar range controls
+    auto [minVal, maxVal] = panel.overlayScalarRange(OverlayType::Mask);
+    EXPECT_DOUBLE_EQ(minVal, 0.0);
+    EXPECT_DOUBLE_EQ(maxVal, 100.0);
+}
+
+TEST(OverlayControlPanelTest, MaskOverlay_ResetToDefaults) {
+    OverlayControlPanel panel;
+    panel.resetToDefaults();
+    EXPECT_FALSE(panel.isOverlayEnabled(OverlayType::Mask));
+    EXPECT_DOUBLE_EQ(panel.overlayOpacity(OverlayType::Mask), 0.5);
 }
