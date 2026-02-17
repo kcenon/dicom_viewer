@@ -513,6 +513,14 @@ void MainWindow::setupMenuBar()
             connect(impl_->quantificationWindow, &QObject::destroyed, this, [this]() {
                 impl_->quantificationWindow = nullptr;
             });
+            // Phase sync: graph click → viewport phase navigation
+            connect(impl_->quantificationWindow, &QuantificationWindow::phaseChangeRequested,
+                    this, [this](int phaseIndex) {
+                if (!impl_->temporalNavigator.isInitialized()) return;
+                (void)impl_->temporalNavigator.goToPhase(phaseIndex);
+                impl_->phaseSlider->setCurrentPhase(phaseIndex);
+                impl_->viewport->setPhaseIndex(phaseIndex);
+            });
         }
         impl_->quantificationWindow->show();
         impl_->quantificationWindow->raise();
