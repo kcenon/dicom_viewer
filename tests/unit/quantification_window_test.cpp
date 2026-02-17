@@ -1,0 +1,223 @@
+#include <gtest/gtest.h>
+
+#include <QApplication>
+#include <QCheckBox>
+#include <QClipboard>
+#include <QSignalSpy>
+#include <QTableWidget>
+
+#include "ui/quantification_window.hpp"
+
+using namespace dicom_viewer::ui;
+
+namespace {
+
+// QApplication must exist for QWidget instantiation
+int argc = 0;
+char* argv[] = {nullptr};
+QApplication app(argc, argv);
+
+}  // anonymous namespace
+
+// =============================================================================
+// Construction and defaults
+// =============================================================================
+
+TEST(QuantificationWindowTest, DefaultConstruction) {
+    QuantificationWindow window;
+    EXPECT_EQ(window.windowTitle(), "Quantification");
+    EXPECT_EQ(window.rowCount(), 0);
+    EXPECT_TRUE(window.getStatistics().empty());
+}
+
+TEST(QuantificationWindowTest, AllParametersEnabledByDefault) {
+    QuantificationWindow window;
+    EXPECT_TRUE(window.isParameterEnabled(MeasurementParameter::FlowRate));
+    EXPECT_TRUE(window.isParameterEnabled(MeasurementParameter::PeakVelocity));
+    EXPECT_TRUE(window.isParameterEnabled(MeasurementParameter::MeanVelocity));
+    EXPECT_TRUE(window.isParameterEnabled(MeasurementParameter::KineticEnergy));
+    EXPECT_TRUE(window.isParameterEnabled(MeasurementParameter::RegurgitantFraction));
+    EXPECT_TRUE(window.isParameterEnabled(MeasurementParameter::StrokeVolume));
+}
+
+// =============================================================================
+// Statistics table
+// =============================================================================
+
+TEST(QuantificationWindowTest, SetStatistics_PopulatesTable) {
+    QuantificationWindow window;
+
+    std::vector<QuantificationRow> rows = {
+        {MeasurementParameter::FlowRate, 10.5, 2.3, 15.0, 6.0},
+        {MeasurementParameter::PeakVelocity, 120.0, 15.0, 150.0, 90.0},
+    };
+
+    window.setStatistics(rows);
+
+    EXPECT_EQ(window.rowCount(), 2);
+    EXPECT_EQ(window.getStatistics().size(), 2u);
+}
+
+TEST(QuantificationWindowTest, ClearStatistics) {
+    QuantificationWindow window;
+
+    std::vector<QuantificationRow> rows = {
+        {MeasurementParameter::FlowRate, 10.5, 2.3, 15.0, 6.0},
+    };
+
+    window.setStatistics(rows);
+    EXPECT_EQ(window.rowCount(), 1);
+
+    window.clearStatistics();
+    EXPECT_EQ(window.rowCount(), 0);
+    EXPECT_TRUE(window.getStatistics().empty());
+}
+
+TEST(QuantificationWindowTest, SetStatistics_ReplacesExisting) {
+    QuantificationWindow window;
+
+    window.setStatistics({{MeasurementParameter::FlowRate, 10.0, 2.0, 15.0, 5.0}});
+    EXPECT_EQ(window.rowCount(), 1);
+
+    window.setStatistics({
+        {MeasurementParameter::PeakVelocity, 100.0, 10.0, 120.0, 80.0},
+        {MeasurementParameter::MeanVelocity, 50.0, 5.0, 60.0, 40.0},
+        {MeasurementParameter::KineticEnergy, 3.0, 0.5, 4.0, 2.0},
+    });
+    EXPECT_EQ(window.rowCount(), 3);
+}
+
+// =============================================================================
+// Parameter checkboxes
+// =============================================================================
+
+TEST(QuantificationWindowTest, DisableParameter_HidesRow) {
+    QuantificationWindow window;
+
+    window.setStatistics({
+        {MeasurementParameter::FlowRate, 10.0, 2.0, 15.0, 5.0},
+        {MeasurementParameter::PeakVelocity, 100.0, 10.0, 120.0, 80.0},
+    });
+    EXPECT_EQ(window.rowCount(), 2);
+
+    window.setParameterEnabled(MeasurementParameter::FlowRate, false);
+    EXPECT_EQ(window.rowCount(), 1);
+}
+
+TEST(QuantificationWindowTest, ReEnableParameter_ShowsRow) {
+    QuantificationWindow window;
+
+    window.setStatistics({
+        {MeasurementParameter::FlowRate, 10.0, 2.0, 15.0, 5.0},
+        {MeasurementParameter::PeakVelocity, 100.0, 10.0, 120.0, 80.0},
+    });
+
+    window.setParameterEnabled(MeasurementParameter::FlowRate, false);
+    EXPECT_EQ(window.rowCount(), 1);
+
+    window.setParameterEnabled(MeasurementParameter::FlowRate, true);
+    EXPECT_EQ(window.rowCount(), 2);
+}
+
+TEST(QuantificationWindowTest, ParameterToggled_Signal) {
+    QuantificationWindow window;
+
+    bool signalReceived = false;
+    MeasurementParameter receivedParam = MeasurementParameter::FlowRate;
+    bool receivedEnabled = true;
+
+    QObject::connect(&window, &QuantificationWindow::parameterToggled,
+                     [&](MeasurementParameter p, bool e) {
+        signalReceived = true;
+        receivedParam = p;
+        receivedEnabled = e;
+    });
+
+    window.setParameterEnabled(MeasurementParameter::PeakVelocity, false);
+
+    EXPECT_TRUE(signalReceived);
+    EXPECT_EQ(receivedParam, MeasurementParameter::PeakVelocity);
+    EXPECT_FALSE(receivedEnabled);
+}
+
+// =============================================================================
+// Copy Summary
+// =============================================================================
+
+TEST(QuantificationWindowTest, SummaryText_ContainsHeader) {
+    QuantificationWindow window;
+    QString text = window.summaryText();
+    EXPECT_TRUE(text.contains("Parameter"));
+    EXPECT_TRUE(text.contains("Mean"));
+    EXPECT_TRUE(text.contains("Std Dev"));
+    EXPECT_TRUE(text.contains("Max"));
+    EXPECT_TRUE(text.contains("Min"));
+}
+
+TEST(QuantificationWindowTest, SummaryText_ContainsData) {
+    QuantificationWindow window;
+
+    window.setStatistics({
+        {MeasurementParameter::FlowRate, 10.50, 2.30, 15.00, 6.00},
+    });
+
+    QString text = window.summaryText();
+    EXPECT_TRUE(text.contains("Flow Rate"));
+    EXPECT_TRUE(text.contains("10.50"));
+    EXPECT_TRUE(text.contains("mL/s"));
+}
+
+TEST(QuantificationWindowTest, SummaryText_ExcludesDisabledParams) {
+    QuantificationWindow window;
+
+    window.setStatistics({
+        {MeasurementParameter::FlowRate, 10.0, 2.0, 15.0, 5.0},
+        {MeasurementParameter::PeakVelocity, 100.0, 10.0, 120.0, 80.0},
+    });
+
+    window.setParameterEnabled(MeasurementParameter::FlowRate, false);
+
+    QString text = window.summaryText();
+    EXPECT_FALSE(text.contains("Flow Rate"));
+    EXPECT_TRUE(text.contains("Peak Velocity"));
+}
+
+TEST(QuantificationWindowTest, SummaryCopied_Signal) {
+    QuantificationWindow window;
+
+    window.setStatistics({
+        {MeasurementParameter::FlowRate, 10.0, 2.0, 15.0, 5.0},
+    });
+
+    QSignalSpy spy(&window, &QuantificationWindow::summaryCopied);
+    ASSERT_TRUE(spy.isValid());
+
+    // Simulate Copy Summary button click by finding and clicking it
+    auto* btn = window.findChild<QPushButton*>();
+    ASSERT_NE(btn, nullptr);
+    btn->click();
+
+    EXPECT_EQ(spy.count(), 1);
+    EXPECT_FALSE(spy.at(0).at(0).toString().isEmpty());
+}
+
+// =============================================================================
+// Edge cases
+// =============================================================================
+
+TEST(QuantificationWindowTest, EmptyStatistics_ZeroRows) {
+    QuantificationWindow window;
+    window.setStatistics({});
+    EXPECT_EQ(window.rowCount(), 0);
+}
+
+TEST(QuantificationWindowTest, AllParametersDisabled_ZeroRows) {
+    QuantificationWindow window;
+
+    window.setStatistics({
+        {MeasurementParameter::FlowRate, 10.0, 2.0, 15.0, 5.0},
+    });
+
+    window.setParameterEnabled(MeasurementParameter::FlowRate, false);
+    EXPECT_EQ(window.rowCount(), 0);
+}

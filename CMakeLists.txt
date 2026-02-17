@@ -599,6 +599,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/display_3d_controller.cpp
     src/ui/dialogs/settings_dialog.cpp
     src/ui/dialogs/pacs_config_dialog.cpp
+    src/ui/dialogs/quantification_window.cpp
     # Headers with Q_OBJECT for AUTOMOC
     include/ui/main_window.hpp
     include/ui/viewport_widget.hpp
@@ -614,6 +615,7 @@ add_library(dicom_viewer_ui STATIC
     include/ui/panels/overlay_control_panel.hpp
     include/ui/panels/flow_tool_panel.hpp
     include/ui/dialogs/pacs_config_dialog.hpp
+    include/ui/quantification_window.hpp
 )
 
 target_link_libraries(dicom_viewer_ui PUBLIC
