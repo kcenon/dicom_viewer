@@ -1,7 +1,12 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <QMainWindow>
+
+namespace dicom_viewer::core {
+class ProjectManager;
+}
 
 namespace dicom_viewer::ui {
 
@@ -52,6 +57,18 @@ public slots:
     /// Show ROI statistics for current measurements
     void onShowRoiStatistics();
 
+    /// Create a new project
+    void onNewProject();
+
+    /// Save the current project
+    void onSaveProject();
+
+    /// Save the current project to a new path
+    void onSaveProjectAs();
+
+    /// Open a project file
+    void onOpenProject();
+
 protected:
     void closeEvent(QCloseEvent* event) override;
     void showEvent(QShowEvent* event) override;
@@ -70,6 +87,9 @@ private:
     void restoreLayout();
     void registerShortcuts();
     void uncheckAllMeasurementActions();
+    void updateWindowTitle();
+    void updateRecentProjectsMenu();
+    bool promptSaveIfModified();
 
     class Impl;
     std::unique_ptr<Impl> impl_;

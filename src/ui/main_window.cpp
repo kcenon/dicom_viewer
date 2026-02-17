@@ -11,6 +11,7 @@
 #include "ui/panels/flow_tool_panel.hpp"
 #include "ui/display_3d_controller.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
+#include "core/project_manager.hpp"
 #include "services/pacs_config_manager.hpp"
 #include "services/dicom_store_scp.hpp"
 #include "services/measurement/roi_statistics.hpp"
@@ -112,6 +113,10 @@ public:
 
     // Display 3D controller
     std::unique_ptr<Display3DController> display3DController;
+
+    // Project management
+    std::unique_ptr<core::ProjectManager> projectManager;
+    QMenu* recentProjectsMenu = nullptr;
 };
 
 MainWindow::MainWindow(QWidget* parent)
@@ -129,6 +134,12 @@ MainWindow::MainWindow(QWidget* parent)
 
     // Initialize Display 3D controller
     impl_->display3DController = std::make_unique<Display3DController>();
+
+    // Initialize project manager
+    impl_->projectManager = std::make_unique<core::ProjectManager>();
+    auto recentPath = QDir(QSettings().fileName()).absolutePath();
+    recentPath = QDir::homePath() + "/.dicom_viewer_recent.json";
+    impl_->projectManager->setRecentProjectsPath(recentPath.toStdString());
 
     applyDarkTheme();
     setupUI();
@@ -159,13 +170,37 @@ void MainWindow::setupMenuBar()
     // File menu
     auto fileMenu = menuBar()->addMenu(tr("&File"));
 
+    // Project operations
+    auto newProjectAction = fileMenu->addAction(tr("&New Project"));
+    newProjectAction->setShortcut(QKeySequence::New);
+    connect(newProjectAction, &QAction::triggered, this, &MainWindow::onNewProject);
+
+    auto openProjectAction = fileMenu->addAction(tr("Open &Project..."));
+    openProjectAction->setShortcut(QKeySequence::Open);
+    connect(openProjectAction, &QAction::triggered, this, &MainWindow::onOpenProject);
+
+    impl_->recentProjectsMenu = fileMenu->addMenu(tr("Open &Recent"));
+    updateRecentProjectsMenu();
+
+    fileMenu->addSeparator();
+
+    auto saveAction = fileMenu->addAction(tr("&Save"));
+    saveAction->setShortcut(QKeySequence::Save);
+    connect(saveAction, &QAction::triggered, this, &MainWindow::onSaveProject);
+
+    auto saveAsAction = fileMenu->addAction(tr("Save &As..."));
+    saveAsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
+    connect(saveAsAction, &QAction::triggered, this, &MainWindow::onSaveProjectAs);
+
+    fileMenu->addSeparator();
+
+    // DICOM import operations
     auto openDirAction = fileMenu->addAction(tr("Open &Directory..."));
-    openDirAction->setShortcut(QKeySequence::Open);
+    openDirAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_O));
     openDirAction->setIcon(style()->standardIcon(QStyle::SP_DirOpenIcon));
     connect(openDirAction, &QAction::triggered, this, &MainWindow::onOpenDirectory);
 
     auto openFileAction = fileMenu->addAction(tr("Open &File..."));
-    openFileAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_O));
     connect(openFileAction, &QAction::triggered, this, &MainWindow::onOpenFile);
 
     fileMenu->addSeparator();
@@ -174,16 +209,15 @@ void MainWindow::setupMenuBar()
     pacsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_P));
     connect(pacsAction, &QAction::triggered, this, &MainWindow::onConnectPACS);
 
-    impl_->toggleStorageScpAction = fileMenu->addAction(tr("Start &Storage SCP"));
-    impl_->toggleStorageScpAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
+    impl_->toggleStorageScpAction = fileMenu->addAction(tr("Start S&torage SCP"));
     impl_->toggleStorageScpAction->setCheckable(true);
     connect(impl_->toggleStorageScpAction, &QAction::triggered,
             this, &MainWindow::onToggleStorageSCP);
 
     fileMenu->addSeparator();
 
-    auto saveScreenshotAction = fileMenu->addAction(tr("&Save Screenshot..."));
-    saveScreenshotAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_S));
+    auto saveScreenshotAction = fileMenu->addAction(tr("Save Sc&reenshot..."));
+    saveScreenshotAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S));
     connect(saveScreenshotAction, &QAction::triggered, this, [this]() {
         QString filePath = QFileDialog::getSaveFileName(
             this, tr("Save Screenshot"), QString(),
@@ -198,7 +232,7 @@ void MainWindow::setupMenuBar()
 
     auto exitAction = fileMenu->addAction(tr("E&xit"));
     exitAction->setShortcut(QKeySequence::Quit);
-    connect(exitAction, &QAction::triggered, qApp, &QApplication::quit);
+    connect(exitAction, &QAction::triggered, this, &MainWindow::close);
 
     // Edit menu
     auto editMenu = menuBar()->addMenu(tr("&Edit"));
@@ -1009,6 +1043,10 @@ void MainWindow::registerShortcuts()
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
+    if (!promptSaveIfModified()) {
+        event->ignore();
+        return;
+    }
     saveLayout();
     event->accept();
 }
@@ -1225,6 +1263,160 @@ void MainWindow::onShowRoiStatistics()
     impl_->toggleStatisticsPanelAction->setChecked(true);
 
     statusBar()->showMessage(tr("Calculated statistics for %1 ROI(s)").arg(stats.size()), 3000);
+}
+
+// =============================================================================
+// Project management
+// =============================================================================
+
+void MainWindow::onNewProject()
+{
+    if (!promptSaveIfModified()) return;
+
+    impl_->projectManager->newProject();
+    updateWindowTitle();
+    statusBar()->showMessage(tr("New project created"), 3000);
+}
+
+void MainWindow::onSaveProject()
+{
+    auto path = impl_->projectManager->currentPath();
+    if (path.empty()) {
+        onSaveProjectAs();
+        return;
+    }
+
+    auto result = impl_->projectManager->saveProject(path);
+    if (result) {
+        impl_->projectManager->addToRecent(path);
+        updateRecentProjectsMenu();
+        updateWindowTitle();
+        statusBar()->showMessage(tr("Project saved: %1").arg(QString::fromStdString(path.string())), 3000);
+    } else {
+        QMessageBox::warning(this, tr("Save Failed"),
+            tr("Could not save project to:\n%1").arg(QString::fromStdString(path.string())));
+    }
+}
+
+void MainWindow::onSaveProjectAs()
+{
+    QString filePath = QFileDialog::getSaveFileName(
+        this, tr("Save Project As"),
+        QString::fromStdString(impl_->projectManager->currentPath().string()),
+        tr("Flow Project (*.flo)"));
+
+    if (filePath.isEmpty()) return;
+
+    auto path = std::filesystem::path(filePath.toStdString());
+    auto result = impl_->projectManager->saveProject(path);
+    if (result) {
+        impl_->projectManager->addToRecent(path);
+        updateRecentProjectsMenu();
+        updateWindowTitle();
+        statusBar()->showMessage(tr("Project saved: %1").arg(filePath), 3000);
+    } else {
+        QMessageBox::warning(this, tr("Save Failed"),
+            tr("Could not save project to:\n%1").arg(filePath));
+    }
+}
+
+void MainWindow::onOpenProject()
+{
+    if (!promptSaveIfModified()) return;
+
+    QString filePath = QFileDialog::getOpenFileName(
+        this, tr("Open Project"), QString(),
+        tr("Flow Project (*.flo);;All Files (*)"));
+
+    if (filePath.isEmpty()) return;
+
+    auto path = std::filesystem::path(filePath.toStdString());
+    auto result = impl_->projectManager->loadProject(path);
+    if (result) {
+        impl_->projectManager->addToRecent(path);
+        updateRecentProjectsMenu();
+        updateWindowTitle();
+        statusBar()->showMessage(tr("Project loaded: %1").arg(filePath), 3000);
+    } else {
+        QMessageBox::warning(this, tr("Open Failed"),
+            tr("Could not open project:\n%1").arg(filePath));
+    }
+}
+
+void MainWindow::updateWindowTitle()
+{
+    QString title = "DICOM Viewer";
+    auto name = impl_->projectManager->projectName();
+    if (!name.empty()) {
+        title = QString::fromStdString(name) + " - " + title;
+    }
+    if (impl_->projectManager->isModified()) {
+        title = "* " + title;
+    }
+    setWindowTitle(title);
+}
+
+void MainWindow::updateRecentProjectsMenu()
+{
+    impl_->recentProjectsMenu->clear();
+
+    auto recents = impl_->projectManager->recentProjects();
+    if (recents.empty()) {
+        auto* emptyAction = impl_->recentProjectsMenu->addAction(tr("(No recent projects)"));
+        emptyAction->setEnabled(false);
+        return;
+    }
+
+    for (const auto& recent : recents) {
+        auto displayName = recent.name.empty()
+            ? QString::fromStdString(recent.path.filename().string())
+            : QString::fromStdString(recent.name);
+        auto* action = impl_->recentProjectsMenu->addAction(displayName);
+        auto recentPath = recent.path;
+        connect(action, &QAction::triggered, this, [this, recentPath]() {
+            if (!promptSaveIfModified()) return;
+
+            auto result = impl_->projectManager->loadProject(recentPath);
+            if (result) {
+                impl_->projectManager->addToRecent(recentPath);
+                updateRecentProjectsMenu();
+                updateWindowTitle();
+                statusBar()->showMessage(
+                    tr("Project loaded: %1").arg(QString::fromStdString(recentPath.string())), 3000);
+            } else {
+                QMessageBox::warning(this, tr("Open Failed"),
+                    tr("Could not open project:\n%1").arg(QString::fromStdString(recentPath.string())));
+            }
+        });
+    }
+
+    impl_->recentProjectsMenu->addSeparator();
+    auto* clearAction = impl_->recentProjectsMenu->addAction(tr("Clear Recent"));
+    connect(clearAction, &QAction::triggered, this, [this]() {
+        impl_->projectManager->clearRecentProjects();
+        updateRecentProjectsMenu();
+    });
+}
+
+bool MainWindow::promptSaveIfModified()
+{
+    if (!impl_->projectManager->isModified()) return true;
+
+    auto result = QMessageBox::question(this, tr("Unsaved Changes"),
+        tr("The current project has unsaved changes.\nDo you want to save before continuing?"),
+        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+        QMessageBox::Save);
+
+    switch (result) {
+    case QMessageBox::Save:
+        onSaveProject();
+        return !impl_->projectManager->isModified();
+    case QMessageBox::Discard:
+        return true;
+    case QMessageBox::Cancel:
+    default:
+        return false;
+    }
 }
 
 } // namespace dicom_viewer::ui
