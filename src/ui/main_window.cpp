@@ -8,6 +8,7 @@
 #include "ui/panels/statistics_panel.hpp"
 #include "ui/panels/segmentation_panel.hpp"
 #include "ui/panels/overlay_control_panel.hpp"
+#include "ui/panels/flow_tool_panel.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
 #include "services/pacs_config_manager.hpp"
 #include "services/dicom_store_scp.hpp"
@@ -48,9 +49,11 @@ public:
     QDockWidget* statisticsPanelDock = nullptr;
     QDockWidget* segmentationPanelDock = nullptr;
     QDockWidget* overlayControlDock = nullptr;
+    QDockWidget* flowToolDock = nullptr;
     StatisticsPanel* statisticsPanel = nullptr;
     SegmentationPanel* segmentationPanel = nullptr;
     OverlayControlPanel* overlayControlPanel = nullptr;
+    FlowToolPanel* flowToolPanel = nullptr;
 
     QToolBar* mainToolBar = nullptr;
     QActionGroup* toolActionGroup = nullptr;
@@ -66,6 +69,7 @@ public:
     QAction* toggleStatisticsPanelAction = nullptr;
     QAction* toggleSegmentationPanelAction = nullptr;
     QAction* toggleOverlayControlAction = nullptr;
+    QAction* toggleFlowToolAction = nullptr;
 
     // Statistics action
     QAction* showStatisticsAction = nullptr;
@@ -233,6 +237,11 @@ void MainWindow::setupMenuBar()
     impl_->toggleOverlayControlAction->setCheckable(true);
     impl_->toggleOverlayControlAction->setChecked(false);
     impl_->toggleOverlayControlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_6));
+
+    impl_->toggleFlowToolAction = viewMenu->addAction(tr("&Flow Tools"));
+    impl_->toggleFlowToolAction->setCheckable(true);
+    impl_->toggleFlowToolAction->setChecked(false);
+    impl_->toggleFlowToolAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_7));
 
     viewMenu->addSeparator();
 
@@ -507,6 +516,15 @@ void MainWindow::setupDockWidgets()
     addDockWidget(Qt::RightDockWidgetArea, impl_->overlayControlDock);
     tabifyDockWidget(impl_->segmentationPanelDock, impl_->overlayControlDock);
     impl_->overlayControlDock->hide();  // Initially hidden
+
+    // Flow Tool Panel (left, below Patient Browser)
+    impl_->flowToolDock = new QDockWidget(tr("Flow Tools"), this);
+    impl_->flowToolDock->setObjectName("FlowToolDock");
+    impl_->flowToolPanel = new FlowToolPanel();
+    impl_->flowToolDock->setWidget(impl_->flowToolPanel);
+    impl_->flowToolDock->setMinimumWidth(200);
+    addDockWidget(Qt::LeftDockWidgetArea, impl_->flowToolDock);
+    impl_->flowToolDock->hide();  // Initially hidden until 4D data loaded
 }
 
 void MainWindow::setupPhaseControl()
@@ -641,6 +659,19 @@ void MainWindow::setupConnections()
             impl_->overlayControlDock, &QDockWidget::setVisible);
     connect(impl_->overlayControlDock, &QDockWidget::visibilityChanged,
             impl_->toggleOverlayControlAction, &QAction::setChecked);
+
+    connect(impl_->toggleFlowToolAction, &QAction::toggled,
+            impl_->flowToolDock, &QDockWidget::setVisible);
+    connect(impl_->flowToolDock, &QDockWidget::visibilityChanged,
+            impl_->toggleFlowToolAction, &QAction::setChecked);
+
+    // Flow tool panel series selection
+    connect(impl_->flowToolPanel, &FlowToolPanel::seriesSelectionChanged,
+            this, [this](FlowSeries series) {
+        static const char* names[] = {"Magnitude", "RL", "AP", "FH", "PC-MRA"};
+        impl_->statusLabel->setText(
+            tr("Series: %1").arg(names[static_cast<int>(series)]));
+    });
 
     // Patient browser -> Load series
     connect(impl_->patientBrowser, &PatientBrowser::seriesLoadRequested,
@@ -1008,8 +1039,10 @@ void MainWindow::onResetLayout()
     impl_->statisticsPanelDock->setFloating(false);
     impl_->segmentationPanelDock->setFloating(false);
     impl_->overlayControlDock->setFloating(false);
+    impl_->flowToolDock->setFloating(false);
     impl_->phaseControlDock->setFloating(false);
     addDockWidget(Qt::LeftDockWidgetArea, impl_->patientBrowserDock);
+    addDockWidget(Qt::LeftDockWidgetArea, impl_->flowToolDock);
     addDockWidget(Qt::LeftDockWidgetArea, impl_->phaseControlDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->toolsPanelDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->statisticsPanelDock);
