@@ -1,7 +1,10 @@
 #include "ui/panels/flow_tool_panel.hpp"
 
+#include "ui/display_3d_controller.hpp"
+
 #include <QButtonGroup>
 #include <QCheckBox>
+#include <QDoubleSpinBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -34,6 +37,14 @@ public:
 
     // Display 3D checkboxes
     std::map<Display3DItem, QCheckBox*> display3DChecks;
+
+    // Display 3D range controls (min/max spinboxes per colormap item)
+    struct RangeControl {
+        QWidget* container = nullptr;
+        QDoubleSpinBox* minSpin = nullptr;
+        QDoubleSpinBox* maxSpin = nullptr;
+    };
+    std::map<Display3DItem, RangeControl> display3DRanges;
 
     FlowSeries currentSeries = FlowSeries::Magnitude;
     bool flowDataAvailable = false;
@@ -129,6 +140,19 @@ void FlowToolPanel::setDisplay3DEnabled(Display3DItem item, bool enabled)
     it->second->blockSignals(true);
     it->second->setChecked(enabled);
     it->second->blockSignals(false);
+}
+
+void FlowToolPanel::setDisplay3DRange(Display3DItem item, double minVal, double maxVal)
+{
+    auto it = impl_->display3DRanges.find(item);
+    if (it == impl_->display3DRanges.end()) return;
+    auto& rc = it->second;
+    rc.minSpin->blockSignals(true);
+    rc.maxSpin->blockSignals(true);
+    rc.minSpin->setValue(minVal);
+    rc.maxSpin->setValue(maxVal);
+    rc.minSpin->blockSignals(false);
+    rc.maxSpin->blockSignals(false);
 }
 
 void FlowToolPanel::setupUI()
@@ -251,28 +275,60 @@ void FlowToolPanel::createDisplay3DSection()
     struct Item {
         Display3DItem id;
         const char* label;
+        double defaultMin;
+        double defaultMax;
     };
 
     const Item items[] = {
-        { Display3DItem::MaskVolume,  "Mask Vol" },
-        { Display3DItem::Surface,     "Surface" },
-        { Display3DItem::Cine,        "Cine" },
-        { Display3DItem::Magnitude,   "Magnitude" },
-        { Display3DItem::Velocity,    "Velocity" },
-        { Display3DItem::ASC,         "ASC" },
-        { Display3DItem::Streamline,  "Streamline" },
-        { Display3DItem::EnergyLoss,  "Energy Loss" },
-        { Display3DItem::WSS,         "WSS" },
-        { Display3DItem::OSI,         "OSI" },
-        { Display3DItem::AFI,         "AFI" },
-        { Display3DItem::RRT,         "RRT" },
-        { Display3DItem::Vorticity,   "Vorticity" },
+        { Display3DItem::MaskVolume,  "Mask Vol",     0, 0 },
+        { Display3DItem::Surface,     "Surface",      0, 0 },
+        { Display3DItem::Cine,        "Cine",         0, 0 },
+        { Display3DItem::Magnitude,   "Magnitude",    0, 100.0 },
+        { Display3DItem::Velocity,    "Velocity",     0, 100.0 },
+        { Display3DItem::ASC,         "ASC",          0, 0 },
+        { Display3DItem::Streamline,  "Streamline",   0, 0 },
+        { Display3DItem::EnergyLoss,  "Energy Loss",  0, 100.0 },
+        { Display3DItem::WSS,         "WSS",          0, 5.0 },
+        { Display3DItem::OSI,         "OSI",          0, 0.5 },
+        { Display3DItem::AFI,         "AFI",          0, 2.0 },
+        { Display3DItem::RRT,         "RRT",          0, 100.0 },
+        { Display3DItem::Vorticity,   "Vorticity",    0, 100.0 },
     };
 
     for (const auto& item : items) {
         auto* cb = new QCheckBox(tr(item.label));
         layout->addWidget(cb);
         impl_->display3DChecks[item.id] = cb;
+
+        // Add min/max range controls for colormap items
+        if (Display3DController::hasColormapRange(item.id)) {
+            auto* rangeContainer = new QWidget();
+            auto* rangeLayout = new QHBoxLayout(rangeContainer);
+            rangeLayout->setContentsMargins(20, 0, 4, 0);
+            rangeLayout->setSpacing(4);
+
+            auto* minSpin = new QDoubleSpinBox();
+            minSpin->setPrefix(tr("Min: "));
+            minSpin->setRange(0.0, 9999.0);
+            minSpin->setDecimals(2);
+            minSpin->setValue(item.defaultMin);
+            minSpin->setSingleStep(0.1);
+            minSpin->setMaximumHeight(22);
+
+            auto* maxSpin = new QDoubleSpinBox();
+            maxSpin->setPrefix(tr("Max: "));
+            maxSpin->setRange(0.01, 9999.0);
+            maxSpin->setDecimals(2);
+            maxSpin->setValue(item.defaultMax);
+            maxSpin->setSingleStep(0.1);
+            maxSpin->setMaximumHeight(22);
+
+            rangeLayout->addWidget(minSpin);
+            rangeLayout->addWidget(maxSpin);
+            layout->addWidget(rangeContainer);
+
+            impl_->display3DRanges[item.id] = {rangeContainer, minSpin, maxSpin};
+        }
     }
 
     layout->addStretch(1);
@@ -303,6 +359,20 @@ void FlowToolPanel::setupConnections()
         connect(cb, &QCheckBox::toggled,
                 this, [this, item](bool checked) {
             emit display3DToggled(item, checked);
+        });
+    }
+
+    // Display 3D range spinbox connections
+    for (auto& [item, rc] : impl_->display3DRanges) {
+        connect(rc.minSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [this, item](double /*val*/) {
+            auto& r = impl_->display3DRanges[item];
+            emit display3DRangeChanged(item, r.minSpin->value(), r.maxSpin->value());
+        });
+        connect(rc.maxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [this, item](double /*val*/) {
+            auto& r = impl_->display3DRanges[item];
+            emit display3DRangeChanged(item, r.minSpin->value(), r.maxSpin->value());
         });
     }
 }

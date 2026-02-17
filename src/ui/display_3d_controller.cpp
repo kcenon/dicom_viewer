@@ -5,8 +5,11 @@
 #include "services/volume_renderer.hpp"
 
 #include <vtkActor.h>
+#include <vtkColorTransferFunction.h>
+#include <vtkPiecewiseFunction.h>
 
 #include <array>
+#include <map>
 
 namespace dicom_viewer::ui {
 
@@ -27,6 +30,9 @@ public:
     vtkSmartPointer<vtkActor> surfaceActor;
 
     std::array<bool, 13> enabled{};  // All false by default
+
+    // Scalar range per item (only for colormap items)
+    std::map<Display3DItem, std::pair<double, double>> scalarRanges;
 };
 
 Display3DController::Display3DController()
@@ -156,6 +162,122 @@ void Display3DController::handleToggle(Display3DItem item, bool enabled)
             impl_->volumeRenderer->setOverlayVisible(kVorticityOverlay, enabled);
         }
         break;
+    }
+}
+
+void Display3DController::setScalarRange(Display3DItem item, double minVal, double maxVal)
+{
+    if (!hasColormapRange(item)) return;
+
+    impl_->scalarRanges[item] = {minVal, maxVal};
+
+    switch (item) {
+    // Surface hemodynamic parameters
+    case Display3DItem::WSS:
+        if (impl_->surfaceRenderer && impl_->hemoManager) {
+            if (auto idx = impl_->hemoManager->wssIndex()) {
+                impl_->surfaceRenderer->setSurfaceScalarRange(*idx, minVal, maxVal);
+                impl_->surfaceRenderer->setSurfaceLookupTable(
+                    *idx, services::SurfaceRenderer::createWSSLookupTable(maxVal));
+            }
+        }
+        break;
+
+    case Display3DItem::OSI:
+        if (impl_->surfaceRenderer && impl_->hemoManager) {
+            if (auto idx = impl_->hemoManager->osiIndex()) {
+                impl_->surfaceRenderer->setSurfaceScalarRange(*idx, minVal, maxVal);
+                impl_->surfaceRenderer->setSurfaceLookupTable(
+                    *idx, services::SurfaceRenderer::createOSILookupTable());
+            }
+        }
+        break;
+
+    case Display3DItem::AFI:
+        if (impl_->surfaceRenderer && impl_->hemoManager) {
+            if (auto idx = impl_->hemoManager->afiIndex()) {
+                impl_->surfaceRenderer->setSurfaceScalarRange(*idx, minVal, maxVal);
+                impl_->surfaceRenderer->setSurfaceLookupTable(
+                    *idx, services::SurfaceRenderer::createAFILookupTable(maxVal));
+            }
+        }
+        break;
+
+    case Display3DItem::RRT:
+        if (impl_->surfaceRenderer && impl_->hemoManager) {
+            if (auto idx = impl_->hemoManager->rrtIndex()) {
+                impl_->surfaceRenderer->setSurfaceScalarRange(*idx, minVal, maxVal);
+                impl_->surfaceRenderer->setSurfaceLookupTable(
+                    *idx, services::SurfaceRenderer::createRRTLookupTable(maxVal));
+            }
+        }
+        break;
+
+    // Volume overlay parameters
+    case Display3DItem::Velocity:
+        if (impl_->volumeRenderer && impl_->volumeRenderer->hasOverlay(kVelocityOverlay)) {
+            impl_->volumeRenderer->updateOverlayTransferFunctions(
+                kVelocityOverlay,
+                services::VolumeRenderer::createVelocityColorFunction(maxVal),
+                services::VolumeRenderer::createVelocityOpacityFunction(maxVal));
+        }
+        break;
+
+    case Display3DItem::Vorticity:
+        if (impl_->volumeRenderer && impl_->volumeRenderer->hasOverlay(kVorticityOverlay)) {
+            impl_->volumeRenderer->updateOverlayTransferFunctions(
+                kVorticityOverlay,
+                services::VolumeRenderer::createVorticityColorFunction(maxVal),
+                services::VolumeRenderer::createVorticityOpacityFunction(maxVal));
+        }
+        break;
+
+    case Display3DItem::EnergyLoss:
+        if (impl_->volumeRenderer && impl_->volumeRenderer->hasOverlay(kEnergyLossOverlay)) {
+            impl_->volumeRenderer->updateOverlayTransferFunctions(
+                kEnergyLossOverlay,
+                services::VolumeRenderer::createEnergyLossColorFunction(maxVal),
+                services::VolumeRenderer::createEnergyLossOpacityFunction(maxVal));
+        }
+        break;
+
+    case Display3DItem::Magnitude:
+        if (impl_->volumeRenderer && impl_->volumeRenderer->hasOverlay(kMagnitudeOverlay)) {
+            impl_->volumeRenderer->updateOverlayTransferFunctions(
+                kMagnitudeOverlay,
+                services::VolumeRenderer::createVelocityColorFunction(maxVal),
+                services::VolumeRenderer::createVelocityOpacityFunction(maxVal));
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+
+std::pair<double, double> Display3DController::scalarRange(Display3DItem item) const
+{
+    auto it = impl_->scalarRanges.find(item);
+    if (it != impl_->scalarRanges.end()) {
+        return it->second;
+    }
+    return {0.0, 0.0};
+}
+
+bool Display3DController::hasColormapRange(Display3DItem item)
+{
+    switch (item) {
+    case Display3DItem::WSS:
+    case Display3DItem::OSI:
+    case Display3DItem::AFI:
+    case Display3DItem::RRT:
+    case Display3DItem::Velocity:
+    case Display3DItem::Vorticity:
+    case Display3DItem::EnergyLoss:
+    case Display3DItem::Magnitude:
+        return true;
+    default:
+        return false;
     }
 }
 

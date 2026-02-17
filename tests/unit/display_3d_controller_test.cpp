@@ -374,3 +374,156 @@ TEST(Display3DControllerTest, AllItemsToggleIndependently) {
         }
     }
 }
+
+// =============================================================================
+// hasColormapRange — static classification
+// =============================================================================
+
+TEST(Display3DControllerTest, HasColormapRange_ColormapItems) {
+    EXPECT_TRUE(Display3DController::hasColormapRange(Display3DItem::WSS));
+    EXPECT_TRUE(Display3DController::hasColormapRange(Display3DItem::OSI));
+    EXPECT_TRUE(Display3DController::hasColormapRange(Display3DItem::AFI));
+    EXPECT_TRUE(Display3DController::hasColormapRange(Display3DItem::RRT));
+    EXPECT_TRUE(Display3DController::hasColormapRange(Display3DItem::Velocity));
+    EXPECT_TRUE(Display3DController::hasColormapRange(Display3DItem::Vorticity));
+    EXPECT_TRUE(Display3DController::hasColormapRange(Display3DItem::EnergyLoss));
+    EXPECT_TRUE(Display3DController::hasColormapRange(Display3DItem::Magnitude));
+}
+
+TEST(Display3DControllerTest, HasColormapRange_NonColormapItems) {
+    EXPECT_FALSE(Display3DController::hasColormapRange(Display3DItem::MaskVolume));
+    EXPECT_FALSE(Display3DController::hasColormapRange(Display3DItem::Surface));
+    EXPECT_FALSE(Display3DController::hasColormapRange(Display3DItem::Cine));
+    EXPECT_FALSE(Display3DController::hasColormapRange(Display3DItem::ASC));
+    EXPECT_FALSE(Display3DController::hasColormapRange(Display3DItem::Streamline));
+}
+
+// =============================================================================
+// Scalar range — state tracking
+// =============================================================================
+
+TEST(Display3DControllerTest, ScalarRange_DefaultZero) {
+    Display3DController ctrl;
+    auto [min, max] = ctrl.scalarRange(Display3DItem::WSS);
+    EXPECT_DOUBLE_EQ(min, 0.0);
+    EXPECT_DOUBLE_EQ(max, 0.0);
+}
+
+TEST(Display3DControllerTest, ScalarRange_StoresValue) {
+    Display3DController ctrl;
+    ctrl.setScalarRange(Display3DItem::WSS, 0.5, 4.0);
+    auto [min, max] = ctrl.scalarRange(Display3DItem::WSS);
+    EXPECT_DOUBLE_EQ(min, 0.5);
+    EXPECT_DOUBLE_EQ(max, 4.0);
+}
+
+TEST(Display3DControllerTest, ScalarRange_IndependentPerItem) {
+    Display3DController ctrl;
+    ctrl.setScalarRange(Display3DItem::WSS, 0.0, 5.0);
+    ctrl.setScalarRange(Display3DItem::OSI, 0.0, 0.5);
+    ctrl.setScalarRange(Display3DItem::Velocity, 0.0, 120.0);
+
+    auto wss = ctrl.scalarRange(Display3DItem::WSS);
+    auto osi = ctrl.scalarRange(Display3DItem::OSI);
+    auto vel = ctrl.scalarRange(Display3DItem::Velocity);
+
+    EXPECT_DOUBLE_EQ(wss.second, 5.0);
+    EXPECT_DOUBLE_EQ(osi.second, 0.5);
+    EXPECT_DOUBLE_EQ(vel.second, 120.0);
+}
+
+TEST(Display3DControllerTest, ScalarRange_IgnoredForNonColormap) {
+    Display3DController ctrl;
+    ctrl.setScalarRange(Display3DItem::Streamline, 1.0, 10.0);
+    // Non-colormap items are rejected by setScalarRange
+    auto [min, max] = ctrl.scalarRange(Display3DItem::Streamline);
+    EXPECT_DOUBLE_EQ(min, 0.0);
+    EXPECT_DOUBLE_EQ(max, 0.0);
+}
+
+TEST(Display3DControllerTest, ScalarRange_OverwritePrevious) {
+    Display3DController ctrl;
+    ctrl.setScalarRange(Display3DItem::RRT, 0.0, 50.0);
+    ctrl.setScalarRange(Display3DItem::RRT, 10.0, 200.0);
+    auto [min, max] = ctrl.scalarRange(Display3DItem::RRT);
+    EXPECT_DOUBLE_EQ(min, 10.0);
+    EXPECT_DOUBLE_EQ(max, 200.0);
+}
+
+// =============================================================================
+// Scalar range — surface renderer integration
+// =============================================================================
+
+TEST_F(Display3DControllerSurfaceTest, SetScalarRange_WSS) {
+    ctrl->setScalarRange(Display3DItem::WSS, 0.0, 3.0);
+    auto [min, max] = ctrl->scalarRange(Display3DItem::WSS);
+    EXPECT_DOUBLE_EQ(min, 0.0);
+    EXPECT_DOUBLE_EQ(max, 3.0);
+    // Verify no crash when routing to SurfaceRenderer
+    ASSERT_TRUE(hemoManager->wssIndex().has_value());
+}
+
+TEST_F(Display3DControllerSurfaceTest, SetScalarRange_OSI) {
+    ctrl->setScalarRange(Display3DItem::OSI, 0.0, 0.3);
+    auto [min, max] = ctrl->scalarRange(Display3DItem::OSI);
+    EXPECT_DOUBLE_EQ(min, 0.0);
+    EXPECT_DOUBLE_EQ(max, 0.3);
+    ASSERT_TRUE(hemoManager->osiIndex().has_value());
+}
+
+TEST_F(Display3DControllerSurfaceTest, SetScalarRange_AFI) {
+    ctrl->setScalarRange(Display3DItem::AFI, 0.0, 1.5);
+    auto [min, max] = ctrl->scalarRange(Display3DItem::AFI);
+    EXPECT_DOUBLE_EQ(min, 0.0);
+    EXPECT_DOUBLE_EQ(max, 1.5);
+    ASSERT_TRUE(hemoManager->afiIndex().has_value());
+}
+
+TEST_F(Display3DControllerSurfaceTest, SetScalarRange_RRT) {
+    ctrl->setScalarRange(Display3DItem::RRT, 5.0, 80.0);
+    auto [min, max] = ctrl->scalarRange(Display3DItem::RRT);
+    EXPECT_DOUBLE_EQ(min, 5.0);
+    EXPECT_DOUBLE_EQ(max, 80.0);
+    ASSERT_TRUE(hemoManager->rrtIndex().has_value());
+}
+
+// =============================================================================
+// Scalar range — volume renderer integration
+// =============================================================================
+
+TEST_F(Display3DControllerVolumeTest, SetScalarRange_Velocity) {
+    ctrl->setScalarRange(Display3DItem::Velocity, 0.0, 80.0);
+    auto [min, max] = ctrl->scalarRange(Display3DItem::Velocity);
+    EXPECT_DOUBLE_EQ(min, 0.0);
+    EXPECT_DOUBLE_EQ(max, 80.0);
+}
+
+TEST_F(Display3DControllerVolumeTest, SetScalarRange_Vorticity) {
+    ctrl->setScalarRange(Display3DItem::Vorticity, 0.0, 50.0);
+    auto [min, max] = ctrl->scalarRange(Display3DItem::Vorticity);
+    EXPECT_DOUBLE_EQ(min, 0.0);
+    EXPECT_DOUBLE_EQ(max, 50.0);
+}
+
+TEST_F(Display3DControllerVolumeTest, SetScalarRange_EnergyLoss) {
+    ctrl->setScalarRange(Display3DItem::EnergyLoss, 0.0, 75.0);
+    auto [min, max] = ctrl->scalarRange(Display3DItem::EnergyLoss);
+    EXPECT_DOUBLE_EQ(min, 0.0);
+    EXPECT_DOUBLE_EQ(max, 75.0);
+}
+
+TEST_F(Display3DControllerVolumeTest, SetScalarRange_Magnitude) {
+    ctrl->setScalarRange(Display3DItem::Magnitude, 10.0, 90.0);
+    auto [min, max] = ctrl->scalarRange(Display3DItem::Magnitude);
+    EXPECT_DOUBLE_EQ(min, 10.0);
+    EXPECT_DOUBLE_EQ(max, 90.0);
+}
+
+TEST_F(Display3DControllerVolumeTest, SetScalarRange_WithoutRenderer_NoOp) {
+    Display3DController detached;
+    // Should not crash when no renderer is set
+    detached.setScalarRange(Display3DItem::Velocity, 0.0, 100.0);
+    auto [min, max] = detached.scalarRange(Display3DItem::Velocity);
+    EXPECT_DOUBLE_EQ(min, 0.0);
+    EXPECT_DOUBLE_EQ(max, 100.0);
+}
