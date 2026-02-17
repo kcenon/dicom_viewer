@@ -25,6 +25,11 @@
 #include <vtkPointPicker.h>
 #include <vtkCellPicker.h>
 #include <vtkEventQtSlotConnect.h>
+#include <vtkLineSource.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkActor.h>
+#include <vtkProperty.h>
+#include <vtkAppendPolyData.h>
 
 namespace dicom_viewer::ui {
 
@@ -56,6 +61,14 @@ public:
     double windowWidth = 400.0;
     double windowCenter = 40.0;
     int currentSlice = 0;
+
+    // MPR crosshair lines (intersection of other planes)
+    vtkSmartPointer<vtkActor> crosshairHLine;
+    vtkSmartPointer<vtkActor> crosshairVLine;
+    vtkSmartPointer<vtkLineSource> crosshairHSource;
+    vtkSmartPointer<vtkLineSource> crosshairVSource;
+    bool crosshairLinesVisible = false;
+    double crosshairWorldPos[3] = {0.0, 0.0, 0.0};
 
     Impl() {
         renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
@@ -90,6 +103,24 @@ public:
 
         // Setup segmentation controller
         segmentationController = std::make_unique<services::ManualSegmentationController>();
+
+        // Setup crosshair line actors
+        crosshairHSource = vtkSmartPointer<vtkLineSource>::New();
+        crosshairVSource = vtkSmartPointer<vtkLineSource>::New();
+
+        auto hMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+        hMapper->SetInputConnection(crosshairHSource->GetOutputPort());
+        crosshairHLine = vtkSmartPointer<vtkActor>::New();
+        crosshairHLine->SetMapper(hMapper);
+        crosshairHLine->GetProperty()->SetLineWidth(1.0);
+        crosshairHLine->SetVisibility(false);
+
+        auto vMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+        vMapper->SetInputConnection(crosshairVSource->GetOutputPort());
+        crosshairVLine = vtkSmartPointer<vtkActor>::New();
+        crosshairVLine->SetMapper(vMapper);
+        crosshairVLine->GetProperty()->SetLineWidth(1.0);
+        crosshairVLine->SetVisibility(false);
     }
 
     void updateInteractorStyle() {
@@ -115,6 +146,71 @@ public:
             sliceMapper->SetSliceNumber(currentSlice);
             renderer->AddViewProp(imageSlice);
         }
+        // Add crosshair line actors (visibility controlled separately)
+        renderer->AddActor(crosshairHLine);
+        renderer->AddActor(crosshairVLine);
+    }
+
+    void updateCrosshairLines() {
+        if (!crosshairLinesVisible || !imageData) {
+            crosshairHLine->SetVisibility(false);
+            crosshairVLine->SetVisibility(false);
+            return;
+        }
+
+        double* origin = imageData->GetOrigin();
+        double* spacing = imageData->GetSpacing();
+        int* dims = imageData->GetDimensions();
+
+        double xMin = origin[0];
+        double xMax = origin[0] + (dims[0] - 1) * spacing[0];
+        double yMin = origin[1];
+        double yMax = origin[1] + (dims[1] - 1) * spacing[1];
+        double zMin = origin[2];
+        double zMax = origin[2] + (dims[2] - 1) * spacing[2];
+
+        double cx = crosshairWorldPos[0];
+        double cy = crosshairWorldPos[1];
+        double cz = crosshairWorldPos[2];
+
+        // Lines represent intersection of other planes on this view
+        // Axial (XY): H-line=Coronal(blue), V-line=Sagittal(green)
+        // Coronal (XZ): H-line=Axial(red), V-line=Sagittal(green)
+        // Sagittal (YZ): H-line=Axial(red), V-line=Coronal(blue)
+        switch (sliceOrientation) {
+            case SliceOrientation::Axial:
+                crosshairHSource->SetPoint1(xMin, cy, cz);
+                crosshairHSource->SetPoint2(xMax, cy, cz);
+                crosshairVSource->SetPoint1(cx, yMin, cz);
+                crosshairVSource->SetPoint2(cx, yMax, cz);
+                // H = Coronal (blue), V = Sagittal (green)
+                crosshairHLine->GetProperty()->SetColor(0.3, 0.5, 1.0);
+                crosshairVLine->GetProperty()->SetColor(0.3, 1.0, 0.3);
+                break;
+            case SliceOrientation::Coronal:
+                crosshairHSource->SetPoint1(xMin, cy, cz);
+                crosshairHSource->SetPoint2(xMax, cy, cz);
+                crosshairVSource->SetPoint1(cx, cy, zMin);
+                crosshairVSource->SetPoint2(cx, cy, zMax);
+                // H = Axial (red), V = Sagittal (green)
+                crosshairHLine->GetProperty()->SetColor(1.0, 0.3, 0.3);
+                crosshairVLine->GetProperty()->SetColor(0.3, 1.0, 0.3);
+                break;
+            case SliceOrientation::Sagittal:
+                crosshairHSource->SetPoint1(cx, yMin, cz);
+                crosshairHSource->SetPoint2(cx, yMax, cz);
+                crosshairVSource->SetPoint1(cx, cy, zMin);
+                crosshairVSource->SetPoint2(cx, cy, zMax);
+                // H = Axial (red), V = Coronal (blue)
+                crosshairHLine->GetProperty()->SetColor(1.0, 0.3, 0.3);
+                crosshairVLine->GetProperty()->SetColor(0.3, 0.5, 1.0);
+                break;
+        }
+
+        crosshairHSource->Update();
+        crosshairVSource->Update();
+        crosshairHLine->SetVisibility(true);
+        crosshairVLine->SetVisibility(true);
     }
 };
 
@@ -313,19 +409,55 @@ void ViewportWidget::setCrosshairPosition(double x, double y, double z)
 {
     if (!impl_->imageData) return;
 
+    impl_->crosshairWorldPos[0] = x;
+    impl_->crosshairWorldPos[1] = y;
+    impl_->crosshairWorldPos[2] = z;
+
     double* spacing = impl_->imageData->GetSpacing();
     double* origin = impl_->imageData->GetOrigin();
-
-    int slice = static_cast<int>((z - origin[2]) / spacing[2]);
     int* dims = impl_->imageData->GetDimensions();
 
-    if (slice >= 0 && slice < dims[2]) {
-        impl_->currentSlice = slice;
-        impl_->sliceMapper->SetSliceNumber(slice);
-        impl_->vtkWidget->renderWindow()->Render();
+    // Map world coordinate to slice index based on orientation
+    int slice = 0;
+    int maxSlice = 0;
+    switch (impl_->sliceOrientation) {
+        case SliceOrientation::Axial:    // Slices along Z
+            slice = static_cast<int>((z - origin[2]) / spacing[2]);
+            maxSlice = dims[2];
+            break;
+        case SliceOrientation::Coronal:  // Slices along Y
+            slice = static_cast<int>((y - origin[1]) / spacing[1]);
+            maxSlice = dims[1];
+            break;
+        case SliceOrientation::Sagittal: // Slices along X
+            slice = static_cast<int>((x - origin[0]) / spacing[0]);
+            maxSlice = dims[0];
+            break;
     }
 
+    if (slice >= 0 && slice < maxSlice) {
+        impl_->currentSlice = slice;
+        impl_->sliceMapper->SetSliceNumber(slice);
+    }
+
+    impl_->updateCrosshairLines();
+    impl_->vtkWidget->renderWindow()->Render();
+
     emit crosshairPositionChanged(x, y, z);
+}
+
+void ViewportWidget::setCrosshairLinesVisible(bool visible)
+{
+    impl_->crosshairLinesVisible = visible;
+    impl_->updateCrosshairLines();
+    if (impl_->vtkWidget && impl_->vtkWidget->renderWindow()) {
+        impl_->vtkWidget->renderWindow()->Render();
+    }
+}
+
+bool ViewportWidget::isCrosshairLinesVisible() const
+{
+    return impl_->crosshairLinesVisible;
 }
 
 void ViewportWidget::setPhaseIndex(int phaseIndex)
