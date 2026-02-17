@@ -1800,3 +1800,24 @@ vtk_module_autoinit(
 )
 
 gtest_discover_tests(display_3d_controller_test DISCOVERY_TIMEOUT 60)
+
+add_executable(asc_view_controller_test
+    unit/asc_view_controller_test.cpp
+)
+
+target_link_libraries(asc_view_controller_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(asc_view_controller_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+vtk_module_autoinit(
+    TARGETS asc_view_controller_test
+    MODULES ${VTK_LIBRARIES}
+)
+
+gtest_discover_tests(asc_view_controller_test DISCOVERY_TIMEOUT 60)

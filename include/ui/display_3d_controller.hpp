@@ -13,6 +13,7 @@ namespace dicom_viewer::services {
 class VolumeRenderer;
 class SurfaceRenderer;
 class HemodynamicSurfaceManager;
+class AscViewController;
 }  // namespace dicom_viewer::services
 
 namespace dicom_viewer::ui {
@@ -27,7 +28,8 @@ namespace dicom_viewer::ui {
  *   → SurfaceRenderer::setSurfaceVisibility() via HemodynamicSurfaceManager
  * - Streamline → vtkActor visibility
  * - MaskVolume, Surface → base renderer visibility
- * - Cine, ASC → stub (not yet implemented)
+ * - ASC → AscViewController::setVisible()
+ * - Cine → stub (not yet implemented)
  *
  * This class does NOT derive from QObject. The caller (MainWindow) wires
  * FlowToolPanel::display3DToggled to handleToggle() via a lambda.
@@ -82,6 +84,12 @@ public:
      * @param actor Surface mesh actor
      */
     void setSurfaceActor(vtkSmartPointer<vtkActor> actor);
+
+    /**
+     * @brief Set the ASC view controller for orthogonal plane visibility
+     * @param controller Non-owning pointer (caller manages lifetime)
+     */
+    void setAscController(services::AscViewController* controller);
 
     // --- Toggle dispatch ---
 
