@@ -662,3 +662,72 @@ TEST(HemodynamicOverlayRendererTest, ColormapOverrideAfterTypeSet) {
     ASSERT_NE(lut, nullptr);
     EXPECT_EQ(lut->GetNumberOfTableValues(), 256);
 }
+
+// =============================================================================
+// Mask Overlay Type
+// =============================================================================
+
+TEST(HemodynamicOverlayRendererTest, MaskOverlayType) {
+    HemodynamicOverlayRenderer renderer;
+    renderer.setOverlayType(OverlayType::Mask);
+    EXPECT_EQ(renderer.overlayType(), OverlayType::Mask);
+}
+
+TEST(HemodynamicOverlayRendererTest, DefaultColormapForMask) {
+    auto preset = HemodynamicOverlayRenderer::defaultColormapForType(
+        OverlayType::Mask);
+    EXPECT_EQ(preset, ColormapPreset::Jet);
+}
+
+// =============================================================================
+// Performance Timing
+// =============================================================================
+
+TEST(HemodynamicOverlayRendererTest, LastRenderTimeMs_InitiallyZero) {
+    HemodynamicOverlayRenderer renderer;
+    EXPECT_DOUBLE_EQ(renderer.lastRenderTimeMs(), 0.0);
+}
+
+TEST(HemodynamicOverlayRendererTest, LastRenderTimeMs_MeasuredAfterUpdate) {
+    HemodynamicOverlayRenderer renderer;
+    auto field = createScalarField(32, 32, 32);
+    renderer.setScalarField(field);
+
+    auto axial = vtkSmartPointer<vtkRenderer>::New();
+    auto coronal = vtkSmartPointer<vtkRenderer>::New();
+    auto sagittal = vtkSmartPointer<vtkRenderer>::New();
+    renderer.setRenderers(axial, coronal, sagittal);
+
+    renderer.setSlicePosition(MPRPlane::Axial, 16.0);
+    renderer.setSlicePosition(MPRPlane::Coronal, 16.0);
+    renderer.setSlicePosition(MPRPlane::Sagittal, 16.0);
+
+    renderer.update();
+
+    double ms = renderer.lastRenderTimeMs();
+    EXPECT_GT(ms, 0.0);
+    // Performance requirement: overlay rendering < 50ms per frame
+    EXPECT_LT(ms, 50.0);
+}
+
+TEST(HemodynamicOverlayRendererTest, PerformanceLargeField) {
+    // Test with a larger field (64^3) to verify performance under load
+    HemodynamicOverlayRenderer renderer;
+    auto field = createScalarField(64, 64, 64);
+    renderer.setScalarField(field);
+
+    auto axial = vtkSmartPointer<vtkRenderer>::New();
+    auto coronal = vtkSmartPointer<vtkRenderer>::New();
+    auto sagittal = vtkSmartPointer<vtkRenderer>::New();
+    renderer.setRenderers(axial, coronal, sagittal);
+
+    renderer.setSlicePosition(MPRPlane::Axial, 32.0);
+    renderer.setSlicePosition(MPRPlane::Coronal, 32.0);
+    renderer.setSlicePosition(MPRPlane::Sagittal, 32.0);
+
+    renderer.update();
+
+    double ms = renderer.lastRenderTimeMs();
+    EXPECT_GT(ms, 0.0);
+    EXPECT_LT(ms, 50.0);
+}

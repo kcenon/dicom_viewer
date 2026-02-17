@@ -14,6 +14,7 @@
 #include <vtkMath.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 namespace dicom_viewer::services {
@@ -143,6 +144,9 @@ public:
 
     // Shared lookup table
     vtkSmartPointer<vtkLookupTable> lookupTable;
+
+    // Performance timing
+    double lastRenderMs = 0.0;
 
     Impl() {
         lookupTable = vtkSmartPointer<vtkLookupTable>::New();
@@ -384,12 +388,17 @@ HemodynamicOverlayRenderer::setSlicePosition(MPRPlane plane, double worldPositio
 }
 
 void HemodynamicOverlayRenderer::update() {
+    auto start = std::chrono::steady_clock::now();
+
     for (int i = 0; i < 3; ++i) {
         if (impl_->scalarField) {
             impl_->reslicers[i]->Update();
             impl_->colorMappers[i]->Update();
         }
     }
+
+    auto end = std::chrono::steady_clock::now();
+    impl_->lastRenderMs = std::chrono::duration<double, std::milli>(end - start).count();
 }
 
 void HemodynamicOverlayRenderer::updatePlane(MPRPlane plane) {
@@ -398,6 +407,10 @@ void HemodynamicOverlayRenderer::updatePlane(MPRPlane plane) {
         impl_->reslicers[idx]->Update();
         impl_->colorMappers[idx]->Update();
     }
+}
+
+double HemodynamicOverlayRenderer::lastRenderTimeMs() const noexcept {
+    return impl_->lastRenderMs;
 }
 
 // =============================================================================
@@ -492,6 +505,8 @@ ColormapPreset HemodynamicOverlayRenderer::defaultColormapForType(OverlayType ty
             return ColormapPreset::Jet;
         case OverlayType::VelocityTexture:
             return ColormapPreset::Viridis;
+        case OverlayType::Mask:
+            return ColormapPreset::Jet;  // Mask uses per-label coloring, not LUT
     }
     return ColormapPreset::Jet;
 }

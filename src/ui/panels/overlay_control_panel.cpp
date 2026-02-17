@@ -78,6 +78,8 @@ void OverlayControlPanel::setupUI() {
     impl_->mainLayout->addWidget(titleLabel);
 
     // Create control groups for each overlay type
+    createOverlayGroup(services::OverlayType::Mask,
+                       tr("Segmentation Mask"), 0.0, 0.0);
     createOverlayGroup(services::OverlayType::VelocityMagnitude,
                        tr("Velocity Magnitude"), 0.0, 100.0);
     createOverlayGroup(services::OverlayType::VelocityX,
@@ -134,9 +136,10 @@ void OverlayControlPanel::createOverlayGroup(
     opacityRow->addWidget(group.opacityLabel);
     layout->addLayout(opacityRow);
 
-    // Scalar range row (skip for Streamline/VelocityTexture - not colormap-based)
+    // Scalar range row (skip for Streamline/VelocityTexture/Mask - not colormap-based)
     bool hasRange = (type != services::OverlayType::Streamline &&
-                     type != services::OverlayType::VelocityTexture);
+                     type != services::OverlayType::VelocityTexture &&
+                     type != services::OverlayType::Mask);
     if (hasRange) {
         auto* rangeRow = new QHBoxLayout();
         rangeRow->addWidget(new QLabel(tr("Range:")));
