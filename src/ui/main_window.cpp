@@ -171,7 +171,9 @@ void MainWindow::setupUI()
 
 void MainWindow::setupMenuBar()
 {
+    // =========================================================================
     // File menu
+    // =========================================================================
     auto fileMenu = menuBar()->addMenu(tr("&File"));
 
     // Project operations
@@ -220,118 +222,191 @@ void MainWindow::setupMenuBar()
 
     fileMenu->addSeparator();
 
-    auto saveScreenshotAction = fileMenu->addAction(tr("Save Sc&reenshot..."));
-    saveScreenshotAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S));
-    connect(saveScreenshotAction, &QAction::triggered, this, [this]() {
-        QString filePath = QFileDialog::getSaveFileName(
-            this, tr("Save Screenshot"), QString(),
-            tr("PNG Images (*.png);;JPEG Images (*.jpg)"));
-        if (!filePath.isEmpty()) {
-            impl_->viewport->captureScreenshot(filePath);
-            statusBar()->showMessage(tr("Screenshot saved: %1").arg(filePath), 3000);
-        }
-    });
-
-    fileMenu->addSeparator();
-
     auto exitAction = fileMenu->addAction(tr("E&xit"));
     exitAction->setShortcut(QKeySequence::Quit);
     connect(exitAction, &QAction::triggered, this, &MainWindow::close);
 
-    // Edit menu
-    auto editMenu = menuBar()->addMenu(tr("&Edit"));
+    // =========================================================================
+    // Seg(3D) menu — 3D segmentation operations
+    // =========================================================================
+    auto seg3dMenu = menuBar()->addMenu(tr("Seg(&3D)"));
 
-    impl_->undoAction = editMenu->addAction(tr("&Undo"));
+    impl_->undoAction = seg3dMenu->addAction(tr("&Undo"));
     impl_->undoAction->setShortcut(QKeySequence::Undo);
     impl_->undoAction->setEnabled(false);
     connect(impl_->undoAction, &QAction::triggered,
             this, [this]() { impl_->viewport->undoSegmentationCommand(); });
 
-    impl_->redoAction = editMenu->addAction(tr("&Redo"));
+    impl_->redoAction = seg3dMenu->addAction(tr("&Redo"));
     impl_->redoAction->setShortcut(QKeySequence::Redo);
     impl_->redoAction->setEnabled(false);
     connect(impl_->redoAction, &QAction::triggered,
             this, [this]() { impl_->viewport->redoSegmentationCommand(); });
 
-    editMenu->addSeparator();
+    seg3dMenu->addSeparator();
 
-    auto settingsAction = editMenu->addAction(tr("&Settings..."));
-    settingsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma));
-    connect(settingsAction, &QAction::triggered, this, &MainWindow::onShowSettings);
+    auto saveSegAction = seg3dMenu->addAction(tr("&Save Segmentation"));
+    saveSegAction->setEnabled(false);
+    saveSegAction->setToolTip(tr("Save current segmentation (not yet implemented)"));
 
-    // View menu
-    auto viewMenu = menuBar()->addMenu(tr("&View"));
+    seg3dMenu->addSeparator();
 
-    impl_->togglePatientBrowserAction = viewMenu->addAction(tr("&Patient Browser"));
+    auto exportMaskAction = seg3dMenu->addAction(tr("&Export Mask..."));
+    exportMaskAction->setEnabled(false);
+    exportMaskAction->setToolTip(tr("Export segmentation mask (not yet implemented)"));
+
+    auto importMaskAction = seg3dMenu->addAction(tr("&Import Mask..."));
+    importMaskAction->setEnabled(false);
+    importMaskAction->setToolTip(tr("Import segmentation mask (not yet implemented)"));
+
+    seg3dMenu->addSeparator();
+
+    auto exportStlAction = seg3dMenu->addAction(tr("Export S&TL..."));
+    exportStlAction->setEnabled(false);
+    exportStlAction->setToolTip(tr("Export mesh as STL (not yet implemented)"));
+
+    auto importStlAction = seg3dMenu->addAction(tr("Import ST&L..."));
+    importStlAction->setEnabled(false);
+    importStlAction->setToolTip(tr("Import mesh from STL (not yet implemented)"));
+
+    // =========================================================================
+    // Seg(2D) menu — 2D segmentation tools
+    // =========================================================================
+    auto seg2dMenu = menuBar()->addMenu(tr("Seg(&2D)"));
+
+    auto brushToolAction = seg2dMenu->addAction(tr("&Brush Tool"));
+    brushToolAction->setEnabled(false);
+    brushToolAction->setToolTip(tr("2D brush segmentation tool (not yet implemented)"));
+
+    auto eraserToolAction = seg2dMenu->addAction(tr("&Eraser Tool"));
+    eraserToolAction->setEnabled(false);
+    eraserToolAction->setToolTip(tr("2D eraser tool (not yet implemented)"));
+
+    auto smartBrushAction = seg2dMenu->addAction(tr("&Smart Brush"));
+    smartBrushAction->setEnabled(false);
+    smartBrushAction->setToolTip(tr("AI-assisted brush (not yet implemented)"));
+
+    seg2dMenu->addSeparator();
+
+    auto growShrinkAction = seg2dMenu->addAction(tr("&Grow/Shrink Selection"));
+    growShrinkAction->setEnabled(false);
+    growShrinkAction->setToolTip(tr("Morphological grow/shrink (not yet implemented)"));
+
+    auto thresholdSegAction = seg2dMenu->addAction(tr("&Threshold Segmentation"));
+    thresholdSegAction->setEnabled(false);
+    thresholdSegAction->setToolTip(tr("Threshold-based segmentation (not yet implemented)"));
+
+    // =========================================================================
+    // Data Correction menu
+    // =========================================================================
+    auto dataCorrMenu = menuBar()->addMenu(tr("Data &Correction"));
+
+    auto phaseUnwrapAction = dataCorrMenu->addAction(tr("&Phase Unwrapping"));
+    phaseUnwrapAction->setEnabled(false);
+    phaseUnwrapAction->setToolTip(tr("Phase unwrapping correction (not yet implemented)"));
+
+    auto eddyCurrentAction = dataCorrMenu->addAction(tr("&Eddy Current Correction"));
+    eddyCurrentAction->setEnabled(false);
+    eddyCurrentAction->setToolTip(tr("Eddy current correction (not yet implemented)"));
+
+    auto bgPhaseAction = dataCorrMenu->addAction(tr("&Background Phase Correction"));
+    bgPhaseAction->setEnabled(false);
+    bgPhaseAction->setToolTip(tr("Background phase correction (not yet implemented)"));
+
+    dataCorrMenu->addSeparator();
+
+    auto noiseReductionAction = dataCorrMenu->addAction(tr("&Noise Reduction"));
+    noiseReductionAction->setEnabled(false);
+    noiseReductionAction->setToolTip(tr("Noise reduction (not yet implemented)"));
+
+    auto antiAliasingAction = dataCorrMenu->addAction(tr("&Anti-aliasing"));
+    antiAliasingAction->setEnabled(false);
+    antiAliasingAction->setToolTip(tr("Anti-aliasing filter (not yet implemented)"));
+
+    // =========================================================================
+    // Display menu — panel toggles, zoom, W/L, layout
+    // =========================================================================
+    auto displayMenu = menuBar()->addMenu(tr("&Display"));
+
+    // Panel visibility submenu
+    auto panelsMenu = displayMenu->addMenu(tr("&Panels"));
+
+    impl_->togglePatientBrowserAction = panelsMenu->addAction(tr("&Patient Browser"));
     impl_->togglePatientBrowserAction->setCheckable(true);
     impl_->togglePatientBrowserAction->setChecked(true);
     impl_->togglePatientBrowserAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_1));
 
-    impl_->toggleToolsPanelAction = viewMenu->addAction(tr("&Tools Panel"));
+    impl_->toggleToolsPanelAction = panelsMenu->addAction(tr("&Tools Panel"));
     impl_->toggleToolsPanelAction->setCheckable(true);
     impl_->toggleToolsPanelAction->setChecked(true);
     impl_->toggleToolsPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_2));
 
-    impl_->toggleStatisticsPanelAction = viewMenu->addAction(tr("&Statistics Panel"));
+    impl_->toggleStatisticsPanelAction = panelsMenu->addAction(tr("&Statistics Panel"));
     impl_->toggleStatisticsPanelAction->setCheckable(true);
     impl_->toggleStatisticsPanelAction->setChecked(false);
     impl_->toggleStatisticsPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_3));
 
-    impl_->toggleSegmentationPanelAction = viewMenu->addAction(tr("Se&gmentation Panel"));
+    impl_->toggleSegmentationPanelAction = panelsMenu->addAction(tr("Se&gmentation Panel"));
     impl_->toggleSegmentationPanelAction->setCheckable(true);
     impl_->toggleSegmentationPanelAction->setChecked(false);
     impl_->toggleSegmentationPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_4));
 
-    impl_->togglePhaseControlAction = viewMenu->addAction(tr("&Phase Control"));
+    impl_->togglePhaseControlAction = panelsMenu->addAction(tr("&Phase Control"));
     impl_->togglePhaseControlAction->setCheckable(true);
     impl_->togglePhaseControlAction->setChecked(false);
     impl_->togglePhaseControlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_5));
 
-    impl_->toggleOverlayControlAction = viewMenu->addAction(tr("&Overlay Controls"));
+    impl_->toggleOverlayControlAction = panelsMenu->addAction(tr("&Overlay Controls"));
     impl_->toggleOverlayControlAction->setCheckable(true);
     impl_->toggleOverlayControlAction->setChecked(false);
     impl_->toggleOverlayControlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_6));
 
-    impl_->toggleFlowToolAction = viewMenu->addAction(tr("&Flow Tools"));
+    impl_->toggleFlowToolAction = panelsMenu->addAction(tr("&Flow Tools"));
     impl_->toggleFlowToolAction->setCheckable(true);
     impl_->toggleFlowToolAction->setChecked(false);
     impl_->toggleFlowToolAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_7));
 
-    viewMenu->addSeparator();
+    displayMenu->addSeparator();
 
-    auto fullScreenAction = viewMenu->addAction(tr("&Full Screen"));
-    fullScreenAction->setShortcut(Qt::Key_F11);
-    fullScreenAction->setCheckable(true);
-    connect(fullScreenAction, &QAction::triggered, this, &MainWindow::onToggleFullScreen);
-
-    auto resetLayoutAction = viewMenu->addAction(tr("&Reset Layout"));
-    resetLayoutAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
-    connect(resetLayoutAction, &QAction::triggered, this, &MainWindow::onResetLayout);
-
-    // Image menu
-    auto imageMenu = menuBar()->addMenu(tr("&Image"));
-
-    auto zoomInAction = imageMenu->addAction(tr("Zoom &In"));
+    // Zoom and camera controls
+    auto zoomInAction = displayMenu->addAction(tr("Zoom &In"));
     zoomInAction->setShortcut(QKeySequence::ZoomIn);
 
-    auto zoomOutAction = imageMenu->addAction(tr("Zoom &Out"));
+    auto zoomOutAction = displayMenu->addAction(tr("Zoom &Out"));
     zoomOutAction->setShortcut(QKeySequence::ZoomOut);
 
-    auto fitToWindowAction = imageMenu->addAction(tr("&Fit to Window"));
+    auto fitToWindowAction = displayMenu->addAction(tr("&Fit to Window"));
     fitToWindowAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
     connect(fitToWindowAction, &QAction::triggered, this, [this]() {
         impl_->viewport->resetCamera();
     });
 
-    imageMenu->addSeparator();
-
-    auto resetWLAction = imageMenu->addAction(tr("Reset &Window/Level"));
+    auto resetWLAction = displayMenu->addAction(tr("Reset &Window/Level"));
     resetWLAction->setShortcut(QKeySequence(Qt::Key_Escape));
 
-    // Tools menu
-    auto toolsMenu = menuBar()->addMenu(tr("&Tools"));
+    displayMenu->addSeparator();
 
-    impl_->distanceAction = toolsMenu->addAction(tr("&Distance"));
+    // Window layout
+    auto fullScreenAction = displayMenu->addAction(tr("F&ull Screen"));
+    fullScreenAction->setShortcut(Qt::Key_F11);
+    fullScreenAction->setCheckable(true);
+    connect(fullScreenAction, &QAction::triggered, this, &MainWindow::onToggleFullScreen);
+
+    auto resetLayoutAction = displayMenu->addAction(tr("&Reset Layout"));
+    resetLayoutAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
+    connect(resetLayoutAction, &QAction::triggered, this, &MainWindow::onResetLayout);
+
+    displayMenu->addSeparator();
+
+    auto cascadeAction = displayMenu->addAction(tr("&Cascade Windows"));
+    auto tileAction = displayMenu->addAction(tr("&Tile Windows"));
+
+    // =========================================================================
+    // Measure menu — distance, angle, ROI, quantification
+    // =========================================================================
+    auto measureMenu = menuBar()->addMenu(tr("&Measure"));
+
+    impl_->distanceAction = measureMenu->addAction(tr("&Distance"));
     impl_->distanceAction->setShortcut(QKeySequence(Qt::Key_D));
     impl_->distanceAction->setCheckable(true);
     connect(impl_->distanceAction, &QAction::triggered, this, [this]() {
@@ -344,7 +419,7 @@ void MainWindow::setupMenuBar()
         }
     });
 
-    impl_->angleAction = toolsMenu->addAction(tr("&Angle"));
+    impl_->angleAction = measureMenu->addAction(tr("&Angle"));
     impl_->angleAction->setShortcut(QKeySequence(Qt::Key_A));
     impl_->angleAction->setCheckable(true);
     connect(impl_->angleAction, &QAction::triggered, this, [this]() {
@@ -357,39 +432,10 @@ void MainWindow::setupMenuBar()
         }
     });
 
-    toolsMenu->addSeparator();
-
-    auto clearMeasurementsAction = toolsMenu->addAction(tr("&Clear All Measurements"));
-    clearMeasurementsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
-    connect(clearMeasurementsAction, &QAction::triggered, this, [this]() {
-        impl_->viewport->deleteAllMeasurements();
-        impl_->statisticsPanel->clearStatistics();
-        statusBar()->showMessage(tr("All measurements cleared"), 3000);
-    });
-
-    impl_->showStatisticsAction = toolsMenu->addAction(tr("&Show ROI Statistics"));
-    connect(impl_->showStatisticsAction, &QAction::triggered,
-            this, &MainWindow::onShowRoiStatistics);
-
-    auto quantificationAction = toolsMenu->addAction(tr("&Quantification..."));
-    quantificationAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));
-    connect(quantificationAction, &QAction::triggered, this, [this]() {
-        if (!impl_->quantificationWindow) {
-            impl_->quantificationWindow = new QuantificationWindow(this);
-            impl_->quantificationWindow->setAttribute(Qt::WA_DeleteOnClose);
-            connect(impl_->quantificationWindow, &QObject::destroyed, this, [this]() {
-                impl_->quantificationWindow = nullptr;
-            });
-        }
-        impl_->quantificationWindow->show();
-        impl_->quantificationWindow->raise();
-        impl_->quantificationWindow->activateWindow();
-    });
-
-    toolsMenu->addSeparator();
+    measureMenu->addSeparator();
 
     // ROI submenu for area measurements
-    auto roiMenu = toolsMenu->addMenu(tr("&ROI"));
+    auto roiMenu = measureMenu->addMenu(tr("&ROI"));
 
     impl_->rectangleRoiAction = roiMenu->addAction(tr("&Rectangle"));
     impl_->rectangleRoiAction->setShortcut(QKeySequence(Qt::Key_R));
@@ -442,21 +488,117 @@ void MainWindow::setupMenuBar()
         }
     });
 
-    // Window menu
-    auto windowMenu = menuBar()->addMenu(tr("&Window"));
+    measureMenu->addSeparator();
 
-    auto cascadeAction = windowMenu->addAction(tr("&Cascade"));
-    auto tileAction = windowMenu->addAction(tr("&Tile"));
+    auto clearMeasurementsAction = measureMenu->addAction(tr("&Clear All Measurements"));
+    clearMeasurementsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
+    connect(clearMeasurementsAction, &QAction::triggered, this, [this]() {
+        impl_->viewport->deleteAllMeasurements();
+        impl_->statisticsPanel->clearStatistics();
+        statusBar()->showMessage(tr("All measurements cleared"), 3000);
+    });
 
-    // Help menu
-    auto helpMenu = menuBar()->addMenu(tr("&Help"));
+    impl_->showStatisticsAction = measureMenu->addAction(tr("&Show ROI Statistics"));
+    connect(impl_->showStatisticsAction, &QAction::triggered,
+            this, &MainWindow::onShowRoiStatistics);
 
-    auto docsAction = helpMenu->addAction(tr("&Documentation"));
+    measureMenu->addSeparator();
+
+    auto quantificationAction = measureMenu->addAction(tr("&Quantification..."));
+    quantificationAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));
+    connect(quantificationAction, &QAction::triggered, this, [this]() {
+        if (!impl_->quantificationWindow) {
+            impl_->quantificationWindow = new QuantificationWindow(this);
+            impl_->quantificationWindow->setAttribute(Qt::WA_DeleteOnClose);
+            connect(impl_->quantificationWindow, &QObject::destroyed, this, [this]() {
+                impl_->quantificationWindow = nullptr;
+            });
+        }
+        impl_->quantificationWindow->show();
+        impl_->quantificationWindow->raise();
+        impl_->quantificationWindow->activateWindow();
+    });
+
+    // =========================================================================
+    // Export menu
+    // =========================================================================
+    auto exportMenu = menuBar()->addMenu(tr("E&xport"));
+
+    auto saveScreenshotAction = exportMenu->addAction(tr("Save Sc&reenshot..."));
+    saveScreenshotAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S));
+    connect(saveScreenshotAction, &QAction::triggered, this, [this]() {
+        QString filePath = QFileDialog::getSaveFileName(
+            this, tr("Save Screenshot"), QString(),
+            tr("PNG Images (*.png);;JPEG Images (*.jpg)"));
+        if (!filePath.isEmpty()) {
+            impl_->viewport->captureScreenshot(filePath);
+            statusBar()->showMessage(tr("Screenshot saved: %1").arg(filePath), 3000);
+        }
+    });
+
+    exportMenu->addSeparator();
+
+    auto exportEnsightAction = exportMenu->addAction(tr("Export &Ensight..."));
+    exportEnsightAction->setEnabled(false);
+    exportEnsightAction->setToolTip(tr("Export as Ensight format (not yet implemented)"));
+
+    auto exportMatlabAction = exportMenu->addAction(tr("Export &MATLAB..."));
+    exportMatlabAction->setEnabled(false);
+    exportMatlabAction->setToolTip(tr("Export as MATLAB format (not yet implemented)"));
+
+    auto exportDicomAction = exportMenu->addAction(tr("Export &DICOM..."));
+    exportDicomAction->setEnabled(false);
+    exportDicomAction->setToolTip(tr("Export as DICOM (not yet implemented)"));
+
+    exportMenu->addSeparator();
+
+    auto generateReportAction = exportMenu->addAction(tr("Generate &Report..."));
+    generateReportAction->setEnabled(false);
+    generateReportAction->setToolTip(tr("Generate analysis report (not yet implemented)"));
+
+    // =========================================================================
+    // Settings menu
+    // =========================================================================
+    auto settingsMenu = menuBar()->addMenu(tr("&Settings"));
+
+    auto settingsAction = settingsMenu->addAction(tr("&Preferences..."));
+    settingsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma));
+    connect(settingsAction, &QAction::triggered, this, &MainWindow::onShowSettings);
+
+    // =========================================================================
+    // Filter menu
+    // =========================================================================
+    auto filterMenu = menuBar()->addMenu(tr("F&ilter"));
+
+    auto medianFilterAction = filterMenu->addAction(tr("&Median Filter"));
+    medianFilterAction->setEnabled(false);
+    medianFilterAction->setToolTip(tr("Apply median filter (not yet implemented)"));
+
+    auto gaussianAction = filterMenu->addAction(tr("&Gaussian Smoothing"));
+    gaussianAction->setEnabled(false);
+    gaussianAction->setToolTip(tr("Apply Gaussian smoothing (not yet implemented)"));
+
+    auto edgeEnhanceAction = filterMenu->addAction(tr("&Edge Enhancement"));
+    edgeEnhanceAction->setEnabled(false);
+    edgeEnhanceAction->setToolTip(tr("Apply edge enhancement (not yet implemented)"));
+
+    filterMenu->addSeparator();
+
+    auto velocityAliasingAction = filterMenu->addAction(tr("&Velocity Aliasing Correction"));
+    velocityAliasingAction->setEnabled(false);
+    velocityAliasingAction->setToolTip(tr("Correct velocity aliasing (not yet implemented)"));
+
+    // =========================================================================
+    // Misc menu — about, documentation
+    // =========================================================================
+    auto miscMenu = menuBar()->addMenu(tr("Mi&sc"));
+
+    auto docsAction = miscMenu->addAction(tr("&Documentation"));
     docsAction->setShortcut(QKeySequence::HelpContents);
 
-    helpMenu->addSeparator();
+    miscMenu->addSeparator();
 
-    auto aboutAction = helpMenu->addAction(tr("&About"));
+    auto aboutAction = miscMenu->addAction(tr("&About"));
     connect(aboutAction, &QAction::triggered, this, &MainWindow::onShowAbout);
 }
 
