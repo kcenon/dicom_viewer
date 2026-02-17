@@ -40,11 +40,44 @@ public:
      */
     [[nodiscard]] MaskWizardStep currentStep() const;
 
+    /**
+     * @brief Configure the valid intensity range for threshold sliders
+     * @param min Minimum intensity value (e.g., -1024 for CT HU)
+     * @param max Maximum intensity value (e.g., 3071 for CT HU)
+     */
+    void setThresholdRange(int min, int max);
+
+    /**
+     * @brief Get current minimum threshold value
+     */
+    [[nodiscard]] int thresholdMin() const;
+
+    /**
+     * @brief Get current maximum threshold value
+     */
+    [[nodiscard]] int thresholdMax() const;
+
+    /**
+     * @brief Set threshold from Otsu auto-calculation result
+     * @param value Otsu threshold value (sets min=value, max=range_max)
+     */
+    void setOtsuThreshold(double value);
+
 signals:
     /**
      * @brief Emitted when the wizard completes all steps successfully
      */
     void wizardCompleted();
+
+    /**
+     * @brief Emitted when threshold slider values change
+     */
+    void thresholdChanged(int min, int max);
+
+    /**
+     * @brief Emitted when user clicks the Otsu auto-threshold button
+     */
+    void otsuRequested();
 
 private:
     void setupPages();
