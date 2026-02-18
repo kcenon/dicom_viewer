@@ -5,6 +5,7 @@
 #include <QSignalSpy>
 #include <QSlider>
 #include <QSpinBox>
+#include <QTableWidget>
 #include <QWizardPage>
 
 #include "ui/dialogs/mask_wizard.hpp"
@@ -219,4 +220,165 @@ TEST(MaskWizardTest, MaxCannotGoBelowMin) {
 
     // min <= max must hold
     EXPECT_LE(wizard.thresholdMin(), wizard.thresholdMax());
+}
+
+// =============================================================================
+// Separate page — helpers
+// =============================================================================
+
+namespace {
+
+std::vector<ComponentInfo> makeSampleComponents() {
+    return {
+        {1, 12345, QColor(Qt::red), true},
+        {2, 8901, QColor(Qt::green), true},
+        {3, 234, QColor(Qt::blue), false},
+    };
+}
+
+}  // anonymous namespace
+
+// =============================================================================
+// Separate page — initial state
+// =============================================================================
+
+TEST(MaskWizardTest, SeparateInitiallyEmpty) {
+    MaskWizard wizard;
+    EXPECT_EQ(wizard.componentCount(), 0);
+    EXPECT_TRUE(wizard.selectedComponentIndices().empty());
+}
+
+// =============================================================================
+// Separate page — setComponents
+// =============================================================================
+
+TEST(MaskWizardTest, SetComponentsPopulatesTable) {
+    MaskWizard wizard;
+    wizard.setComponents(makeSampleComponents());
+    EXPECT_EQ(wizard.componentCount(), 3);
+}
+
+TEST(MaskWizardTest, SelectedIndicesReflectsInput) {
+    MaskWizard wizard;
+    wizard.setComponents(makeSampleComponents());
+
+    // Components 0 and 1 are selected, 2 is not
+    auto selected = wizard.selectedComponentIndices();
+    EXPECT_EQ(selected.size(), 2u);
+    EXPECT_EQ(selected[0], 0);
+    EXPECT_EQ(selected[1], 1);
+}
+
+// =============================================================================
+// Separate page — bulk selection buttons
+// =============================================================================
+
+TEST(MaskWizardTest, SelectAllButton) {
+    MaskWizard wizard;
+    wizard.setComponents(makeSampleComponents());
+
+    auto* separatePage = wizard.page(2);
+    auto buttons = separatePage->findChildren<QPushButton*>();
+    // Find "Select All" button
+    QPushButton* selectAllBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text().contains("Select All")) {
+            selectAllBtn = btn;
+            break;
+        }
+    }
+    ASSERT_NE(selectAllBtn, nullptr);
+    selectAllBtn->click();
+
+    EXPECT_EQ(wizard.selectedComponentIndices().size(), 3u);
+}
+
+TEST(MaskWizardTest, DeselectAllButton) {
+    MaskWizard wizard;
+    wizard.setComponents(makeSampleComponents());
+
+    auto* separatePage = wizard.page(2);
+    auto buttons = separatePage->findChildren<QPushButton*>();
+    QPushButton* deselectAllBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text().contains("Deselect All")) {
+            deselectAllBtn = btn;
+            break;
+        }
+    }
+    ASSERT_NE(deselectAllBtn, nullptr);
+    deselectAllBtn->click();
+
+    EXPECT_TRUE(wizard.selectedComponentIndices().empty());
+}
+
+TEST(MaskWizardTest, InvertSelectionButton) {
+    MaskWizard wizard;
+    wizard.setComponents(makeSampleComponents());
+
+    // Initially: 0=selected, 1=selected, 2=deselected
+    auto* separatePage = wizard.page(2);
+    auto buttons = separatePage->findChildren<QPushButton*>();
+    QPushButton* invertBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text().contains("Invert")) {
+            invertBtn = btn;
+            break;
+        }
+    }
+    ASSERT_NE(invertBtn, nullptr);
+    invertBtn->click();
+
+    // After invert: 0=deselected, 1=deselected, 2=selected
+    auto selected = wizard.selectedComponentIndices();
+    EXPECT_EQ(selected.size(), 1u);
+    EXPECT_EQ(selected[0], 2);
+}
+
+// =============================================================================
+// Separate page — signal
+// =============================================================================
+
+TEST(MaskWizardTest, ComponentSelectionChangedSignal) {
+    MaskWizard wizard;
+    wizard.setComponents(makeSampleComponents());
+    QSignalSpy spy(&wizard, &MaskWizard::componentSelectionChanged);
+    EXPECT_TRUE(spy.isValid());
+
+    // Click Select All to trigger signal
+    auto* separatePage = wizard.page(2);
+    auto buttons = separatePage->findChildren<QPushButton*>();
+    for (auto* btn : buttons) {
+        if (btn->text().contains("Select All")) {
+            btn->click();
+            break;
+        }
+    }
+
+    EXPECT_GE(spy.count(), 1);
+}
+
+// =============================================================================
+// Separate page — table checkbox toggle
+// =============================================================================
+
+TEST(MaskWizardTest, CheckboxToggleUpdatesSelection) {
+    MaskWizard wizard;
+    wizard.setComponents(makeSampleComponents());
+
+    // Find the table
+    auto* separatePage = wizard.page(2);
+    auto* table = separatePage->findChild<QTableWidget*>();
+    ASSERT_NE(table, nullptr);
+    ASSERT_EQ(table->rowCount(), 3);
+
+    // Uncheck row 0 (was selected)
+    auto* item = table->item(0, 0);
+    ASSERT_NE(item, nullptr);
+    item->setCheckState(Qt::Unchecked);
+
+    // Now only index 1 should be selected
+    auto selected = wizard.selectedComponentIndices();
+    EXPECT_EQ(selected.size(), 1u);
+    EXPECT_EQ(selected[0], 1);
 }

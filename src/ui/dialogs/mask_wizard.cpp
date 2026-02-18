@@ -3,10 +3,12 @@
 #include <cmath>
 
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
 #include <QSlider>
 #include <QSpinBox>
+#include <QTableWidget>
 #include <QVBoxLayout>
 #include <QWizardPage>
 
@@ -200,13 +202,206 @@ private:
     bool blockSignals_ = false;
 };
 
+/**
+ * @brief Functional separate page with component table and selection controls
+ */
+class SeparatePage : public QWizardPage {
+public:
+    explicit SeparatePage(MaskWizard* wizard, QWidget* parent = nullptr)
+        : QWizardPage(parent)
+        , wizard_(wizard)
+    {
+        setTitle(tr("Step 3: Separate"));
+        setSubTitle(tr("Select connected components to keep"));
+
+        auto* layout = new QVBoxLayout(this);
+
+        auto* descLabel = new QLabel(
+            tr("The binary mask has been analyzed for connected regions. "
+               "Select the components you want to keep."),
+            this);
+        descLabel->setWordWrap(true);
+        layout->addWidget(descLabel);
+
+        layout->addSpacing(8);
+
+        // Component table
+        table_ = new QTableWidget(0, 4, this);
+        table_->setHorizontalHeaderLabels({tr(""), tr("Color"), tr("Voxels"), tr("Label")});
+        table_->horizontalHeader()->setStretchLastSection(true);
+        table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+        table_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+        table_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+        table_->setSelectionMode(QAbstractItemView::NoSelection);
+        table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        table_->verticalHeader()->setVisible(false);
+        layout->addWidget(table_, 1);
+
+        layout->addSpacing(8);
+
+        // Bulk selection buttons
+        auto* buttonRow = new QHBoxLayout();
+        selectAllBtn_ = new QPushButton(tr("Select All"), this);
+        deselectAllBtn_ = new QPushButton(tr("Deselect All"), this);
+        invertBtn_ = new QPushButton(tr("Invert"), this);
+        buttonRow->addWidget(selectAllBtn_);
+        buttonRow->addWidget(deselectAllBtn_);
+        buttonRow->addWidget(invertBtn_);
+        buttonRow->addStretch();
+        layout->addLayout(buttonRow);
+
+        layout->addSpacing(4);
+
+        // Summary label
+        summaryLabel_ = new QLabel(tr("No components loaded"), this);
+        summaryLabel_->setStyleSheet("color: gray; font-style: italic;");
+        layout->addWidget(summaryLabel_);
+
+        setupConnections();
+    }
+
+    void setComponents(const std::vector<ComponentInfo>& components) {
+        components_ = components;
+        rebuildTable();
+        updateSummary();
+    }
+
+    [[nodiscard]] int componentCount() const {
+        return static_cast<int>(components_.size());
+    }
+
+    [[nodiscard]] std::vector<int> selectedIndices() const {
+        std::vector<int> result;
+        for (int i = 0; i < static_cast<int>(components_.size()); ++i) {
+            if (components_[i].selected) {
+                result.push_back(i);
+            }
+        }
+        return result;
+    }
+
+private:
+    void setupConnections() {
+        connect(selectAllBtn_, &QPushButton::clicked, this, [this]() {
+            setAllSelected(true);
+        });
+        connect(deselectAllBtn_, &QPushButton::clicked, this, [this]() {
+            setAllSelected(false);
+        });
+        connect(invertBtn_, &QPushButton::clicked, this, [this]() {
+            for (auto& comp : components_) {
+                comp.selected = !comp.selected;
+            }
+            syncCheckboxesFromData();
+            updateSummary();
+            emit wizard_->componentSelectionChanged();
+        });
+    }
+
+    void setAllSelected(bool selected) {
+        for (auto& comp : components_) {
+            comp.selected = selected;
+        }
+        syncCheckboxesFromData();
+        updateSummary();
+        emit wizard_->componentSelectionChanged();
+    }
+
+    void syncCheckboxesFromData() {
+        for (int i = 0; i < table_->rowCount(); ++i) {
+            auto* checkItem = table_->item(i, 0);
+            if (checkItem) {
+                checkItem->setCheckState(
+                    components_[i].selected ? Qt::Checked : Qt::Unchecked);
+            }
+        }
+    }
+
+    void rebuildTable() {
+        table_->blockSignals(true);
+        table_->setRowCount(static_cast<int>(components_.size()));
+
+        for (int i = 0; i < static_cast<int>(components_.size()); ++i) {
+            const auto& comp = components_[i];
+
+            // Checkbox column
+            auto* checkItem = new QTableWidgetItem();
+            checkItem->setCheckState(comp.selected ? Qt::Checked : Qt::Unchecked);
+            checkItem->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled);
+            table_->setItem(i, 0, checkItem);
+
+            // Color swatch
+            auto* colorItem = new QTableWidgetItem();
+            colorItem->setBackground(comp.color);
+            colorItem->setFlags(Qt::ItemIsEnabled);
+            table_->setItem(i, 1, colorItem);
+
+            // Voxel count
+            auto* countItem = new QTableWidgetItem(
+                QString::number(comp.voxelCount));
+            countItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            countItem->setFlags(Qt::ItemIsEnabled);
+            table_->setItem(i, 2, countItem);
+
+            // Label
+            auto* labelItem = new QTableWidgetItem(
+                tr("Component %1").arg(comp.label));
+            labelItem->setFlags(Qt::ItemIsEnabled);
+            table_->setItem(i, 3, labelItem);
+        }
+
+        table_->blockSignals(false);
+
+        // Connect cell changed for checkbox toggling
+        disconnect(table_, &QTableWidget::cellChanged, nullptr, nullptr);
+        connect(table_, &QTableWidget::cellChanged, this, [this](int row, int col) {
+            if (col != 0 || row < 0 || row >= static_cast<int>(components_.size()))
+                return;
+            auto* item = table_->item(row, 0);
+            if (!item) return;
+            components_[row].selected = (item->checkState() == Qt::Checked);
+            updateSummary();
+            emit wizard_->componentSelectionChanged();
+        });
+    }
+
+    void updateSummary() {
+        if (components_.empty()) {
+            summaryLabel_->setText(tr("No components loaded"));
+            return;
+        }
+
+        int selectedCount = 0;
+        int totalVoxels = 0;
+        for (const auto& comp : components_) {
+            if (comp.selected) {
+                ++selectedCount;
+                totalVoxels += comp.voxelCount;
+            }
+        }
+        summaryLabel_->setText(
+            tr("Selected: %1 of %2 components (%3 voxels)")
+                .arg(selectedCount)
+                .arg(static_cast<int>(components_.size()))
+                .arg(totalVoxels));
+    }
+
+    MaskWizard* wizard_ = nullptr;
+    QTableWidget* table_ = nullptr;
+    QPushButton* selectAllBtn_ = nullptr;
+    QPushButton* deselectAllBtn_ = nullptr;
+    QPushButton* invertBtn_ = nullptr;
+    QLabel* summaryLabel_ = nullptr;
+    std::vector<ComponentInfo> components_;
+};
+
 }  // anonymous namespace
 
 class MaskWizard::Impl {
 public:
     StepPage* cropPage = nullptr;
     ThresholdPage* thresholdPage = nullptr;
-    StepPage* separatePage = nullptr;
+    SeparatePage* separatePage = nullptr;
     StepPage* trackPage = nullptr;
 };
 
@@ -235,14 +430,7 @@ void MaskWizard::setupPages()
 
     impl_->thresholdPage = new ThresholdPage(this, this);
 
-    impl_->separatePage = new StepPage(
-        tr("Step 3: Separate"),
-        tr("Select connected components to keep"),
-        tr("The binary mask is analyzed for connected regions. Each region "
-           "is shown with a unique color. Click on regions to select or "
-           "deselect them.\n\n"
-           "Only selected components will proceed to the next step."),
-        this);
+    impl_->separatePage = new SeparatePage(this, this);
 
     impl_->trackPage = new StepPage(
         tr("Step 4: Track"),
@@ -296,6 +484,21 @@ void MaskWizard::setOtsuThreshold(double value)
     impl_->thresholdPage->setThresholdValues(intValue, impl_->thresholdPage->thresholdMax());
     impl_->thresholdPage->setStatusText(
         tr("Otsu threshold: %1").arg(intValue));
+}
+
+void MaskWizard::setComponents(const std::vector<ComponentInfo>& components)
+{
+    impl_->separatePage->setComponents(components);
+}
+
+int MaskWizard::componentCount() const
+{
+    return impl_->separatePage->componentCount();
+}
+
+std::vector<int> MaskWizard::selectedComponentIndices() const
+{
+    return impl_->separatePage->selectedIndices();
 }
 
 } // namespace dicom_viewer::ui

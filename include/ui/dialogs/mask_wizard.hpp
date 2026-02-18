@@ -1,9 +1,21 @@
 #pragma once
 
 #include <memory>
+#include <vector>
+#include <QColor>
 #include <QWizard>
 
 namespace dicom_viewer::ui {
+
+/**
+ * @brief Data for a single connected component in the Separate step
+ */
+struct ComponentInfo {
+    int label = 0;           ///< Component label (1-based)
+    int voxelCount = 0;      ///< Number of voxels in this component
+    QColor color;            ///< Display color for this component
+    bool selected = true;    ///< Whether this component is selected
+};
 
 /**
  * @brief Wizard page identifiers for the Mask Wizard workflow
@@ -63,6 +75,24 @@ public:
      */
     void setOtsuThreshold(double value);
 
+    // -- Separate page API --
+
+    /**
+     * @brief Populate the component list from external analysis
+     * @param components List of connected components to display
+     */
+    void setComponents(const std::vector<ComponentInfo>& components);
+
+    /**
+     * @brief Get the number of components
+     */
+    [[nodiscard]] int componentCount() const;
+
+    /**
+     * @brief Get indices of selected components (0-based)
+     */
+    [[nodiscard]] std::vector<int> selectedComponentIndices() const;
+
 signals:
     /**
      * @brief Emitted when the wizard completes all steps successfully
@@ -78,6 +108,11 @@ signals:
      * @brief Emitted when user clicks the Otsu auto-threshold button
      */
     void otsuRequested();
+
+    /**
+     * @brief Emitted when component selection changes in the Separate step
+     */
+    void componentSelectionChanged();
 
 private:
     void setupPages();
