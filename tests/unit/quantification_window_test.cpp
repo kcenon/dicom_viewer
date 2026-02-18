@@ -750,3 +750,204 @@ TEST(QuantificationWindowTest, PlanePositionChanged_Signal) {
     EXPECT_EQ(spy.count(), 1);
     EXPECT_EQ(spy.at(0).at(0).toInt(), 0);
 }
+
+// =============================================================================
+// Multi-plane management UI — buttons
+// =============================================================================
+
+TEST(QuantificationWindowTest, AddPlaneButton_Exists) {
+    QuantificationWindow window;
+
+    QPushButton* btn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Add Plane") {
+            btn = b;
+            break;
+        }
+    }
+    ASSERT_NE(btn, nullptr);
+    EXPECT_TRUE(btn->isEnabled());
+}
+
+TEST(QuantificationWindowTest, RemovePlaneButton_Exists) {
+    QuantificationWindow window;
+
+    QPushButton* btn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Remove Plane") {
+            btn = b;
+            break;
+        }
+    }
+    ASSERT_NE(btn, nullptr);
+    // Initially disabled (no planes)
+    EXPECT_FALSE(btn->isEnabled());
+}
+
+TEST(QuantificationWindowTest, AddPlaneButton_AddsPlaneWithAutoName) {
+    QuantificationWindow window;
+    EXPECT_EQ(window.planeCount(), 0);
+
+    QPushButton* addBtn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Add Plane") {
+            addBtn = b;
+            break;
+        }
+    }
+    ASSERT_NE(addBtn, nullptr);
+
+    addBtn->click();
+    EXPECT_EQ(window.planeCount(), 1);
+    EXPECT_EQ(window.planeName(0), "Plane 1");
+
+    addBtn->click();
+    EXPECT_EQ(window.planeCount(), 2);
+    EXPECT_EQ(window.planeName(1), "Plane 2");
+}
+
+TEST(QuantificationWindowTest, AddPlaneButton_AssignsColorsFromPalette) {
+    QuantificationWindow window;
+
+    QPushButton* addBtn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Add Plane") {
+            addBtn = b;
+            break;
+        }
+    }
+    ASSERT_NE(addBtn, nullptr);
+
+    // Add 5 planes — each should get a different color
+    for (int i = 0; i < 5; ++i) {
+        addBtn->click();
+    }
+    EXPECT_EQ(window.planeCount(), 5);
+
+    // All 5 colors should be different
+    for (int i = 0; i < 5; ++i) {
+        for (int j = i + 1; j < 5; ++j) {
+            EXPECT_NE(window.planeColor(i), window.planeColor(j))
+                << "Plane " << i << " and " << j << " have same color";
+        }
+    }
+}
+
+TEST(QuantificationWindowTest, AddPlaneButton_DisabledAtMaxPlanes) {
+    QuantificationWindow window;
+
+    QPushButton* addBtn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Add Plane") {
+            addBtn = b;
+            break;
+        }
+    }
+    ASSERT_NE(addBtn, nullptr);
+
+    // Add max planes
+    for (int i = 0; i < QuantificationWindow::kMaxPlanes; ++i) {
+        EXPECT_TRUE(addBtn->isEnabled());
+        addBtn->click();
+    }
+
+    // Should be disabled after reaching max
+    EXPECT_EQ(window.planeCount(), QuantificationWindow::kMaxPlanes);
+    EXPECT_FALSE(addBtn->isEnabled());
+}
+
+TEST(QuantificationWindowTest, RemovePlaneButton_RemovesActivePlane) {
+    QuantificationWindow window;
+
+    QPushButton* addBtn = nullptr;
+    QPushButton* removeBtn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Add Plane") addBtn = b;
+        if (b->text() == "Remove Plane") removeBtn = b;
+    }
+    ASSERT_NE(addBtn, nullptr);
+    ASSERT_NE(removeBtn, nullptr);
+
+    // Add 3 planes
+    addBtn->click();
+    addBtn->click();
+    addBtn->click();
+    EXPECT_EQ(window.planeCount(), 3);
+
+    // Select and remove the second plane
+    window.setActivePlane(1);
+    removeBtn->click();
+    EXPECT_EQ(window.planeCount(), 2);
+}
+
+TEST(QuantificationWindowTest, RemovePlaneButton_DisabledWhenOnePlane) {
+    QuantificationWindow window;
+
+    QPushButton* addBtn = nullptr;
+    QPushButton* removeBtn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Add Plane") addBtn = b;
+        if (b->text() == "Remove Plane") removeBtn = b;
+    }
+    ASSERT_NE(addBtn, nullptr);
+    ASSERT_NE(removeBtn, nullptr);
+
+    // Add 2 planes
+    addBtn->click();
+    addBtn->click();
+    EXPECT_TRUE(removeBtn->isEnabled());
+
+    // Remove one — should still be enabled (2 planes → 1)
+    removeBtn->click();
+    EXPECT_EQ(window.planeCount(), 1);
+    // Should be disabled now (only 1 plane left)
+    EXPECT_FALSE(removeBtn->isEnabled());
+}
+
+TEST(QuantificationWindowTest, AddPlaneButton_ReEnablesAfterRemove) {
+    QuantificationWindow window;
+
+    QPushButton* addBtn = nullptr;
+    QPushButton* removeBtn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Add Plane") addBtn = b;
+        if (b->text() == "Remove Plane") removeBtn = b;
+    }
+    ASSERT_NE(addBtn, nullptr);
+    ASSERT_NE(removeBtn, nullptr);
+
+    // Fill to max
+    for (int i = 0; i < QuantificationWindow::kMaxPlanes; ++i) {
+        addBtn->click();
+    }
+    EXPECT_FALSE(addBtn->isEnabled());
+
+    // Remove one — Add button should re-enable
+    removeBtn->click();
+    EXPECT_TRUE(addBtn->isEnabled());
+}
+
+TEST(QuantificationWindowTest, ProgrammaticAddPlane_UpdatesButtons) {
+    QuantificationWindow window;
+
+    QPushButton* addBtn = nullptr;
+    QPushButton* removeBtn = nullptr;
+    for (auto* b : window.findChildren<QPushButton*>()) {
+        if (b->text() == "Add Plane") addBtn = b;
+        if (b->text() == "Remove Plane") removeBtn = b;
+    }
+    ASSERT_NE(addBtn, nullptr);
+    ASSERT_NE(removeBtn, nullptr);
+
+    // Programmatic add should also update button state
+    window.addPlane("Test", Qt::red);
+    // With 1 plane, remove should be disabled (minimum 1 plane required)
+    EXPECT_FALSE(removeBtn->isEnabled());
+
+    window.addPlane("Test 2", Qt::blue);
+    EXPECT_TRUE(removeBtn->isEnabled());  // 2 planes → remove enabled
+}
+
+TEST(QuantificationWindowTest, MaxPlanes_ConstantValue) {
+    EXPECT_EQ(QuantificationWindow::kMaxPlanes, 5);
+}

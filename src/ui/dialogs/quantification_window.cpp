@@ -76,6 +76,16 @@ QIcon colorSwatchIcon(const QColor& color)
     return QIcon(pix);
 }
 
+/// Predefined color palette for measurement planes (max 5)
+const QColor kPlaneColors[] = {
+    QColor(0xE7, 0x4C, 0x3C),  // Red
+    QColor(0x34, 0x98, 0xDB),  // Blue
+    QColor(0x27, 0xAE, 0x60),  // Green
+    QColor(0xE6, 0x7E, 0x22),  // Orange
+    QColor(0x9B, 0x59, 0xB6),  // Purple
+};
+constexpr int kPlaneColorCount = 5;
+
 } // anonymous namespace
 
 struct PlaneInfo {
@@ -113,6 +123,9 @@ public:
 
     // Plane selector
     QComboBox* planeCombo = nullptr;
+    QPushButton* addPlaneBtn = nullptr;
+    QPushButton* removePlaneBtn = nullptr;
+    int nextPlaneNumber = 1;
 
     // 3D Volume tab
     QWidget* volumePanel = nullptr;
@@ -209,6 +222,15 @@ void QuantificationWindow::setupUI()
     impl_->planeCombo = new QComboBox(planeGroup);
     impl_->planeCombo->setPlaceholderText(tr("No planes"));
     planeGroupLayout->addWidget(impl_->planeCombo);
+
+    auto* planeBtnLayout = new QHBoxLayout();
+    impl_->addPlaneBtn = new QPushButton(tr("Add Plane"), planeGroup);
+    impl_->removePlaneBtn = new QPushButton(tr("Remove Plane"), planeGroup);
+    impl_->removePlaneBtn->setEnabled(false);
+    planeBtnLayout->addWidget(impl_->addPlaneBtn);
+    planeBtnLayout->addWidget(impl_->removePlaneBtn);
+    planeGroupLayout->addLayout(planeBtnLayout);
+
     leftLayout->addWidget(planeGroup);
 
     // Statistics table
@@ -335,6 +357,23 @@ void QuantificationWindow::setupConnections()
     // Plane selector
     connect(impl_->planeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &QuantificationWindow::activePlaneChanged);
+
+    // Add Plane button
+    connect(impl_->addPlaneBtn, &QPushButton::clicked, this, [this]() {
+        int colorIdx = static_cast<int>(impl_->planes.size()) % kPlaneColorCount;
+        QString name = QString("Plane %1").arg(impl_->nextPlaneNumber++);
+        addPlane(name, kPlaneColors[colorIdx]);
+        updatePlaneButtons();
+    });
+
+    // Remove Plane button
+    connect(impl_->removePlaneBtn, &QPushButton::clicked, this, [this]() {
+        int idx = impl_->planeCombo->currentIndex();
+        if (idx >= 0) {
+            removePlane(idx);
+            updatePlaneButtons();
+        }
+    });
 
     // Parameter checkboxes → signal + table update
     auto connectCheck = [this](QCheckBox* box, MeasurementParameter param) {
@@ -643,6 +682,7 @@ void QuantificationWindow::addPlane(const QString& name, const QColor& color)
     if (impl_->planes.size() == 1) {
         impl_->planeCombo->setCurrentIndex(0);
     }
+    updatePlaneButtons();
 }
 
 void QuantificationWindow::addPlane(const QString& name, const QColor& color,
@@ -653,6 +693,7 @@ void QuantificationWindow::addPlane(const QString& name, const QColor& color,
     if (impl_->planes.size() == 1) {
         impl_->planeCombo->setCurrentIndex(0);
     }
+    updatePlaneButtons();
 }
 
 void QuantificationWindow::removePlane(int index)
@@ -660,6 +701,7 @@ void QuantificationWindow::removePlane(int index)
     if (index < 0 || index >= static_cast<int>(impl_->planes.size())) return;
     impl_->planes.erase(impl_->planes.begin() + index);
     impl_->planeCombo->removeItem(index);
+    updatePlaneButtons();
 }
 
 int QuantificationWindow::planeCount() const
@@ -702,6 +744,13 @@ void QuantificationWindow::setPlanePosition(int index, const PlanePosition& posi
     if (index < 0 || index >= static_cast<int>(impl_->planes.size())) return;
     impl_->planes[index].position = position;
     emit planePositionChanged(index);
+}
+
+void QuantificationWindow::updatePlaneButtons()
+{
+    int count = static_cast<int>(impl_->planes.size());
+    impl_->addPlaneBtn->setEnabled(count < kMaxPlanes);
+    impl_->removePlaneBtn->setEnabled(count > 1);
 }
 
 void QuantificationWindow::setVolumeStatistics(const std::vector<VolumeStatRow>& rows)

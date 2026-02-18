@@ -83,6 +83,9 @@ class QuantificationWindow : public QMainWindow {
     Q_OBJECT
 
 public:
+    /// Maximum number of simultaneous measurement planes
+    static constexpr int kMaxPlanes = 5;
+
     explicit QuantificationWindow(QWidget* parent = nullptr);
     ~QuantificationWindow() override;
 
@@ -324,6 +327,7 @@ private:
     void setupConnections();
     void updateTable();
     void applyFlowDirectionToGraph();
+    void updatePlaneButtons();
 
     class Impl;
     std::unique_ptr<Impl> impl_;
