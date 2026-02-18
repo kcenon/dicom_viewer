@@ -3,6 +3,7 @@
 #include "services/segmentation/label_manager.hpp"
 #include "ui/display_3d_controller.hpp"
 
+#include <QBrush>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QDoubleSpinBox>
@@ -57,6 +58,9 @@ public:
 
     // 3D Object list section
     QListWidget* objectList = nullptr;
+
+    // Loaded series list (multi-modal datasets)
+    QListWidget* loadedSeriesList = nullptr;
 
     FlowSeries currentSeries = FlowSeries::Magnitude;
     bool flowDataAvailable = false;
@@ -340,6 +344,17 @@ void FlowToolPanel::createSeriesSection()
     }
 
     layout->addWidget(rowWidget);
+
+    // Loaded series list for multi-modal datasets
+    auto* loadedLabel = new QLabel(tr("Loaded Series:"));
+    loadedLabel->setStyleSheet("color: gray; font-size: 10px;");
+    layout->addWidget(loadedLabel);
+
+    impl_->loadedSeriesList = new QListWidget();
+    impl_->loadedSeriesList->setSelectionMode(QAbstractItemView::SingleSelection);
+    impl_->loadedSeriesList->setMaximumHeight(100);
+    layout->addWidget(impl_->loadedSeriesList);
+
     layout->addStretch(1);
 
     impl_->toolBox->addItem(seriesWidget, tr("Series"));
@@ -556,12 +571,70 @@ void FlowToolPanel::setupConnections()
         }
     });
 
+    // Loaded series list click → emit activation signal
+    connect(impl_->loadedSeriesList, &QListWidget::itemClicked,
+            this, [this](QListWidgetItem* item) {
+        QString uid = item->data(Qt::UserRole).toString();
+        emit loadedSeriesActivated(uid);
+    });
+
     // 3D Object list item checkbox changes
     connect(impl_->objectList, &QListWidget::itemChanged,
             this, [this](QListWidgetItem* item) {
         bool visible = item->checkState() == Qt::Checked;
         emit objectVisibilityToggled(item->text(), visible);
     });
+}
+
+// =============================================================================
+// Loaded series management
+// =============================================================================
+
+void FlowToolPanel::addLoadedSeries(const QString& name,
+                                     const QString& seriesUid,
+                                     bool is4DFlow)
+{
+    if (!impl_->loadedSeriesList) return;
+
+    // Avoid duplicates by UID
+    for (int i = 0; i < impl_->loadedSeriesList->count(); ++i) {
+        if (impl_->loadedSeriesList->item(i)->data(Qt::UserRole).toString() == seriesUid) {
+            return;
+        }
+    }
+
+    auto* item = new QListWidgetItem(name);
+    item->setData(Qt::UserRole, seriesUid);
+
+    // Non-4D Flow series shown in red (consistent with PatientBrowser)
+    if (!is4DFlow) {
+        QBrush redBrush(Qt::red);
+        item->setForeground(redBrush);
+    }
+
+    impl_->loadedSeriesList->addItem(item);
+}
+
+void FlowToolPanel::removeLoadedSeries(const QString& seriesUid)
+{
+    if (!impl_->loadedSeriesList) return;
+    for (int i = 0; i < impl_->loadedSeriesList->count(); ++i) {
+        if (impl_->loadedSeriesList->item(i)->data(Qt::UserRole).toString() == seriesUid) {
+            delete impl_->loadedSeriesList->takeItem(i);
+            return;
+        }
+    }
+}
+
+void FlowToolPanel::clearLoadedSeries()
+{
+    if (!impl_->loadedSeriesList) return;
+    impl_->loadedSeriesList->clear();
+}
+
+int FlowToolPanel::loadedSeriesCount() const
+{
+    return impl_->loadedSeriesList ? impl_->loadedSeriesList->count() : 0;
 }
 
 } // namespace dicom_viewer::ui

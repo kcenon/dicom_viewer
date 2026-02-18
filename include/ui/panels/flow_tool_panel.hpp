@@ -183,6 +183,32 @@ public slots:
      */
     void setObjectVisible(const QString& name, bool visible);
 
+    // -- Loaded series management --
+
+    /**
+     * @brief Add a loaded series entry to the series list
+     * @param name Display name (e.g., "CINE retro SA [CINE]")
+     * @param seriesUid Series instance UID for identification
+     * @param is4DFlow True for 4D Flow series (default text), false for non-4D (red text)
+     */
+    void addLoadedSeries(const QString& name, const QString& seriesUid, bool is4DFlow);
+
+    /**
+     * @brief Remove a loaded series by UID
+     * @param seriesUid Series instance UID
+     */
+    void removeLoadedSeries(const QString& seriesUid);
+
+    /**
+     * @brief Clear all loaded series entries
+     */
+    void clearLoadedSeries();
+
+    /**
+     * @brief Get the number of loaded series
+     */
+    [[nodiscard]] int loadedSeriesCount() const;
+
 signals:
     /**
      * @brief Emitted when the user selects a different velocity series
@@ -236,6 +262,12 @@ signals:
      * @param visible New visibility state
      */
     void objectVisibilityToggled(const QString& name, bool visible);
+
+    /**
+     * @brief Emitted when user clicks a loaded series entry
+     * @param seriesUid Series instance UID
+     */
+    void loadedSeriesActivated(const QString& seriesUid);
 
 private:
     void setupUI();
