@@ -620,3 +620,64 @@ TEST(MaskWizardTest, ProgressBarFullRange) {
     wizard.setTrackProgress(100);
     EXPECT_EQ(progressBar->value(), 100);
 }
+
+// =============================================================================
+// Crop page — confirmation dialog logic
+// =============================================================================
+
+TEST(MaskWizardTest, CropFullVolume_DefaultIsTrue) {
+    MaskWizard wizard;
+    // Default crop region equals full volume
+    EXPECT_TRUE(wizard.isCropFullVolume());
+}
+
+TEST(MaskWizardTest, CropFullVolume_AfterModification) {
+    MaskWizard wizard;
+    wizard.restart();
+
+    auto* cropPage = wizard.page(0);
+    auto spinBoxes = cropPage->findChildren<QSpinBox*>();
+    ASSERT_GE(spinBoxes.size(), 6);
+
+    // Modify X min → no longer full volume
+    spinBoxes[0]->setValue(10);
+    EXPECT_FALSE(wizard.isCropFullVolume());
+}
+
+TEST(MaskWizardTest, CropFullVolume_AfterReset) {
+    MaskWizard wizard;
+    wizard.restart();
+
+    auto* cropPage = wizard.page(0);
+    auto spinBoxes = cropPage->findChildren<QSpinBox*>();
+    ASSERT_GE(spinBoxes.size(), 6);
+
+    // Modify then reset
+    spinBoxes[0]->setValue(10);
+    EXPECT_FALSE(wizard.isCropFullVolume());
+
+    // Click Reset button
+    auto buttons = cropPage->findChildren<QPushButton*>();
+    for (auto* btn : buttons) {
+        if (btn->text().contains("Reset")) {
+            btn->click();
+            break;
+        }
+    }
+    EXPECT_TRUE(wizard.isCropFullVolume());
+}
+
+TEST(MaskWizardTest, CropFullVolume_AfterDimensionChange) {
+    MaskWizard wizard;
+    wizard.setVolumeDimensions(100, 200, 50);
+    // After dimension change, crop resets to full new volume
+    EXPECT_TRUE(wizard.isCropFullVolume());
+}
+
+TEST(MaskWizardTest, CropNextSucceeds_WhenFullVolume) {
+    MaskWizard wizard;
+    wizard.restart();
+    // Full volume → validatePage skips dialog → next succeeds
+    wizard.next();
+    EXPECT_EQ(wizard.currentStep(), MaskWizardStep::Threshold);
+}

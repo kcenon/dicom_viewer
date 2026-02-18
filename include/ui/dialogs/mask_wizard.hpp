@@ -76,6 +76,12 @@ public:
      */
     [[nodiscard]] CropRegion cropRegion() const;
 
+    /**
+     * @brief Check if crop region covers the full volume (no actual crop)
+     * @return True if crop equals full volume dimensions
+     */
+    [[nodiscard]] bool isCropFullVolume() const;
+
     // -- Threshold page API --
 
     /**

@@ -5,6 +5,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QSlider>
@@ -159,6 +160,32 @@ public:
         return {xMinSpin_->value(), xMaxSpin_->value(),
                 yMinSpin_->value(), yMaxSpin_->value(),
                 zMinSpin_->value(), zMaxSpin_->value()};
+    }
+
+    [[nodiscard]] bool isFullVolume() const {
+        return xMinSpin_->value() == 0
+            && xMaxSpin_->value() == dimX_ - 1
+            && yMinSpin_->value() == 0
+            && yMaxSpin_->value() == dimY_ - 1
+            && zMinSpin_->value() == 0
+            && zMaxSpin_->value() == dimZ_ - 1;
+    }
+
+    bool validatePage() override {
+        // Skip dialog if crop region is full volume (no actual crop)
+        if (isFullVolume()) {
+            return true;
+        }
+
+        auto result = QMessageBox::question(
+            this,
+            tr("Confirm Crop"),
+            tr("Cropping is irreversible within this wizard session.\n\n"
+               "Do you want to proceed with the current crop region?"),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+
+        return result == QMessageBox::Yes;
     }
 
 private:
@@ -779,6 +806,11 @@ void MaskWizard::setVolumeDimensions(int x, int y, int z)
 CropRegion MaskWizard::cropRegion() const
 {
     return impl_->cropPage->region();
+}
+
+bool MaskWizard::isCropFullVolume() const
+{
+    return impl_->cropPage->isFullVolume();
 }
 
 void MaskWizard::setPhaseCount(int count)
