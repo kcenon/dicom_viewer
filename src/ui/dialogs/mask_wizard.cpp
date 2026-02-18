@@ -5,6 +5,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QSlider>
 #include <QSpinBox>
@@ -587,6 +588,96 @@ private:
     std::vector<ComponentInfo> components_;
 };
 
+/**
+ * @brief Functional track page with propagation controls and progress feedback
+ */
+class TrackPage : public QWizardPage {
+public:
+    explicit TrackPage(MaskWizard* wizard, QWidget* parent = nullptr)
+        : QWizardPage(parent)
+        , wizard_(wizard)
+    {
+        setTitle(tr("Step 4: Track"));
+        setSubTitle(tr("Propagate the mask to all cardiac phases"));
+
+        auto* layout = new QVBoxLayout(this);
+
+        auto* descLabel = new QLabel(
+            tr("The segmentation from the current phase will be propagated "
+               "to all other cardiac phases using temporal tracking.\n\n"
+               "Click \"Run Propagation\" to start, then Finish to accept "
+               "the result and add it to the Mask Manager."),
+            this);
+        descLabel->setWordWrap(true);
+        layout->addWidget(descLabel);
+
+        layout->addSpacing(12);
+
+        // Phase count display
+        phaseLabel_ = new QLabel(this);
+        layout->addWidget(phaseLabel_);
+
+        layout->addSpacing(12);
+
+        // Run button
+        auto* buttonRow = new QHBoxLayout();
+        runBtn_ = new QPushButton(tr("Run Propagation"), this);
+        buttonRow->addWidget(runBtn_);
+        buttonRow->addStretch();
+        layout->addLayout(buttonRow);
+
+        layout->addSpacing(12);
+
+        // Progress bar
+        progressBar_ = new QProgressBar(this);
+        progressBar_->setRange(0, 100);
+        progressBar_->setValue(0);
+        progressBar_->setTextVisible(true);
+        layout->addWidget(progressBar_);
+
+        layout->addSpacing(8);
+
+        // Status label
+        statusLabel_ = new QLabel(tr("Ready"), this);
+        statusLabel_->setStyleSheet("color: gray; font-style: italic;");
+        layout->addWidget(statusLabel_);
+
+        layout->addStretch();
+
+        setPhaseCount(1);
+        setupConnections();
+    }
+
+    void setPhaseCount(int count) {
+        phaseCount_ = count;
+        phaseLabel_->setText(tr("Cardiac phases: %1").arg(count));
+    }
+
+    [[nodiscard]] int phaseCount() const { return phaseCount_; }
+
+    void setProgress(int percent) {
+        progressBar_->setValue(percent);
+    }
+
+    void setStatusText(const QString& text) {
+        statusLabel_->setText(text);
+    }
+
+private:
+    void setupConnections() {
+        connect(runBtn_, &QPushButton::clicked, this, [this]() {
+            emit wizard_->propagationRequested();
+        });
+    }
+
+    MaskWizard* wizard_ = nullptr;
+    QLabel* phaseLabel_ = nullptr;
+    QPushButton* runBtn_ = nullptr;
+    QProgressBar* progressBar_ = nullptr;
+    QLabel* statusLabel_ = nullptr;
+    int phaseCount_ = 1;
+};
+
 }  // anonymous namespace
 
 class MaskWizard::Impl {
@@ -594,7 +685,7 @@ public:
     CropPage* cropPage = nullptr;
     ThresholdPage* thresholdPage = nullptr;
     SeparatePage* separatePage = nullptr;
-    StepPage* trackPage = nullptr;
+    TrackPage* trackPage = nullptr;
 };
 
 MaskWizard::MaskWizard(QWidget* parent)
@@ -617,13 +708,7 @@ void MaskWizard::setupPages()
 
     impl_->separatePage = new SeparatePage(this, this);
 
-    impl_->trackPage = new StepPage(
-        tr("Step 4: Track"),
-        tr("Propagate the mask to all cardiac phases"),
-        tr("The segmentation from the current phase will be propagated "
-           "to all other cardiac phases using temporal tracking.\n\n"
-           "Click Finish to accept the result and add it to the Mask Manager."),
-        this);
+    impl_->trackPage = new TrackPage(this, this);
 
     addPage(impl_->cropPage);
     addPage(impl_->thresholdPage);
@@ -694,6 +779,26 @@ void MaskWizard::setVolumeDimensions(int x, int y, int z)
 CropRegion MaskWizard::cropRegion() const
 {
     return impl_->cropPage->region();
+}
+
+void MaskWizard::setPhaseCount(int count)
+{
+    impl_->trackPage->setPhaseCount(count);
+}
+
+int MaskWizard::phaseCount() const
+{
+    return impl_->trackPage->phaseCount();
+}
+
+void MaskWizard::setTrackProgress(int percent)
+{
+    impl_->trackPage->setProgress(percent);
+}
+
+void MaskWizard::setTrackStatus(const QString& status)
+{
+    impl_->trackPage->setStatusText(status);
 }
 
 } // namespace dicom_viewer::ui

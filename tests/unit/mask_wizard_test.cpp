@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <QApplication>
+#include <QLabel>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QSlider>
@@ -505,4 +507,116 @@ TEST(MaskWizardTest, CropRegionChangedSignal) {
 
     spinBoxes[0]->setValue(5);
     EXPECT_GE(spy.count(), 1);
+}
+
+// =============================================================================
+// Track page — default values
+// =============================================================================
+
+TEST(MaskWizardTest, TrackDefaultPhaseCount) {
+    MaskWizard wizard;
+    EXPECT_EQ(wizard.phaseCount(), 1);
+}
+
+// =============================================================================
+// Track page — API
+// =============================================================================
+
+TEST(MaskWizardTest, SetPhaseCount) {
+    MaskWizard wizard;
+    wizard.setPhaseCount(25);
+    EXPECT_EQ(wizard.phaseCount(), 25);
+}
+
+TEST(MaskWizardTest, SetTrackProgress) {
+    MaskWizard wizard;
+    wizard.restart();
+    wizard.next();  // Threshold
+    wizard.next();  // Separate
+    wizard.next();  // Track
+
+    auto* trackPage = wizard.page(3);
+    auto* progressBar = trackPage->findChild<QProgressBar*>();
+    ASSERT_NE(progressBar, nullptr);
+
+    wizard.setTrackProgress(50);
+    EXPECT_EQ(progressBar->value(), 50);
+}
+
+TEST(MaskWizardTest, SetTrackStatus) {
+    MaskWizard wizard;
+
+    auto* trackPage = wizard.page(3);
+    auto labels = trackPage->findChildren<QLabel*>();
+
+    wizard.setTrackStatus("Processing phase 5/25");
+
+    // Verify at least one label contains the status text
+    bool found = false;
+    for (auto* label : labels) {
+        if (label->text().contains("Processing phase 5/25")) {
+            found = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(found);
+}
+
+TEST(MaskWizardTest, PhaseCountLabel) {
+    MaskWizard wizard;
+    wizard.setPhaseCount(30);
+
+    auto* trackPage = wizard.page(3);
+    auto labels = trackPage->findChildren<QLabel*>();
+
+    bool found = false;
+    for (auto* label : labels) {
+        if (label->text().contains("30")) {
+            found = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(found);
+}
+
+// =============================================================================
+// Track page — signal
+// =============================================================================
+
+TEST(MaskWizardTest, PropagationRequestedSignal) {
+    MaskWizard wizard;
+    QSignalSpy spy(&wizard, &MaskWizard::propagationRequested);
+    EXPECT_TRUE(spy.isValid());
+
+    // Find the Run Propagation button on track page
+    auto* trackPage = wizard.page(3);
+    auto buttons = trackPage->findChildren<QPushButton*>();
+    QPushButton* runBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text().contains("Run Propagation")) {
+            runBtn = btn;
+            break;
+        }
+    }
+    ASSERT_NE(runBtn, nullptr);
+    runBtn->click();
+
+    EXPECT_EQ(spy.count(), 1);
+}
+
+// =============================================================================
+// Track page — progress bar range
+// =============================================================================
+
+TEST(MaskWizardTest, ProgressBarFullRange) {
+    MaskWizard wizard;
+
+    wizard.setTrackProgress(0);
+    auto* trackPage = wizard.page(3);
+    auto* progressBar = trackPage->findChild<QProgressBar*>();
+    ASSERT_NE(progressBar, nullptr);
+    EXPECT_EQ(progressBar->value(), 0);
+
+    wizard.setTrackProgress(100);
+    EXPECT_EQ(progressBar->value(), 100);
 }
