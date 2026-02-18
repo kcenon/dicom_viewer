@@ -119,6 +119,31 @@ public:
      */
     [[nodiscard]] std::vector<int> selectedComponentIndices() const;
 
+    // -- Track page API --
+
+    /**
+     * @brief Set the number of cardiac phases for propagation
+     * @param count Total number of phases (must be >= 1)
+     */
+    void setPhaseCount(int count);
+
+    /**
+     * @brief Get the configured phase count
+     */
+    [[nodiscard]] int phaseCount() const;
+
+    /**
+     * @brief Update the propagation progress bar
+     * @param percent Progress value (0-100)
+     */
+    void setTrackProgress(int percent);
+
+    /**
+     * @brief Update the track page status message
+     * @param status Status text to display
+     */
+    void setTrackStatus(const QString& status);
+
 signals:
     /**
      * @brief Emitted when the wizard completes all steps successfully
@@ -144,6 +169,11 @@ signals:
      * @brief Emitted when crop region bounds change
      */
     void cropRegionChanged();
+
+    /**
+     * @brief Emitted when user clicks the Run Propagation button
+     */
+    void propagationRequested();
 
 private:
     void setupPages();
