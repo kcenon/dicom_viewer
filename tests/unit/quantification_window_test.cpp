@@ -655,3 +655,98 @@ TEST(QuantificationWindowTest, VolumeTable_Content) {
     EXPECT_EQ(volumeTable->item(0, 1)->text(), "0.75");
     EXPECT_EQ(volumeTable->item(0, 2)->text(), "mW");
 }
+
+// =============================================================================
+// Plane position data model
+// =============================================================================
+
+TEST(QuantificationWindowTest, PlanePosition_DefaultIsZeroNormal) {
+    QuantificationWindow window;
+    window.addPlane("Plane 1", Qt::red);
+
+    auto pos = window.planePosition(0);
+    EXPECT_DOUBLE_EQ(pos.normalX, 0.0);
+    EXPECT_DOUBLE_EQ(pos.normalY, 0.0);
+    EXPECT_DOUBLE_EQ(pos.normalZ, 1.0);
+    EXPECT_DOUBLE_EQ(pos.centerX, 0.0);
+    EXPECT_DOUBLE_EQ(pos.centerY, 0.0);
+    EXPECT_DOUBLE_EQ(pos.centerZ, 0.0);
+    EXPECT_DOUBLE_EQ(pos.extent, 50.0);
+}
+
+TEST(QuantificationWindowTest, PlanePosition_OutOfRange_ReturnsDefault) {
+    QuantificationWindow window;
+    auto pos = window.planePosition(0);
+    // Default PlanePosition has normalZ=1.0 and extent=50.0
+    EXPECT_DOUBLE_EQ(pos.normalZ, 1.0);
+    EXPECT_DOUBLE_EQ(pos.extent, 50.0);
+}
+
+TEST(QuantificationWindowTest, AddPlane_WithPosition) {
+    QuantificationWindow window;
+
+    PlanePosition pos;
+    pos.normalX = 1.0;
+    pos.normalY = 0.0;
+    pos.normalZ = 0.0;
+    pos.centerX = 10.0;
+    pos.centerY = 20.0;
+    pos.centerZ = 30.0;
+    pos.extent = 75.0;
+
+    window.addPlane("Sagittal", Qt::blue, pos);
+    EXPECT_EQ(window.planeCount(), 1);
+
+    auto retrieved = window.planePosition(0);
+    EXPECT_DOUBLE_EQ(retrieved.normalX, 1.0);
+    EXPECT_DOUBLE_EQ(retrieved.centerX, 10.0);
+    EXPECT_DOUBLE_EQ(retrieved.centerY, 20.0);
+    EXPECT_DOUBLE_EQ(retrieved.centerZ, 30.0);
+    EXPECT_DOUBLE_EQ(retrieved.extent, 75.0);
+}
+
+TEST(QuantificationWindowTest, SetPlanePosition_StoresAndRetrieves) {
+    QuantificationWindow window;
+    window.addPlane("Test", Qt::red);
+
+    PlanePosition pos;
+    pos.normalX = 0.0;
+    pos.normalY = 1.0;
+    pos.normalZ = 0.0;
+    pos.centerX = 5.0;
+    pos.centerY = 15.0;
+    pos.centerZ = 25.0;
+    pos.extent = 100.0;
+
+    window.setPlanePosition(0, pos);
+
+    auto retrieved = window.planePosition(0);
+    EXPECT_DOUBLE_EQ(retrieved.normalY, 1.0);
+    EXPECT_DOUBLE_EQ(retrieved.normalZ, 0.0);
+    EXPECT_DOUBLE_EQ(retrieved.centerX, 5.0);
+    EXPECT_DOUBLE_EQ(retrieved.extent, 100.0);
+}
+
+TEST(QuantificationWindowTest, SetPlanePosition_OutOfRange_NoEffect) {
+    QuantificationWindow window;
+    PlanePosition pos;
+    pos.normalX = 1.0;
+    // Should not crash
+    window.setPlanePosition(0, pos);
+    window.setPlanePosition(-1, pos);
+}
+
+TEST(QuantificationWindowTest, PlanePositionChanged_Signal) {
+    QuantificationWindow window;
+    window.addPlane("Test", Qt::red);
+
+    QSignalSpy spy(&window, &QuantificationWindow::planePositionChanged);
+    ASSERT_TRUE(spy.isValid());
+
+    PlanePosition pos;
+    pos.centerZ = 42.0;
+    window.setPlanePosition(0, pos);
+
+    EXPECT_EQ(spy.count(), 1);
+    EXPECT_EQ(spy.at(0).at(0).toInt(), 0);
+}
