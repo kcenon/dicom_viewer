@@ -139,6 +139,18 @@ public:
     [[nodiscard]] int phaseCount() const;
 
     /**
+     * @brief Get the selected reference phase index
+     * @return 0-based reference phase index
+     */
+    [[nodiscard]] int referencePhase() const;
+
+    /**
+     * @brief Set the reference phase index programmatically
+     * @param phase 0-based phase index (clamped to valid range)
+     */
+    void setReferencePhase(int phase);
+
+    /**
      * @brief Update the propagation progress bar
      * @param percent Progress value (0-100)
      */
@@ -180,6 +192,12 @@ signals:
      * @brief Emitted when user clicks the Run Propagation button
      */
     void propagationRequested();
+
+    /**
+     * @brief Emitted when the reference phase selection changes
+     * @param phase New reference phase index
+     */
+    void referencePhaseChanged(int phase);
 
 private:
     void setupPages();
