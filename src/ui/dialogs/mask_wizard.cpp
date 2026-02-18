@@ -757,6 +757,9 @@ MaskWizard::MaskWizard(QWidget* parent)
     setupAppearance();
 
     connect(this, &QWizard::accepted, this, &MaskWizard::wizardCompleted);
+    connect(this, &QWizard::accepted, this, [this]() {
+        emit wizardFinished(wizardResult());
+    });
 }
 
 MaskWizard::~MaskWizard() = default;
@@ -855,6 +858,18 @@ void MaskWizard::setPhaseCount(int count)
 int MaskWizard::phaseCount() const
 {
     return impl_->trackPage->phaseCount();
+}
+
+MaskWizardResult MaskWizard::wizardResult() const
+{
+    MaskWizardResult result;
+    result.crop = cropRegion();
+    result.thresholdMin = thresholdMin();
+    result.thresholdMax = thresholdMax();
+    result.selectedComponents = selectedComponentIndices();
+    result.referencePhase = referencePhase();
+    result.phaseCount = phaseCount();
+    return result;
 }
 
 int MaskWizard::referencePhase() const
