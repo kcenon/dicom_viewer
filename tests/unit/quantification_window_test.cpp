@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QClipboard>
+#include <QComboBox>
 #include <QImage>
 #include <QPainter>
 #include <QPushButton>
@@ -451,4 +452,108 @@ TEST(QuantificationWindowTest, RenderReport_DisabledParams_Excluded) {
     painter.end();
 
     EXPECT_FALSE(image.isNull());
+}
+
+// =============================================================================
+// Plane management — initial state
+// =============================================================================
+
+TEST(QuantificationWindowTest, PlaneManagement_InitiallyEmpty) {
+    QuantificationWindow window;
+    EXPECT_EQ(window.planeCount(), 0);
+    EXPECT_EQ(window.activePlaneIndex(), -1);
+}
+
+// =============================================================================
+// Plane management — add/remove
+// =============================================================================
+
+TEST(QuantificationWindowTest, AddPlane_IncreasesCount) {
+    QuantificationWindow window;
+    window.addPlane("Plane 1", Qt::red);
+    EXPECT_EQ(window.planeCount(), 1);
+    EXPECT_EQ(window.planeName(0), "Plane 1");
+    EXPECT_EQ(window.planeColor(0), QColor(Qt::red));
+}
+
+TEST(QuantificationWindowTest, AddMultiplePlanes) {
+    QuantificationWindow window;
+    window.addPlane("Aorta", Qt::red);
+    window.addPlane("Pulmonary", Qt::blue);
+    window.addPlane("Mitral", Qt::green);
+    EXPECT_EQ(window.planeCount(), 3);
+    EXPECT_EQ(window.planeName(1), "Pulmonary");
+    EXPECT_EQ(window.planeColor(2), QColor(Qt::green));
+}
+
+TEST(QuantificationWindowTest, RemovePlane) {
+    QuantificationWindow window;
+    window.addPlane("Plane 1", Qt::red);
+    window.addPlane("Plane 2", Qt::blue);
+    EXPECT_EQ(window.planeCount(), 2);
+
+    window.removePlane(0);
+    EXPECT_EQ(window.planeCount(), 1);
+    EXPECT_EQ(window.planeName(0), "Plane 2");
+}
+
+// =============================================================================
+// Plane management — active selection
+// =============================================================================
+
+TEST(QuantificationWindowTest, FirstPlane_AutoActivated) {
+    QuantificationWindow window;
+    window.addPlane("Plane 1", Qt::red);
+    EXPECT_EQ(window.activePlaneIndex(), 0);
+}
+
+TEST(QuantificationWindowTest, SetActivePlane) {
+    QuantificationWindow window;
+    window.addPlane("Plane 1", Qt::red);
+    window.addPlane("Plane 2", Qt::blue);
+    window.addPlane("Plane 3", Qt::green);
+
+    window.setActivePlane(2);
+    EXPECT_EQ(window.activePlaneIndex(), 2);
+}
+
+// =============================================================================
+// Plane management — signal
+// =============================================================================
+
+TEST(QuantificationWindowTest, ActivePlaneChanged_Signal) {
+    QuantificationWindow window;
+    window.addPlane("Plane 1", Qt::red);
+    window.addPlane("Plane 2", Qt::blue);
+
+    QSignalSpy spy(&window, &QuantificationWindow::activePlaneChanged);
+    ASSERT_TRUE(spy.isValid());
+
+    window.setActivePlane(1);
+    EXPECT_GE(spy.count(), 1);
+    EXPECT_EQ(spy.last().at(0).toInt(), 1);
+}
+
+// =============================================================================
+// Plane management — out of range
+// =============================================================================
+
+TEST(QuantificationWindowTest, PlaneNameOutOfRange_ReturnsEmpty) {
+    QuantificationWindow window;
+    EXPECT_TRUE(window.planeName(0).isEmpty());
+    EXPECT_TRUE(window.planeName(-1).isEmpty());
+}
+
+// =============================================================================
+// Plane management — combo box UI
+// =============================================================================
+
+TEST(QuantificationWindowTest, PlaneComboBox_Exists) {
+    QuantificationWindow window;
+    auto* combo = window.findChild<QComboBox*>();
+    ASSERT_NE(combo, nullptr);
+    EXPECT_EQ(combo->count(), 0);
+
+    window.addPlane("Test", Qt::red);
+    EXPECT_EQ(combo->count(), 1);
 }

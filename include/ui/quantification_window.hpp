@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include <QColor>
 #include <QMainWindow>
 #include <QRectF>
 
@@ -141,6 +142,52 @@ public:
      */
     [[nodiscard]] bool isFlowDirectionFlipped() const;
 
+    // -- Plane management API --
+
+    /**
+     * @brief Add a measurement plane with name and color
+     * @param name Display name (e.g., "Plane 1")
+     * @param color Color for graph line and selector indicator
+     */
+    void addPlane(const QString& name, const QColor& color);
+
+    /**
+     * @brief Remove a measurement plane by index
+     * @param index 0-based plane index
+     */
+    void removePlane(int index);
+
+    /**
+     * @brief Get the number of registered planes
+     */
+    [[nodiscard]] int planeCount() const;
+
+    /**
+     * @brief Get the currently active plane index
+     * @return Active plane index, or -1 if no planes
+     */
+    [[nodiscard]] int activePlaneIndex() const;
+
+    /**
+     * @brief Programmatically select an active plane
+     * @param index 0-based plane index
+     */
+    void setActivePlane(int index);
+
+    /**
+     * @brief Get a plane's display name
+     * @param index 0-based plane index
+     * @return Plane name, or empty string if out of range
+     */
+    [[nodiscard]] QString planeName(int index) const;
+
+    /**
+     * @brief Get a plane's color
+     * @param index 0-based plane index
+     * @return Plane color, or invalid QColor if out of range
+     */
+    [[nodiscard]] QColor planeColor(int index) const;
+
 signals:
     /**
      * @brief Emitted when parameter checkbox state changes
@@ -166,6 +213,12 @@ signals:
      * @param flipped New flip state
      */
     void flowDirectionFlipped(bool flipped);
+
+    /**
+     * @brief Emitted when the active measurement plane changes
+     * @param index New active plane index
+     */
+    void activePlaneChanged(int index);
 
 private:
     void setupUI();
