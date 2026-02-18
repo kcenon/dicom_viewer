@@ -941,8 +941,7 @@ TEST(QuantificationWindowTest, ProgrammaticAddPlane_UpdatesButtons) {
 
     // Programmatic add should also update button state
     window.addPlane("Test", Qt::red);
-    EXPECT_TRUE(removeBtn->isEnabled());  // 1 plane → still disabled? No, 1 = min
-    // Actually with 1 plane, remove should be disabled
+    // With 1 plane, remove should be disabled (minimum 1 plane required)
     EXPECT_FALSE(removeBtn->isEnabled());
 
     window.addPlane("Test 2", Qt::blue);
