@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <QApplication>
+#include <QBrush>
+#include <QListWidget>
 #include <QSignalSpy>
 
 #include "services/segmentation/label_manager.hpp"
@@ -394,6 +396,100 @@ TEST(FlowToolPanelTest, ObjectVisibility_SetProgrammatic_NoSignal) {
 TEST(FlowToolPanelTest, ObjectVisibilitySignal_Exists) {
     FlowToolPanel panel;
     QSignalSpy spy(&panel, &FlowToolPanel::objectVisibilityToggled);
+    ASSERT_TRUE(spy.isValid());
+    EXPECT_EQ(spy.count(), 0);
+}
+
+// =============================================================================
+// Loaded series list
+// =============================================================================
+
+TEST(FlowToolPanelTest, LoadedSeries_InitiallyZero) {
+    FlowToolPanel panel;
+    EXPECT_EQ(panel.loadedSeriesCount(), 0);
+}
+
+TEST(FlowToolPanelTest, LoadedSeries_AddIncreasesCount) {
+    FlowToolPanel panel;
+    panel.addLoadedSeries("CINE retro SA [CINE]", "uid-1", false);
+    EXPECT_EQ(panel.loadedSeriesCount(), 1);
+
+    panel.addLoadedSeries("Chest CT [CT]", "uid-2", false);
+    EXPECT_EQ(panel.loadedSeriesCount(), 2);
+}
+
+TEST(FlowToolPanelTest, LoadedSeries_NoDuplicatesByUid) {
+    FlowToolPanel panel;
+    panel.addLoadedSeries("CINE [CINE]", "uid-1", false);
+    panel.addLoadedSeries("CINE duplicate [CINE]", "uid-1", false);
+    EXPECT_EQ(panel.loadedSeriesCount(), 1);
+}
+
+TEST(FlowToolPanelTest, LoadedSeries_RemoveByUid) {
+    FlowToolPanel panel;
+    panel.addLoadedSeries("CINE [CINE]", "uid-1", false);
+    panel.addLoadedSeries("CT [CT]", "uid-2", false);
+    EXPECT_EQ(panel.loadedSeriesCount(), 2);
+
+    panel.removeLoadedSeries("uid-1");
+    EXPECT_EQ(panel.loadedSeriesCount(), 1);
+}
+
+TEST(FlowToolPanelTest, LoadedSeries_RemoveNonExistent) {
+    FlowToolPanel panel;
+    panel.addLoadedSeries("CINE [CINE]", "uid-1", false);
+    panel.removeLoadedSeries("uid-nonexistent");
+    EXPECT_EQ(panel.loadedSeriesCount(), 1);
+}
+
+TEST(FlowToolPanelTest, LoadedSeries_ClearAll) {
+    FlowToolPanel panel;
+    panel.addLoadedSeries("CINE [CINE]", "uid-1", false);
+    panel.addLoadedSeries("CT [CT]", "uid-2", false);
+    panel.addLoadedSeries("DIXON [DIXON]", "uid-3", false);
+    EXPECT_EQ(panel.loadedSeriesCount(), 3);
+
+    panel.clearLoadedSeries();
+    EXPECT_EQ(panel.loadedSeriesCount(), 0);
+}
+
+TEST(FlowToolPanelTest, LoadedSeries_Non4DFlow_HasRedForeground) {
+    FlowToolPanel panel;
+    panel.addLoadedSeries("CINE retro [CINE]", "uid-1", false);
+
+    auto* list = panel.findChild<QListWidget*>("", Qt::FindChildrenRecursively);
+    // Find the loaded series list (second QListWidget after mask list)
+    auto lists = panel.findChildren<QListWidget*>();
+    QListWidgetItem* item = nullptr;
+    for (auto* l : lists) {
+        if (l->count() == 1 && l->item(0)->data(Qt::UserRole).toString() == "uid-1") {
+            item = l->item(0);
+            break;
+        }
+    }
+    ASSERT_NE(item, nullptr);
+    EXPECT_EQ(item->foreground().color(), QColor(Qt::red));
+}
+
+TEST(FlowToolPanelTest, LoadedSeries_4DFlow_NoRedForeground) {
+    FlowToolPanel panel;
+    panel.addLoadedSeries("4D Flow Mag", "uid-1", true);
+
+    auto lists = panel.findChildren<QListWidget*>();
+    QListWidgetItem* item = nullptr;
+    for (auto* l : lists) {
+        if (l->count() == 1 && l->item(0)->data(Qt::UserRole).toString() == "uid-1") {
+            item = l->item(0);
+            break;
+        }
+    }
+    ASSERT_NE(item, nullptr);
+    EXPECT_NE(item->foreground().color(), QColor(Qt::red));
+}
+
+TEST(FlowToolPanelTest, LoadedSeries_ActivatedSignal) {
+    FlowToolPanel panel;
+    QSignalSpy spy(&panel, &FlowToolPanel::loadedSeriesActivated);
     ASSERT_TRUE(spy.isValid());
     EXPECT_EQ(spy.count(), 0);
 }
