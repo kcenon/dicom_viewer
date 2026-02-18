@@ -81,6 +81,7 @@ QIcon colorSwatchIcon(const QColor& color)
 struct PlaneInfo {
     QString name;
     QColor color;
+    PlanePosition position;
 };
 
 class QuantificationWindow::Impl {
@@ -637,7 +638,17 @@ void QuantificationWindow::renderReport(QPainter& painter, const QRectF& pageRec
 
 void QuantificationWindow::addPlane(const QString& name, const QColor& color)
 {
-    impl_->planes.push_back({name, color});
+    impl_->planes.push_back({name, color, {}});
+    impl_->planeCombo->addItem(colorSwatchIcon(color), name);
+    if (impl_->planes.size() == 1) {
+        impl_->planeCombo->setCurrentIndex(0);
+    }
+}
+
+void QuantificationWindow::addPlane(const QString& name, const QColor& color,
+                                     const PlanePosition& position)
+{
+    impl_->planes.push_back({name, color, position});
     impl_->planeCombo->addItem(colorSwatchIcon(color), name);
     if (impl_->planes.size() == 1) {
         impl_->planeCombo->setCurrentIndex(0);
@@ -678,6 +689,19 @@ QColor QuantificationWindow::planeColor(int index) const
 {
     if (index < 0 || index >= static_cast<int>(impl_->planes.size())) return {};
     return impl_->planes[index].color;
+}
+
+PlanePosition QuantificationWindow::planePosition(int index) const
+{
+    if (index < 0 || index >= static_cast<int>(impl_->planes.size())) return {};
+    return impl_->planes[index].position;
+}
+
+void QuantificationWindow::setPlanePosition(int index, const PlanePosition& position)
+{
+    if (index < 0 || index >= static_cast<int>(impl_->planes.size())) return;
+    impl_->planes[index].position = position;
+    emit planePositionChanged(index);
 }
 
 void QuantificationWindow::setVolumeStatistics(const std::vector<VolumeStatRow>& rows)

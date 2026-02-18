@@ -58,6 +58,19 @@ struct VolumeStatRow {
 };
 
 /**
+ * @brief Spatial position of a measurement plane in 3D space
+ */
+struct PlanePosition {
+    double normalX = 0.0;  ///< Normal vector X component
+    double normalY = 0.0;  ///< Normal vector Y component
+    double normalZ = 1.0;  ///< Normal vector Z component (default: axial)
+    double centerX = 0.0;  ///< Center point X in mm
+    double centerY = 0.0;  ///< Center point Y in mm
+    double centerZ = 0.0;  ///< Center point Z in mm
+    double extent = 50.0;  ///< Measurement region extent in mm
+};
+
+/**
  * @brief Independent window for quantitative flow analysis
  *
  * Displays measurement statistics in a table (Mean/Std/Max/Min) and
@@ -208,6 +221,29 @@ public:
      */
     [[nodiscard]] QColor planeColor(int index) const;
 
+    /**
+     * @brief Add a measurement plane with name, color, and position
+     * @param name Display name
+     * @param color Color for graph line and selector indicator
+     * @param position Spatial position in 3D space
+     */
+    void addPlane(const QString& name, const QColor& color,
+                  const PlanePosition& position);
+
+    /**
+     * @brief Get a plane's spatial position
+     * @param index 0-based plane index
+     * @return Plane position, or default PlanePosition if out of range
+     */
+    [[nodiscard]] PlanePosition planePosition(int index) const;
+
+    /**
+     * @brief Set a plane's spatial position
+     * @param index 0-based plane index
+     * @param position New spatial position
+     */
+    void setPlanePosition(int index, const PlanePosition& position);
+
     // -- Volume measurement API --
 
     /**
@@ -276,6 +312,12 @@ signals:
      * @param index New tab index
      */
     void activeTabChanged(int index);
+
+    /**
+     * @brief Emitted when a plane's spatial position changes
+     * @param index Plane index whose position changed
+     */
+    void planePositionChanged(int index);
 
 private:
     void setupUI();
