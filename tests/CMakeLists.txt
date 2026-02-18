@@ -1893,3 +1893,21 @@ target_include_directories(mask_wizard_test PRIVATE
 )
 
 gtest_discover_tests(mask_wizard_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for DropHandler (drag-and-drop classification)
+add_executable(drop_handler_test
+    unit/drop_handler_test.cpp
+)
+
+target_link_libraries(drop_handler_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(drop_handler_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(drop_handler_test DISCOVERY_TIMEOUT 60)

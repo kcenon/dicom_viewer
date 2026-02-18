@@ -601,6 +601,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/dialogs/pacs_config_dialog.cpp
     src/ui/dialogs/quantification_window.cpp
     src/ui/dialogs/mask_wizard.cpp
+    src/ui/drop_handler.cpp
     src/ui/widgets/flow_graph_widget.cpp
     # Headers with Q_OBJECT for AUTOMOC
     include/ui/main_window.hpp
@@ -619,6 +620,7 @@ add_library(dicom_viewer_ui STATIC
     include/ui/dialogs/pacs_config_dialog.hpp
     include/ui/quantification_window.hpp
     include/ui/dialogs/mask_wizard.hpp
+    include/ui/drop_handler.hpp
     include/ui/widgets/flow_graph_widget.hpp
 )
 
