@@ -3,6 +3,7 @@
 #include <QVBoxLayout>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
+#include <QBrush>
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QLabel>
@@ -171,6 +172,16 @@ void PatientBrowser::addSeries(const QString& studyUid, const SeriesInfo& series
     item->setText(2, series.modality);
     item->setData(0, UidRole, series.seriesInstanceUid);
     item->setIcon(0, style()->standardIcon(QStyle::SP_FileIcon));
+
+    // Mark non-4D Flow classified series with red text
+    if (!series.is4DFlow &&
+        !series.seriesType.isEmpty() &&
+        series.seriesType != "Unknown") {
+        QBrush redBrush(Qt::red);
+        for (int col = 0; col < 3; ++col) {
+            item->setForeground(col, redBrush);
+        }
+    }
 
     impl_->seriesItems[series.seriesInstanceUid] = item;
 }
