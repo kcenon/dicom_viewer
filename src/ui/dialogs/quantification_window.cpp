@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QClipboard>
+#include <QComboBox>
 #include <QFileDialog>
 #include <QFont>
 #include <QGroupBox>
@@ -11,6 +12,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QPainter>
+#include <QPixmap>
 #include <QPrinter>
 #include <QPushButton>
 #include <QSplitter>
@@ -48,7 +50,25 @@ QString parameterUnit(MeasurementParameter param)
     return {};
 }
 
+QIcon colorSwatchIcon(const QColor& color)
+{
+    QPixmap pix(12, 12);
+    pix.fill(Qt::transparent);
+    QPainter p(&pix);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setBrush(color);
+    p.setPen(Qt::NoPen);
+    p.drawEllipse(1, 1, 10, 10);
+    p.end();
+    return QIcon(pix);
+}
+
 } // anonymous namespace
+
+struct PlaneInfo {
+    QString name;
+    QColor color;
+};
 
 class QuantificationWindow::Impl {
 public:
@@ -76,8 +96,12 @@ public:
     QPushButton* exportPdfBtn = nullptr;
     QPushButton* flipFlowBtn = nullptr;
 
+    // Plane selector
+    QComboBox* planeCombo = nullptr;
+
     // Data
     std::vector<QuantificationRow> rows;
+    std::vector<PlaneInfo> planes;
     bool flowFlipped = false;
 
     QCheckBox* checkBoxFor(MeasurementParameter param)
@@ -150,6 +174,14 @@ void QuantificationWindow::setupUI()
     paramLayout->addWidget(impl_->strokeVolumeCheck);
 
     leftLayout->addWidget(paramGroup);
+
+    // Plane selector
+    auto* planeGroup = new QGroupBox(tr("Measurement Plane"), impl_->leftPanel);
+    auto* planeLayout = new QVBoxLayout(planeGroup);
+    impl_->planeCombo = new QComboBox(planeGroup);
+    impl_->planeCombo->setPlaceholderText(tr("No planes"));
+    planeLayout->addWidget(impl_->planeCombo);
+    leftLayout->addWidget(planeGroup);
 
     // Statistics table
     impl_->statsTable = new QTableWidget(0, 5, impl_->leftPanel);
@@ -238,6 +270,10 @@ void QuantificationWindow::setupConnections()
     // Graph phase click → propagate as phase change request
     connect(impl_->graphWidget, &FlowGraphWidget::phaseClicked, this,
             &QuantificationWindow::phaseChangeRequested);
+
+    // Plane selector
+    connect(impl_->planeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &QuantificationWindow::activePlaneChanged);
 
     // Parameter checkboxes → signal + table update
     auto connectCheck = [this](QCheckBox* box, MeasurementParameter param) {
@@ -537,6 +573,51 @@ void QuantificationWindow::renderReport(QPainter& painter, const QRectF& pageRec
             }
         }
     }
+}
+
+void QuantificationWindow::addPlane(const QString& name, const QColor& color)
+{
+    impl_->planes.push_back({name, color});
+    impl_->planeCombo->addItem(colorSwatchIcon(color), name);
+    if (impl_->planes.size() == 1) {
+        impl_->planeCombo->setCurrentIndex(0);
+    }
+}
+
+void QuantificationWindow::removePlane(int index)
+{
+    if (index < 0 || index >= static_cast<int>(impl_->planes.size())) return;
+    impl_->planes.erase(impl_->planes.begin() + index);
+    impl_->planeCombo->removeItem(index);
+}
+
+int QuantificationWindow::planeCount() const
+{
+    return static_cast<int>(impl_->planes.size());
+}
+
+int QuantificationWindow::activePlaneIndex() const
+{
+    return impl_->planeCombo->currentIndex();
+}
+
+void QuantificationWindow::setActivePlane(int index)
+{
+    if (index >= 0 && index < static_cast<int>(impl_->planes.size())) {
+        impl_->planeCombo->setCurrentIndex(index);
+    }
+}
+
+QString QuantificationWindow::planeName(int index) const
+{
+    if (index < 0 || index >= static_cast<int>(impl_->planes.size())) return {};
+    return impl_->planes[index].name;
+}
+
+QColor QuantificationWindow::planeColor(int index) const
+{
+    if (index < 0 || index >= static_cast<int>(impl_->planes.size())) return {};
+    return impl_->planes[index].color;
 }
 
 } // namespace dicom_viewer::ui
