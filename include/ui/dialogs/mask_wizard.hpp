@@ -8,6 +8,15 @@
 namespace dicom_viewer::ui {
 
 /**
+ * @brief 3D bounding box for the Crop step
+ */
+struct CropRegion {
+    int xMin = 0, xMax = 0;
+    int yMin = 0, yMax = 0;
+    int zMin = 0, zMax = 0;
+};
+
+/**
  * @brief Data for a single connected component in the Separate step
  */
 struct ComponentInfo {
@@ -51,6 +60,23 @@ public:
      * @return Current step enum value
      */
     [[nodiscard]] MaskWizardStep currentStep() const;
+
+    // -- Crop page API --
+
+    /**
+     * @brief Set volume dimensions to configure crop spinbox ranges
+     * @param x Number of voxels along X axis
+     * @param y Number of voxels along Y axis
+     * @param z Number of voxels along Z axis
+     */
+    void setVolumeDimensions(int x, int y, int z);
+
+    /**
+     * @brief Get current crop region bounds
+     */
+    [[nodiscard]] CropRegion cropRegion() const;
+
+    // -- Threshold page API --
 
     /**
      * @brief Configure the valid intensity range for threshold sliders
@@ -113,6 +139,11 @@ signals:
      * @brief Emitted when component selection changes in the Separate step
      */
     void componentSelectionChanged();
+
+    /**
+     * @brief Emitted when crop region bounds change
+     */
+    void cropRegionChanged();
 
 private:
     void setupPages();

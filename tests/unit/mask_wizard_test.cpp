@@ -382,3 +382,127 @@ TEST(MaskWizardTest, CheckboxToggleUpdatesSelection) {
     EXPECT_EQ(selected.size(), 1u);
     EXPECT_EQ(selected[0], 1);
 }
+
+// =============================================================================
+// Crop page — default values
+// =============================================================================
+
+TEST(MaskWizardTest, CropDefaultRegion) {
+    MaskWizard wizard;
+    // Default dimensions: 256x256x128
+    auto r = wizard.cropRegion();
+    EXPECT_EQ(r.xMin, 0);
+    EXPECT_EQ(r.xMax, 255);
+    EXPECT_EQ(r.yMin, 0);
+    EXPECT_EQ(r.yMax, 255);
+    EXPECT_EQ(r.zMin, 0);
+    EXPECT_EQ(r.zMax, 127);
+}
+
+// =============================================================================
+// Crop page — setVolumeDimensions
+// =============================================================================
+
+TEST(MaskWizardTest, SetVolumeDimensions) {
+    MaskWizard wizard;
+    wizard.setVolumeDimensions(512, 512, 64);
+    auto r = wizard.cropRegion();
+    EXPECT_EQ(r.xMin, 0);
+    EXPECT_EQ(r.xMax, 511);
+    EXPECT_EQ(r.yMin, 0);
+    EXPECT_EQ(r.yMax, 511);
+    EXPECT_EQ(r.zMin, 0);
+    EXPECT_EQ(r.zMax, 63);
+}
+
+// =============================================================================
+// Crop page — spinbox interaction
+// =============================================================================
+
+TEST(MaskWizardTest, CropSpinboxModifiesRegion) {
+    MaskWizard wizard;
+    wizard.restart();  // Initialize to crop page
+
+    auto* cropPage = wizard.page(0);
+    auto spinBoxes = cropPage->findChildren<QSpinBox*>();
+    ASSERT_GE(spinBoxes.size(), 6);
+
+    // Modify X min spinbox
+    spinBoxes[0]->setValue(10);
+    auto r = wizard.cropRegion();
+    EXPECT_EQ(r.xMin, 10);
+}
+
+// =============================================================================
+// Crop page — constraint enforcement
+// =============================================================================
+
+TEST(MaskWizardTest, CropMinCannotExceedMax) {
+    MaskWizard wizard;
+    wizard.restart();
+
+    auto* cropPage = wizard.page(0);
+    auto spinBoxes = cropPage->findChildren<QSpinBox*>();
+    ASSERT_GE(spinBoxes.size(), 6);
+
+    // spinBoxes[0] = X min, spinBoxes[1] = X max
+    spinBoxes[1]->setValue(50);   // Set X max to 50
+    spinBoxes[0]->setValue(100);  // Try to set X min to 100
+
+    auto r = wizard.cropRegion();
+    EXPECT_LE(r.xMin, r.xMax);
+}
+
+// =============================================================================
+// Crop page — reset button
+// =============================================================================
+
+TEST(MaskWizardTest, ResetToFullVolume) {
+    MaskWizard wizard;
+    wizard.setVolumeDimensions(100, 200, 50);
+
+    // Modify region via spinbox
+    auto* cropPage = wizard.page(0);
+    auto spinBoxes = cropPage->findChildren<QSpinBox*>();
+    ASSERT_GE(spinBoxes.size(), 6);
+    spinBoxes[0]->setValue(10);  // Change X min
+
+    // Find and click reset button
+    auto buttons = cropPage->findChildren<QPushButton*>();
+    QPushButton* resetBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text().contains("Reset")) {
+            resetBtn = btn;
+            break;
+        }
+    }
+    ASSERT_NE(resetBtn, nullptr);
+    resetBtn->click();
+
+    // Region should be reset to full volume
+    auto r = wizard.cropRegion();
+    EXPECT_EQ(r.xMin, 0);
+    EXPECT_EQ(r.xMax, 99);
+    EXPECT_EQ(r.yMin, 0);
+    EXPECT_EQ(r.yMax, 199);
+    EXPECT_EQ(r.zMin, 0);
+    EXPECT_EQ(r.zMax, 49);
+}
+
+// =============================================================================
+// Crop page — signal
+// =============================================================================
+
+TEST(MaskWizardTest, CropRegionChangedSignal) {
+    MaskWizard wizard;
+    QSignalSpy spy(&wizard, &MaskWizard::cropRegionChanged);
+    EXPECT_TRUE(spy.isValid());
+
+    wizard.restart();
+    auto* cropPage = wizard.page(0);
+    auto spinBoxes = cropPage->findChildren<QSpinBox*>();
+    ASSERT_GE(spinBoxes.size(), 6);
+
+    spinBoxes[0]->setValue(5);
+    EXPECT_GE(spy.count(), 1);
+}
