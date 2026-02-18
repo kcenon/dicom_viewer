@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <QApplication>
+#include <QBrush>
 #include <QTreeWidget>
 
 #include "ui/panels/patient_browser.hpp"
@@ -158,4 +159,66 @@ TEST_F(PatientBrowserTreeTest, SelectedSeriesUid_NoSelection) {
         makeSeries("SER001", "Test", "CT"));
 
     EXPECT_TRUE(browser->selectedSeriesUid().isEmpty());
+}
+
+// =============================================================================
+// Red label for non-4D Flow series
+// =============================================================================
+
+TEST_F(PatientBrowserTreeTest, Non4DFlowSeries_HasRedForeground) {
+    browser->addSeries("STUDY001",
+        makeSeries("SER001", "CINE retro SA", "CINE", false));
+
+    auto* item = findSeriesItem();
+    ASSERT_NE(item, nullptr);
+    EXPECT_EQ(item->foreground(0).color(), QColor(Qt::red));
+    EXPECT_EQ(item->foreground(1).color(), QColor(Qt::red));
+    EXPECT_EQ(item->foreground(2).color(), QColor(Qt::red));
+}
+
+TEST_F(PatientBrowserTreeTest, Flow4DSeries_NoRedForeground) {
+    browser->addSeries("STUDY001",
+        makeSeries("SER001", "fl3d_4DFlow", "4D Flow Magnitude", true));
+
+    auto* item = findSeriesItem();
+    ASSERT_NE(item, nullptr);
+    // 4D Flow series should NOT have red foreground
+    EXPECT_NE(item->foreground(0).color(), QColor(Qt::red));
+}
+
+TEST_F(PatientBrowserTreeTest, UnknownType_NoRedForeground) {
+    browser->addSeries("STUDY001",
+        makeSeries("SER001", "t2_tse_tra", "Unknown", false));
+
+    auto* item = findSeriesItem();
+    ASSERT_NE(item, nullptr);
+    // Unknown series should NOT have red foreground
+    EXPECT_NE(item->foreground(0).color(), QColor(Qt::red));
+}
+
+TEST_F(PatientBrowserTreeTest, EmptyType_NoRedForeground) {
+    browser->addSeries("STUDY001",
+        makeSeries("SER001", "Generic Series", "", false));
+
+    auto* item = findSeriesItem();
+    ASSERT_NE(item, nullptr);
+    EXPECT_NE(item->foreground(0).color(), QColor(Qt::red));
+}
+
+TEST_F(PatientBrowserTreeTest, CTSeries_HasRedForeground) {
+    browser->addSeries("STUDY001",
+        makeSeries("SER001", "Chest CT Angio", "CT", false));
+
+    auto* item = findSeriesItem();
+    ASSERT_NE(item, nullptr);
+    EXPECT_EQ(item->foreground(0).color(), QColor(Qt::red));
+}
+
+TEST_F(PatientBrowserTreeTest, DIXONSeries_HasRedForeground) {
+    browser->addSeries("STUDY001",
+        makeSeries("SER001", "t1_vibe_dixon_W", "DIXON", false));
+
+    auto* item = findSeriesItem();
+    ASSERT_NE(item, nullptr);
+    EXPECT_EQ(item->foreground(0).color(), QColor(Qt::red));
 }
