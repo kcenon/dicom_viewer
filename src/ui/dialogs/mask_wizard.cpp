@@ -18,6 +18,7 @@ namespace {
 
 constexpr int kDefaultRangeMin = -1024;
 constexpr int kDefaultRangeMax = 3071;
+constexpr int kDefaultDim = 256;
 
 /**
  * @brief Base wizard page with step title and placeholder content
@@ -40,6 +41,197 @@ public:
 
         layout->addStretch();
     }
+};
+
+/**
+ * @brief Functional crop page with dimension spinboxes for 3D bounding box
+ */
+class CropPage : public QWizardPage {
+public:
+    explicit CropPage(MaskWizard* wizard, QWidget* parent = nullptr)
+        : QWizardPage(parent)
+        , wizard_(wizard)
+    {
+        setTitle(tr("Step 1: Crop"));
+        setSubTitle(tr("Define a 3D bounding box to reduce the region of interest"));
+
+        auto* layout = new QVBoxLayout(this);
+
+        auto* descLabel = new QLabel(
+            tr("Set the min/max bounds for each axis to define the crop region. "
+               "Only the cropped volume will be used in subsequent steps."),
+            this);
+        descLabel->setWordWrap(true);
+        layout->addWidget(descLabel);
+
+        layout->addSpacing(12);
+
+        // Create axis rows: X, Y, Z
+        auto createAxisRow = [&](const QString& axis, QSpinBox*& minSpin,
+                                 QSpinBox*& maxSpin, QLabel*& dimLabel) {
+            auto* row = new QHBoxLayout();
+            row->addWidget(new QLabel(axis + ":", this));
+
+            row->addWidget(new QLabel(tr("Min"), this));
+            minSpin = new QSpinBox(this);
+            minSpin->setMinimumWidth(70);
+            row->addWidget(minSpin);
+
+            row->addWidget(new QLabel(tr("Max"), this));
+            maxSpin = new QSpinBox(this);
+            maxSpin->setMinimumWidth(70);
+            row->addWidget(maxSpin);
+
+            dimLabel = new QLabel(this);
+            dimLabel->setStyleSheet("color: gray;");
+            row->addWidget(dimLabel);
+
+            row->addStretch();
+            layout->addLayout(row);
+            layout->addSpacing(4);
+        };
+
+        createAxisRow("X", xMinSpin_, xMaxSpin_, xDimLabel_);
+        createAxisRow("Y", yMinSpin_, yMaxSpin_, yDimLabel_);
+        createAxisRow("Z", zMinSpin_, zMaxSpin_, zDimLabel_);
+
+        layout->addSpacing(8);
+
+        // Volume summary
+        volumeLabel_ = new QLabel(this);
+        layout->addWidget(volumeLabel_);
+
+        layout->addSpacing(8);
+
+        // Warning label
+        auto* warningLabel = new QLabel(
+            tr("Warning: Cropping is irreversible within this wizard session."),
+            this);
+        warningLabel->setStyleSheet(
+            "color: #c62828; font-weight: bold; padding: 4px;");
+        warningLabel->setWordWrap(true);
+        layout->addWidget(warningLabel);
+
+        layout->addSpacing(8);
+
+        // Reset button
+        auto* buttonRow = new QHBoxLayout();
+        resetBtn_ = new QPushButton(tr("Reset to Full Volume"), this);
+        buttonRow->addWidget(resetBtn_);
+        buttonRow->addStretch();
+        layout->addLayout(buttonRow);
+
+        layout->addStretch();
+
+        setDimensions(kDefaultDim, kDefaultDim, kDefaultDim / 2);
+        setupConnections();
+    }
+
+    void setDimensions(int x, int y, int z) {
+        dimX_ = x; dimY_ = y; dimZ_ = z;
+
+        blockSignals_ = true;
+        xMinSpin_->setRange(0, x - 1);
+        xMaxSpin_->setRange(0, x - 1);
+        yMinSpin_->setRange(0, y - 1);
+        yMaxSpin_->setRange(0, y - 1);
+        zMinSpin_->setRange(0, z - 1);
+        zMaxSpin_->setRange(0, z - 1);
+        blockSignals_ = false;
+
+        resetToFull();
+    }
+
+    void resetToFull() {
+        blockSignals_ = true;
+        xMinSpin_->setValue(0);
+        xMaxSpin_->setValue(dimX_ - 1);
+        yMinSpin_->setValue(0);
+        yMaxSpin_->setValue(dimY_ - 1);
+        zMinSpin_->setValue(0);
+        zMaxSpin_->setValue(dimZ_ - 1);
+        blockSignals_ = false;
+        updateLabels();
+    }
+
+    [[nodiscard]] CropRegion region() const {
+        return {xMinSpin_->value(), xMaxSpin_->value(),
+                yMinSpin_->value(), yMaxSpin_->value(),
+                zMinSpin_->value(), zMaxSpin_->value()};
+    }
+
+private:
+    void setupConnections() {
+        auto connectPair = [this](QSpinBox* minSpin, QSpinBox* maxSpin) {
+            auto onChange = [this, minSpin, maxSpin](int) {
+                if (blockSignals_) return;
+                blockSignals_ = true;
+                // Enforce min <= max
+                if (minSpin->value() > maxSpin->value()) {
+                    maxSpin->setValue(minSpin->value());
+                }
+                blockSignals_ = false;
+                updateLabels();
+                emit wizard_->cropRegionChanged();
+            };
+            connect(minSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                    this, onChange);
+            connect(maxSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                    this, [this, minSpin, maxSpin](int) {
+                if (blockSignals_) return;
+                blockSignals_ = true;
+                if (maxSpin->value() < minSpin->value()) {
+                    minSpin->setValue(maxSpin->value());
+                }
+                blockSignals_ = false;
+                updateLabels();
+                emit wizard_->cropRegionChanged();
+            });
+        };
+
+        connectPair(xMinSpin_, xMaxSpin_);
+        connectPair(yMinSpin_, yMaxSpin_);
+        connectPair(zMinSpin_, zMaxSpin_);
+
+        connect(resetBtn_, &QPushButton::clicked, this, [this]() {
+            resetToFull();
+            emit wizard_->cropRegionChanged();
+        });
+    }
+
+    void updateLabels() {
+        auto r = region();
+        int sx = r.xMax - r.xMin + 1;
+        int sy = r.yMax - r.yMin + 1;
+        int sz = r.zMax - r.zMin + 1;
+
+        xDimLabel_->setText(tr("of %1").arg(dimX_));
+        yDimLabel_->setText(tr("of %1").arg(dimY_));
+        zDimLabel_->setText(tr("of %1").arg(dimZ_));
+
+        long long voxels = static_cast<long long>(sx) * sy * sz;
+        volumeLabel_->setText(
+            tr("Volume: %1 x %2 x %3 = %4 voxels")
+                .arg(sx).arg(sy).arg(sz)
+                .arg(QLocale().toString(voxels)));
+    }
+
+    MaskWizard* wizard_ = nullptr;
+    QSpinBox* xMinSpin_ = nullptr;
+    QSpinBox* xMaxSpin_ = nullptr;
+    QSpinBox* yMinSpin_ = nullptr;
+    QSpinBox* yMaxSpin_ = nullptr;
+    QSpinBox* zMinSpin_ = nullptr;
+    QSpinBox* zMaxSpin_ = nullptr;
+    QLabel* xDimLabel_ = nullptr;
+    QLabel* yDimLabel_ = nullptr;
+    QLabel* zDimLabel_ = nullptr;
+    QLabel* volumeLabel_ = nullptr;
+    QPushButton* resetBtn_ = nullptr;
+    int dimX_ = kDefaultDim;
+    int dimY_ = kDefaultDim;
+    int dimZ_ = kDefaultDim / 2;
+    bool blockSignals_ = false;
 };
 
 /**
@@ -399,7 +591,7 @@ private:
 
 class MaskWizard::Impl {
 public:
-    StepPage* cropPage = nullptr;
+    CropPage* cropPage = nullptr;
     ThresholdPage* thresholdPage = nullptr;
     SeparatePage* separatePage = nullptr;
     StepPage* trackPage = nullptr;
@@ -419,14 +611,7 @@ MaskWizard::~MaskWizard() = default;
 
 void MaskWizard::setupPages()
 {
-    impl_->cropPage = new StepPage(
-        tr("Step 1: Crop"),
-        tr("Define a 3D bounding box to reduce the region of interest"),
-        tr("Use the handles on each plane (Axial, Coronal, Sagittal) to "
-           "define the crop region. Only the cropped volume will be used "
-           "in subsequent steps.\n\n"
-           "Note: Cropping is irreversible within this wizard session."),
-        this);
+    impl_->cropPage = new CropPage(this, this);
 
     impl_->thresholdPage = new ThresholdPage(this, this);
 
@@ -499,6 +684,16 @@ int MaskWizard::componentCount() const
 std::vector<int> MaskWizard::selectedComponentIndices() const
 {
     return impl_->separatePage->selectedIndices();
+}
+
+void MaskWizard::setVolumeDimensions(int x, int y, int z)
+{
+    impl_->cropPage->setDimensions(x, y, z);
+}
+
+CropRegion MaskWizard::cropRegion() const
+{
+    return impl_->cropPage->region();
 }
 
 } // namespace dicom_viewer::ui
