@@ -38,6 +38,26 @@ struct QuantificationRow {
 };
 
 /**
+ * @brief Volume-level measurement parameter identifiers
+ */
+enum class VolumeParameter {
+    TotalKE,       ///< Total kinetic energy (mJ)
+    VortexVolume,  ///< Vortex volume (mL)
+    EnergyLoss,    ///< Energy loss (mW)
+    MeanWSS,       ///< Mean wall shear stress (Pa)
+    PeakWSS        ///< Peak wall shear stress (Pa)
+};
+
+/**
+ * @brief Row data for the 3D volume statistics table
+ */
+struct VolumeStatRow {
+    VolumeParameter parameter;
+    double value = 0.0;
+    QString unit;
+};
+
+/**
  * @brief Independent window for quantitative flow analysis
  *
  * Displays measurement statistics in a table (Mean/Std/Max/Min) and
@@ -188,6 +208,37 @@ public:
      */
     [[nodiscard]] QColor planeColor(int index) const;
 
+    // -- Volume measurement API --
+
+    /**
+     * @brief Set volume statistics data for the 3D volume tab
+     * @param rows Vector of volume stat rows
+     */
+    void setVolumeStatistics(const std::vector<VolumeStatRow>& rows);
+
+    /**
+     * @brief Get the number of rows in the volume statistics table
+     */
+    [[nodiscard]] int volumeRowCount() const;
+
+    /**
+     * @brief Clear all volume statistics data
+     */
+    void clearVolumeStatistics();
+
+    // -- Tab API --
+
+    /**
+     * @brief Get the active tab index (0=2D Plane, 1=3D Volume)
+     */
+    [[nodiscard]] int activeTab() const;
+
+    /**
+     * @brief Set the active tab by index
+     * @param index Tab index (0=2D Plane, 1=3D Volume)
+     */
+    void setActiveTab(int index);
+
 signals:
     /**
      * @brief Emitted when parameter checkbox state changes
@@ -219,6 +270,12 @@ signals:
      * @param index New active plane index
      */
     void activePlaneChanged(int index);
+
+    /**
+     * @brief Emitted when the active tab changes (2D Plane / 3D Volume)
+     * @param index New tab index
+     */
+    void activeTabChanged(int index);
 
 private:
     void setupUI();

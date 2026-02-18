@@ -17,6 +17,7 @@
 #include <QPushButton>
 #include <QSplitter>
 #include <QTableWidget>
+#include <QTabWidget>
 #include <QTextStream>
 #include <QVBoxLayout>
 
@@ -50,6 +51,18 @@ QString parameterUnit(MeasurementParameter param)
     return {};
 }
 
+QString volumeParameterName(VolumeParameter param)
+{
+    switch (param) {
+        case VolumeParameter::TotalKE:      return "Total KE";
+        case VolumeParameter::VortexVolume: return "Vortex Volume";
+        case VolumeParameter::EnergyLoss:   return "Energy Loss";
+        case VolumeParameter::MeanWSS:      return "Mean WSS";
+        case VolumeParameter::PeakWSS:      return "Peak WSS";
+    }
+    return {};
+}
+
 QIcon colorSwatchIcon(const QColor& color)
 {
     QPixmap pix(12, 12);
@@ -72,6 +85,7 @@ struct PlaneInfo {
 
 class QuantificationWindow::Impl {
 public:
+    QTabWidget* tabWidget = nullptr;
     QSplitter* mainSplitter = nullptr;
 
     // Left panel
@@ -99,8 +113,13 @@ public:
     // Plane selector
     QComboBox* planeCombo = nullptr;
 
+    // 3D Volume tab
+    QWidget* volumePanel = nullptr;
+    QTableWidget* volumeTable = nullptr;
+
     // Data
     std::vector<QuantificationRow> rows;
+    std::vector<VolumeStatRow> volumeRows;
     std::vector<PlaneInfo> planes;
     bool flowFlipped = false;
 
@@ -140,8 +159,16 @@ void QuantificationWindow::setupUI()
     auto* mainLayout = new QHBoxLayout(centralWidget);
     mainLayout->setContentsMargins(0, 0, 0, 0);
 
-    impl_->mainSplitter = new QSplitter(Qt::Horizontal, centralWidget);
-    mainLayout->addWidget(impl_->mainSplitter);
+    impl_->tabWidget = new QTabWidget(centralWidget);
+    mainLayout->addWidget(impl_->tabWidget);
+
+    // === 2D Plane tab ===
+    auto* planeTab = new QWidget();
+    auto* planeLayout = new QHBoxLayout(planeTab);
+    planeLayout->setContentsMargins(0, 0, 0, 0);
+
+    impl_->mainSplitter = new QSplitter(Qt::Horizontal, planeTab);
+    planeLayout->addWidget(impl_->mainSplitter);
 
     // --- Left panel ---
     impl_->leftPanel = new QWidget(impl_->mainSplitter);
@@ -177,10 +204,10 @@ void QuantificationWindow::setupUI()
 
     // Plane selector
     auto* planeGroup = new QGroupBox(tr("Measurement Plane"), impl_->leftPanel);
-    auto* planeLayout = new QVBoxLayout(planeGroup);
+    auto* planeGroupLayout = new QVBoxLayout(planeGroup);
     impl_->planeCombo = new QComboBox(planeGroup);
     impl_->planeCombo->setPlaceholderText(tr("No planes"));
-    planeLayout->addWidget(impl_->planeCombo);
+    planeGroupLayout->addWidget(impl_->planeCombo);
     leftLayout->addWidget(planeGroup);
 
     // Statistics table
@@ -235,6 +262,35 @@ void QuantificationWindow::setupUI()
 
     // 40% left, 60% right
     impl_->mainSplitter->setSizes({400, 600});
+
+    impl_->tabWidget->addTab(planeTab, tr("2D Plane"));
+
+    // === 3D Volume tab ===
+    impl_->volumePanel = new QWidget();
+    auto* volumeLayout = new QVBoxLayout(impl_->volumePanel);
+
+    auto* volumeLabel = new QLabel(tr("Volume Measurements"), impl_->volumePanel);
+    QFont labelFont = volumeLabel->font();
+    labelFont.setBold(true);
+    volumeLabel->setFont(labelFont);
+    volumeLayout->addWidget(volumeLabel);
+
+    impl_->volumeTable = new QTableWidget(0, 3, impl_->volumePanel);
+    impl_->volumeTable->setHorizontalHeaderLabels(
+        {tr("Parameter"), tr("Value"), tr("Unit")});
+    impl_->volumeTable->horizontalHeader()->setStretchLastSection(true);
+    impl_->volumeTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    impl_->volumeTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    impl_->volumeTable->verticalHeader()->setVisible(false);
+    volumeLayout->addWidget(impl_->volumeTable, 1);
+
+    auto* volumePlaceholder = new QLabel(tr("3D visualization area"), impl_->volumePanel);
+    volumePlaceholder->setAlignment(Qt::AlignCenter);
+    volumePlaceholder->setStyleSheet(
+        "border: 1px dashed gray; color: gray; min-height: 200px;");
+    volumeLayout->addWidget(volumePlaceholder, 1);
+
+    impl_->tabWidget->addTab(impl_->volumePanel, tr("3D Volume"));
 }
 
 void QuantificationWindow::setupConnections()
@@ -270,6 +326,10 @@ void QuantificationWindow::setupConnections()
     // Graph phase click → propagate as phase change request
     connect(impl_->graphWidget, &FlowGraphWidget::phaseClicked, this,
             &QuantificationWindow::phaseChangeRequested);
+
+    // Tab widget
+    connect(impl_->tabWidget, &QTabWidget::currentChanged,
+            this, &QuantificationWindow::activeTabChanged);
 
     // Plane selector
     connect(impl_->planeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -618,6 +678,46 @@ QColor QuantificationWindow::planeColor(int index) const
 {
     if (index < 0 || index >= static_cast<int>(impl_->planes.size())) return {};
     return impl_->planes[index].color;
+}
+
+void QuantificationWindow::setVolumeStatistics(const std::vector<VolumeStatRow>& rows)
+{
+    impl_->volumeRows = rows;
+    impl_->volumeTable->setRowCount(0);
+
+    for (const auto& row : rows) {
+        int r = impl_->volumeTable->rowCount();
+        impl_->volumeTable->insertRow(r);
+        impl_->volumeTable->setItem(r, 0,
+            new QTableWidgetItem(volumeParameterName(row.parameter)));
+        impl_->volumeTable->setItem(r, 1,
+            new QTableWidgetItem(QString::number(row.value, 'f', 2)));
+        impl_->volumeTable->setItem(r, 2,
+            new QTableWidgetItem(row.unit));
+    }
+}
+
+int QuantificationWindow::volumeRowCount() const
+{
+    return impl_->volumeTable->rowCount();
+}
+
+void QuantificationWindow::clearVolumeStatistics()
+{
+    impl_->volumeRows.clear();
+    impl_->volumeTable->setRowCount(0);
+}
+
+int QuantificationWindow::activeTab() const
+{
+    return impl_->tabWidget->currentIndex();
+}
+
+void QuantificationWindow::setActiveTab(int index)
+{
+    if (index >= 0 && index < impl_->tabWidget->count()) {
+        impl_->tabWidget->setCurrentIndex(index);
+    }
 }
 
 } // namespace dicom_viewer::ui

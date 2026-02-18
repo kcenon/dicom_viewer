@@ -9,6 +9,7 @@
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QTableWidget>
+#include <QTabWidget>
 
 #include "ui/quantification_window.hpp"
 #include "ui/widgets/flow_graph_widget.hpp"
@@ -556,4 +557,101 @@ TEST(QuantificationWindowTest, PlaneComboBox_Exists) {
 
     window.addPlane("Test", Qt::red);
     EXPECT_EQ(combo->count(), 1);
+}
+
+// =============================================================================
+// Tab management
+// =============================================================================
+
+TEST(QuantificationWindowTest, TabWidget_InitialTab) {
+    QuantificationWindow window;
+    EXPECT_EQ(window.activeTab(), 0);
+
+    auto* tabWidget = window.findChild<QTabWidget*>();
+    ASSERT_NE(tabWidget, nullptr);
+    EXPECT_EQ(tabWidget->count(), 2);
+    EXPECT_EQ(tabWidget->tabText(0), "2D Plane");
+    EXPECT_EQ(tabWidget->tabText(1), "3D Volume");
+}
+
+TEST(QuantificationWindowTest, SetActiveTab_SwitchesTo3DVolume) {
+    QuantificationWindow window;
+    window.setActiveTab(1);
+    EXPECT_EQ(window.activeTab(), 1);
+}
+
+TEST(QuantificationWindowTest, SetActiveTab_OutOfRange_NoChange) {
+    QuantificationWindow window;
+    window.setActiveTab(99);
+    EXPECT_EQ(window.activeTab(), 0);
+}
+
+TEST(QuantificationWindowTest, ActiveTabChanged_Signal) {
+    QuantificationWindow window;
+
+    QSignalSpy spy(&window, &QuantificationWindow::activeTabChanged);
+    ASSERT_TRUE(spy.isValid());
+
+    window.setActiveTab(1);
+    EXPECT_GE(spy.count(), 1);
+    EXPECT_EQ(spy.last().at(0).toInt(), 1);
+}
+
+// =============================================================================
+// Volume statistics
+// =============================================================================
+
+TEST(QuantificationWindowTest, VolumeStatistics_InitiallyEmpty) {
+    QuantificationWindow window;
+    EXPECT_EQ(window.volumeRowCount(), 0);
+}
+
+TEST(QuantificationWindowTest, SetVolumeStatistics_PopulatesTable) {
+    QuantificationWindow window;
+
+    std::vector<VolumeStatRow> rows = {
+        {VolumeParameter::TotalKE, 12.5, "mJ"},
+        {VolumeParameter::VortexVolume, 3.2, "mL"},
+        {VolumeParameter::MeanWSS, 1.8, "Pa"},
+    };
+
+    window.setVolumeStatistics(rows);
+    EXPECT_EQ(window.volumeRowCount(), 3);
+}
+
+TEST(QuantificationWindowTest, ClearVolumeStatistics) {
+    QuantificationWindow window;
+
+    window.setVolumeStatistics({
+        {VolumeParameter::TotalKE, 12.5, "mJ"},
+    });
+    EXPECT_EQ(window.volumeRowCount(), 1);
+
+    window.clearVolumeStatistics();
+    EXPECT_EQ(window.volumeRowCount(), 0);
+}
+
+TEST(QuantificationWindowTest, VolumeTable_Content) {
+    QuantificationWindow window;
+
+    window.setVolumeStatistics({
+        {VolumeParameter::EnergyLoss, 0.75, "mW"},
+    });
+
+    // Find the volume table (second QTableWidget in widget tree)
+    auto tables = window.findChildren<QTableWidget*>();
+    ASSERT_GE(tables.size(), 2);
+    // The volume table has 3 columns
+    QTableWidget* volumeTable = nullptr;
+    for (auto* t : tables) {
+        if (t->columnCount() == 3) {
+            volumeTable = t;
+            break;
+        }
+    }
+    ASSERT_NE(volumeTable, nullptr);
+    EXPECT_EQ(volumeTable->rowCount(), 1);
+    EXPECT_EQ(volumeTable->item(0, 0)->text(), "Energy Loss");
+    EXPECT_EQ(volumeTable->item(0, 1)->text(), "0.75");
+    EXPECT_EQ(volumeTable->item(0, 2)->text(), "mW");
 }
