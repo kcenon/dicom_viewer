@@ -27,6 +27,21 @@ struct ComponentInfo {
 };
 
 /**
+ * @brief Aggregated result from all wizard steps
+ *
+ * Provides a single snapshot of the complete wizard configuration
+ * for external consumers (e.g., LabelManager integration).
+ */
+struct MaskWizardResult {
+    CropRegion crop;                     ///< Step 1: Crop bounds
+    int thresholdMin = 0;                ///< Step 2: Minimum intensity
+    int thresholdMax = 0;                ///< Step 2: Maximum intensity
+    std::vector<int> selectedComponents; ///< Step 3: Selected component indices (0-based)
+    int referencePhase = 0;              ///< Step 4: Phase to propagate from
+    int phaseCount = 1;                  ///< Step 4: Total cardiac phases
+};
+
+/**
  * @brief Wizard page identifiers for the Mask Wizard workflow
  */
 enum class MaskWizardStep {
@@ -162,11 +177,23 @@ public:
      */
     void setTrackStatus(const QString& status);
 
+    /**
+     * @brief Get aggregated result from all wizard steps
+     * @return Snapshot of all wizard parameters
+     */
+    [[nodiscard]] MaskWizardResult wizardResult() const;
+
 signals:
     /**
      * @brief Emitted when the wizard completes all steps successfully
      */
     void wizardCompleted();
+
+    /**
+     * @brief Emitted when the wizard completes with aggregated result
+     * @param result Snapshot of all wizard step parameters
+     */
+    void wizardFinished(const MaskWizardResult& result);
 
     /**
      * @brief Emitted when threshold slider values change
@@ -208,3 +235,5 @@ private:
 };
 
 } // namespace dicom_viewer::ui
+
+Q_DECLARE_METATYPE(dicom_viewer::ui::MaskWizardResult)

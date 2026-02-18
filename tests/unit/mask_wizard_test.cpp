@@ -748,3 +748,89 @@ TEST(MaskWizardTest, ReferencePhaseSpinbox_VisibleOnTrackPage) {
     EXPECT_EQ(refSpin->minimum(), 0);
     EXPECT_EQ(refSpin->maximum(), 9);
 }
+
+// =============================================================================
+// MaskWizardResult — aggregated output
+// =============================================================================
+
+TEST(MaskWizardTest, WizardResult_DefaultValues) {
+    MaskWizard wizard;
+    auto result = wizard.wizardResult();
+
+    // Default crop = full volume (256x256x128)
+    EXPECT_EQ(result.crop.xMin, 0);
+    EXPECT_EQ(result.crop.xMax, 255);
+    EXPECT_EQ(result.crop.yMin, 0);
+    EXPECT_EQ(result.crop.yMax, 255);
+    EXPECT_EQ(result.crop.zMin, 0);
+    EXPECT_EQ(result.crop.zMax, 127);
+
+    // Default threshold range
+    EXPECT_EQ(result.thresholdMin, -1024);
+    EXPECT_EQ(result.thresholdMax, 3071);
+
+    // No components set → empty
+    EXPECT_TRUE(result.selectedComponents.empty());
+
+    // Default phase config
+    EXPECT_EQ(result.referencePhase, 0);
+    EXPECT_EQ(result.phaseCount, 1);
+}
+
+TEST(MaskWizardTest, WizardResult_ReflectsModifiedState) {
+    MaskWizard wizard;
+
+    // Modify crop
+    wizard.setVolumeDimensions(100, 200, 50);
+    wizard.restart();
+    auto* cropPage = wizard.page(0);
+    auto spinBoxes = cropPage->findChildren<QSpinBox*>();
+    ASSERT_GE(spinBoxes.size(), 6);
+    spinBoxes[0]->setValue(10);  // X min
+
+    // Set threshold
+    wizard.setThresholdRange(0, 1000);
+
+    // Set components
+    wizard.setComponents({
+        {1, 500, QColor(Qt::red), true},
+        {2, 300, QColor(Qt::blue), false},
+        {3, 100, QColor(Qt::green), true},
+    });
+
+    // Set phase tracking config
+    wizard.setPhaseCount(20);
+    wizard.setReferencePhase(5);
+
+    auto result = wizard.wizardResult();
+
+    EXPECT_EQ(result.crop.xMin, 10);
+    EXPECT_EQ(result.crop.xMax, 99);
+    EXPECT_GE(result.thresholdMin, 0);
+    EXPECT_LE(result.thresholdMax, 1000);
+
+    // Components 0 and 2 are selected (indices 0, 2)
+    EXPECT_EQ(result.selectedComponents.size(), 2u);
+    EXPECT_EQ(result.selectedComponents[0], 0);
+    EXPECT_EQ(result.selectedComponents[1], 2);
+
+    EXPECT_EQ(result.referencePhase, 5);
+    EXPECT_EQ(result.phaseCount, 20);
+}
+
+TEST(MaskWizardTest, WizardFinished_SignalValid) {
+    MaskWizard wizard;
+    QSignalSpy spy(&wizard, &MaskWizard::wizardFinished);
+    EXPECT_TRUE(spy.isValid());
+}
+
+TEST(MaskWizardTest, WizardResult_StructDefaultConstruction) {
+    MaskWizardResult result;
+    EXPECT_EQ(result.crop.xMin, 0);
+    EXPECT_EQ(result.crop.xMax, 0);
+    EXPECT_EQ(result.thresholdMin, 0);
+    EXPECT_EQ(result.thresholdMax, 0);
+    EXPECT_TRUE(result.selectedComponents.empty());
+    EXPECT_EQ(result.referencePhase, 0);
+    EXPECT_EQ(result.phaseCount, 1);
+}
