@@ -291,6 +291,37 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
 
         # Define macro to enable pacs_system code paths
         add_compile_definitions(DICOM_VIEWER_USE_PACS_SYSTEM)
+
+        # Detect AddressSanitizer in pacs_system build and handle unresolved symbols
+        if(EXISTS "${PACS_SYSTEM_BUILD_DIR}/CMakeCache.txt")
+            file(READ "${PACS_SYSTEM_BUILD_DIR}/CMakeCache.txt" _pacs_cache_content)
+            if(_pacs_cache_content MATCHES "-fsanitize=address")
+                set(PACS_SYSTEM_HAS_ASAN TRUE)
+                message(WARNING
+                    "pacs_system (${PACS_SYSTEM_BUILD_DIR}) was built with AddressSanitizer.\n"
+                    "  Using -undefined dynamic_lookup to suppress linker errors.\n"
+                    "  To avoid this, rebuild pacs_system without ASan or set\n"
+                    "  PACS_SYSTEM_BUILD_DIR to a clean build directory.")
+                # Use dynamic_lookup to suppress unresolved ASan symbol errors.
+                # Unlike -fsanitize=address, this does NOT load the ASan runtime,
+                # so binaries won't deadlock from partial instrumentation.
+                foreach(_pacs_tgt pacs::core pacs::network pacs::services)
+                    set_property(TARGET ${_pacs_tgt} APPEND PROPERTY
+                        INTERFACE_LINK_OPTIONS "-Wl,-undefined,dynamic_lookup")
+                endforeach()
+                foreach(_pacs_tgt pacs::encoding pacs::integration
+                        pacs::container_system pacs::network_system
+                        pacs::logger_system pacs::thread_base pacs::thread_core)
+                    if(TARGET ${_pacs_tgt})
+                        set_property(TARGET ${_pacs_tgt} APPEND PROPERTY
+                            INTERFACE_LINK_OPTIONS "-Wl,-undefined,dynamic_lookup")
+                    endif()
+                endforeach()
+                # Defer test discovery to ctest time so that build succeeds
+                # even when pacs-linked binaries crash during --gtest_list_tests.
+                set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
+            endif()
+        endif()
     else()
         set(PACS_SYSTEM_FOUND FALSE)
         message(FATAL_ERROR "pacs_system libraries not found. Please build pacs_system first.")
