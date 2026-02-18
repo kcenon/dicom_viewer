@@ -681,3 +681,70 @@ TEST(MaskWizardTest, CropNextSucceeds_WhenFullVolume) {
     wizard.next();
     EXPECT_EQ(wizard.currentStep(), MaskWizardStep::Threshold);
 }
+
+// =============================================================================
+// Track page — reference phase selector
+// =============================================================================
+
+TEST(MaskWizardTest, ReferencePhase_DefaultIsZero) {
+    MaskWizard wizard;
+    EXPECT_EQ(wizard.referencePhase(), 0);
+}
+
+TEST(MaskWizardTest, SetReferencePhase) {
+    MaskWizard wizard;
+    wizard.setPhaseCount(25);
+    wizard.setReferencePhase(10);
+    EXPECT_EQ(wizard.referencePhase(), 10);
+}
+
+TEST(MaskWizardTest, ReferencePhase_ClampedToPhaseCount) {
+    MaskWizard wizard;
+    wizard.setPhaseCount(10);
+    wizard.setReferencePhase(20);
+    // Clamped to max valid index (9)
+    EXPECT_EQ(wizard.referencePhase(), 9);
+}
+
+TEST(MaskWizardTest, ReferencePhase_ClampedToZero) {
+    MaskWizard wizard;
+    wizard.setPhaseCount(10);
+    wizard.setReferencePhase(-5);
+    EXPECT_EQ(wizard.referencePhase(), 0);
+}
+
+TEST(MaskWizardTest, PhaseCountReduction_ClampsReferencePhase) {
+    MaskWizard wizard;
+    wizard.setPhaseCount(20);
+    wizard.setReferencePhase(15);
+    EXPECT_EQ(wizard.referencePhase(), 15);
+
+    // Reduce phase count below current reference
+    wizard.setPhaseCount(10);
+    EXPECT_LE(wizard.referencePhase(), 9);
+}
+
+TEST(MaskWizardTest, ReferencePhaseChanged_Signal) {
+    MaskWizard wizard;
+    wizard.setPhaseCount(20);
+    QSignalSpy spy(&wizard, &MaskWizard::referencePhaseChanged);
+    EXPECT_TRUE(spy.isValid());
+
+    wizard.setReferencePhase(7);
+    EXPECT_GE(spy.count(), 1);
+    EXPECT_EQ(spy.last().at(0).toInt(), 7);
+}
+
+TEST(MaskWizardTest, ReferencePhaseSpinbox_VisibleOnTrackPage) {
+    MaskWizard wizard;
+    wizard.setPhaseCount(10);
+
+    auto* trackPage = wizard.page(3);
+    auto spinBoxes = trackPage->findChildren<QSpinBox*>();
+    ASSERT_GE(spinBoxes.size(), 1);
+
+    // Verify spinbox has correct range
+    QSpinBox* refSpin = spinBoxes[0];
+    EXPECT_EQ(refSpin->minimum(), 0);
+    EXPECT_EQ(refSpin->maximum(), 9);
+}

@@ -1,5 +1,6 @@
 #include "ui/dialogs/mask_wizard.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include <QHBoxLayout>
@@ -644,6 +645,20 @@ public:
         phaseLabel_ = new QLabel(this);
         layout->addWidget(phaseLabel_);
 
+        layout->addSpacing(8);
+
+        // Reference phase selector
+        auto* refRow = new QHBoxLayout();
+        refRow->addWidget(new QLabel(tr("Reference phase:"), this));
+        refPhaseSpin_ = new QSpinBox(this);
+        refPhaseSpin_->setRange(0, 0);
+        refPhaseSpin_->setValue(0);
+        refPhaseSpin_->setToolTip(
+            tr("Select the phase with best image quality for propagation"));
+        refRow->addWidget(refPhaseSpin_);
+        refRow->addStretch();
+        layout->addLayout(refRow);
+
         layout->addSpacing(12);
 
         // Run button
@@ -678,9 +693,23 @@ public:
     void setPhaseCount(int count) {
         phaseCount_ = count;
         phaseLabel_->setText(tr("Cardiac phases: %1").arg(count));
+
+        // Update reference phase spinbox range
+        int maxPhase = (count > 0) ? count - 1 : 0;
+        refPhaseSpin_->setRange(0, maxPhase);
+        if (refPhaseSpin_->value() > maxPhase) {
+            refPhaseSpin_->setValue(maxPhase);
+        }
     }
 
     [[nodiscard]] int phaseCount() const { return phaseCount_; }
+
+    [[nodiscard]] int referencePhase() const { return refPhaseSpin_->value(); }
+
+    void setReferencePhase(int phase) {
+        int clamped = std::clamp(phase, 0, refPhaseSpin_->maximum());
+        refPhaseSpin_->setValue(clamped);
+    }
 
     void setProgress(int percent) {
         progressBar_->setValue(percent);
@@ -695,10 +724,15 @@ private:
         connect(runBtn_, &QPushButton::clicked, this, [this]() {
             emit wizard_->propagationRequested();
         });
+        connect(refPhaseSpin_, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [this](int value) {
+            emit wizard_->referencePhaseChanged(value);
+        });
     }
 
     MaskWizard* wizard_ = nullptr;
     QLabel* phaseLabel_ = nullptr;
+    QSpinBox* refPhaseSpin_ = nullptr;
     QPushButton* runBtn_ = nullptr;
     QProgressBar* progressBar_ = nullptr;
     QLabel* statusLabel_ = nullptr;
@@ -821,6 +855,16 @@ void MaskWizard::setPhaseCount(int count)
 int MaskWizard::phaseCount() const
 {
     return impl_->trackPage->phaseCount();
+}
+
+int MaskWizard::referencePhase() const
+{
+    return impl_->trackPage->referencePhase();
+}
+
+void MaskWizard::setReferencePhase(int phase)
+{
+    impl_->trackPage->setReferencePhase(phase);
 }
 
 void MaskWizard::setTrackProgress(int percent)
