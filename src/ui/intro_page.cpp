@@ -1,8 +1,10 @@
 #include "ui/intro_page.hpp"
 
+#include <QFileInfo>
 #include <QFont>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QListWidget>
 #include <QPushButton>
 #include <QStyle>
 #include <QVBoxLayout>
@@ -22,6 +24,9 @@ public:
     QPushButton* importFileBtn = nullptr;
     QPushButton* importPacsBtn = nullptr;
     QPushButton* openProjectBtn = nullptr;
+
+    QListWidget* recentList = nullptr;
+    QLabel* recentHeader = nullptr;
 };
 
 // =========================================================================
@@ -103,6 +108,23 @@ IntroPage::IntroPage(QWidget* parent)
     impl_->openProjectBtn->setMinimumHeight(36);
     projectCol->addWidget(impl_->openProjectBtn);
 
+    projectCol->addSpacing(12);
+
+    impl_->recentHeader = new QLabel(tr("Recent Projects"));
+    QFont recentFont = impl_->recentHeader->font();
+    recentFont.setPointSize(11);
+    impl_->recentHeader->setFont(recentFont);
+    impl_->recentHeader->setStyleSheet("color: #888;");
+    projectCol->addWidget(impl_->recentHeader);
+
+    impl_->recentList = new QListWidget();
+    impl_->recentList->setMaximumHeight(200);
+    impl_->recentList->setStyleSheet(
+        "QListWidget { background: transparent; border: 1px solid #444; }"
+        "QListWidget::item { padding: 4px; }"
+        "QListWidget::item:hover { background: #3a3a3a; }");
+    projectCol->addWidget(impl_->recentList);
+
     projectCol->addStretch(1);
     buttonArea->addLayout(projectCol);
 
@@ -120,8 +142,38 @@ IntroPage::IntroPage(QWidget* parent)
             this, &IntroPage::importPacsRequested);
     connect(impl_->openProjectBtn, &QPushButton::clicked,
             this, &IntroPage::openProjectRequested);
+
+    connect(impl_->recentList, &QListWidget::itemDoubleClicked,
+            this, [this](QListWidgetItem* item) {
+                auto path = item->data(Qt::UserRole).toString();
+                if (!path.isEmpty()) {
+                    emit openRecentRequested(path);
+                }
+            });
 }
 
 IntroPage::~IntroPage() = default;
+
+void IntroPage::setRecentProjects(const QStringList& paths)
+{
+    impl_->recentList->clear();
+
+    if (paths.isEmpty()) {
+        impl_->recentHeader->setVisible(false);
+        impl_->recentList->setVisible(false);
+        return;
+    }
+
+    impl_->recentHeader->setVisible(true);
+    impl_->recentList->setVisible(true);
+
+    for (const auto& path : paths) {
+        QFileInfo fi(path);
+        auto* item = new QListWidgetItem(fi.fileName());
+        item->setToolTip(path);
+        item->setData(Qt::UserRole, path);
+        impl_->recentList->addItem(item);
+    }
+}
 
 } // namespace dicom_viewer::ui

@@ -141,6 +141,7 @@ public:
     // Project management
     std::unique_ptr<core::ProjectManager> projectManager;
     QMenu* recentProjectsMenu = nullptr;
+    QAction* closeCaseAction = nullptr;
 };
 
 MainWindow::MainWindow(QWidget* parent)
@@ -228,6 +229,18 @@ void MainWindow::setupMenuBar()
     auto saveAsAction = fileMenu->addAction(tr("Save &As..."));
     saveAsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
     connect(saveAsAction, &QAction::triggered, this, &MainWindow::onSaveProjectAs);
+
+    fileMenu->addSeparator();
+
+    impl_->closeCaseAction = fileMenu->addAction(tr("&Close Case"));
+    impl_->closeCaseAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_W));
+    impl_->closeCaseAction->setEnabled(false);
+    connect(impl_->closeCaseAction, &QAction::triggered, this, [this]() {
+        if (!promptSaveIfModified()) return;
+        impl_->centralStack->setCurrentIndex(0);
+        impl_->closeCaseAction->setEnabled(false);
+        updateIntroPageRecentProjects();
+    });
 
     fileMenu->addSeparator();
 
@@ -1347,6 +1360,29 @@ void MainWindow::setupConnections()
             this, &MainWindow::onConnectPACS);
     connect(impl_->introPage, &IntroPage::openProjectRequested,
             this, &MainWindow::onOpenProject);
+
+    connect(impl_->introPage, &IntroPage::openRecentRequested,
+            this, [this](const QString& path) {
+                if (!promptSaveIfModified()) return;
+
+                auto fsPath = std::filesystem::path(path.toStdString());
+                auto result = impl_->projectManager->loadProject(fsPath);
+                if (result) {
+                    impl_->projectManager->addToRecent(fsPath);
+                    updateRecentProjectsMenu();
+                    updateIntroPageRecentProjects();
+                    updateWindowTitle();
+                    impl_->centralStack->setCurrentIndex(1);
+                    impl_->closeCaseAction->setEnabled(true);
+                    statusBar()->showMessage(tr("Project loaded: %1").arg(path), 3000);
+                } else {
+                    QMessageBox::warning(this, tr("Open Failed"),
+                        tr("Could not open project:\n%1").arg(path));
+                }
+            });
+
+    // Populate IntroPage recent projects on startup
+    updateIntroPageRecentProjects();
 }
 
 void MainWindow::applyDarkTheme()
@@ -1663,6 +1699,7 @@ void MainWindow::onOpenDirectory()
 
     // Switch from Intro Page to viewer
     impl_->centralStack->setCurrentIndex(1);
+    impl_->closeCaseAction->setEnabled(true);
 }
 
 void MainWindow::onOpenFile()
@@ -1932,8 +1969,10 @@ void MainWindow::onOpenProject()
     if (result) {
         impl_->projectManager->addToRecent(path);
         updateRecentProjectsMenu();
+        updateIntroPageRecentProjects();
         updateWindowTitle();
         impl_->centralStack->setCurrentIndex(1);
+        impl_->closeCaseAction->setEnabled(true);
         statusBar()->showMessage(tr("Project loaded: %1").arg(filePath), 3000);
     } else {
         QMessageBox::warning(this, tr("Open Failed"),
@@ -1993,7 +2032,19 @@ void MainWindow::updateRecentProjectsMenu()
     connect(clearAction, &QAction::triggered, this, [this]() {
         impl_->projectManager->clearRecentProjects();
         updateRecentProjectsMenu();
+        updateIntroPageRecentProjects();
     });
+}
+
+void MainWindow::updateIntroPageRecentProjects()
+{
+    auto recents = impl_->projectManager->recentProjects();
+    QStringList paths;
+    paths.reserve(static_cast<int>(recents.size()));
+    for (const auto& recent : recents) {
+        paths.append(QString::fromStdString(recent.path.string()));
+    }
+    impl_->introPage->setRecentProjects(paths);
 }
 
 bool MainWindow::promptSaveIfModified()
