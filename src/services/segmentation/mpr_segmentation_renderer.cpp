@@ -239,7 +239,9 @@ MPRSegmentationRenderer::MPRSegmentationRenderer()
     : impl_(std::make_unique<Impl>()) {}
 
 MPRSegmentationRenderer::~MPRSegmentationRenderer() {
-    removeFromRenderers();
+    if (impl_) {
+        removeFromRenderers();
+    }
 }
 
 MPRSegmentationRenderer::MPRSegmentationRenderer(MPRSegmentationRenderer&&) noexcept = default;

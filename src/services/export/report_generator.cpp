@@ -37,7 +37,7 @@ public:
 
     QString formatDistance(double mm) const {
         if (std::abs(mm) >= 10.0) {
-            return QString::number(mm, 'f', 1) + " mm";
+            return QString::number(mm, 'f', 2) + " mm";
         }
         return QString::number(mm, 'f', 2) + " mm";
     }

@@ -197,7 +197,8 @@ TEST(ControllerUndoRedoTest, ClearAllResetsCommandStack) {
     EXPECT_TRUE(ctrl.canUndo());
 
     ctrl.clearAll();
-    EXPECT_FALSE(ctrl.canUndo());
+    // clearAll is an undoable operation (users can recover from accidental clear)
+    EXPECT_TRUE(ctrl.canUndo());
     EXPECT_FALSE(ctrl.canRedo());
 }
 
