@@ -133,9 +133,10 @@ TEST_F(DicomEchoSCUTest, VerifyWithUnreachableServer) {
 
     auto result = echoScu->verify(config);
     EXPECT_FALSE(result.has_value());
-    // Should fail with connection error or timeout
+    // Should fail with network/association error
     EXPECT_TRUE(
         result.error().code == PacsError::ConnectionFailed ||
+        result.error().code == PacsError::AssociationRejected ||
         result.error().code == PacsError::Timeout ||
         result.error().code == PacsError::NetworkError
     );

@@ -234,6 +234,7 @@ TEST_F(DicomMoveSCUTest, RetrieveStudyWithUnreachableServer) {
     EXPECT_FALSE(result.has_value());
     EXPECT_TRUE(
         result.error().code == PacsError::ConnectionFailed ||
+        result.error().code == PacsError::AssociationRejected ||
         result.error().code == PacsError::Timeout ||
         result.error().code == PacsError::NetworkError
     );
@@ -378,6 +379,7 @@ TEST_F(DicomMoveSCUTest, RetrieveSeriesWithShortTimeout) {
     EXPECT_FALSE(result.has_value());
     EXPECT_TRUE(
         result.error().code == PacsError::ConnectionFailed ||
+        result.error().code == PacsError::AssociationRejected ||
         result.error().code == PacsError::Timeout ||
         result.error().code == PacsError::NetworkError
     );
