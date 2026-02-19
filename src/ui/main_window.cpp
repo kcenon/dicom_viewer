@@ -21,6 +21,7 @@
 #include "services/pacs_config_manager.hpp"
 #include "services/dicom_store_scp.hpp"
 #include "services/measurement/roi_statistics.hpp"
+#include "services/export/matlab_exporter.hpp"
 #include "services/flow/temporal_navigator.hpp"
 
 #include <itkImage.h>
@@ -656,8 +657,78 @@ void MainWindow::setupMenuBar()
     exportEnsightAction->setToolTip(tr("Export as Ensight format (not yet implemented)"));
 
     auto exportMatlabAction = exportMenu->addAction(tr("Export &MATLAB..."));
-    exportMatlabAction->setEnabled(false);
-    exportMatlabAction->setToolTip(tr("Export as MATLAB format (not yet implemented)"));
+    exportMatlabAction->setToolTip(tr("Export velocity fields as MATLAB .mat files"));
+    connect(exportMatlabAction, &QAction::triggered, this, [this]() {
+        if (!impl_->temporalNavigator.isInitialized()) {
+            QMessageBox::information(this, tr("Export MATLAB"),
+                tr("No 4D Flow data loaded. Please open a 4D Flow dataset first."));
+            return;
+        }
+
+        QString dir = QFileDialog::getExistingDirectory(
+            this, tr("Select MATLAB Export Directory"), QString(),
+            QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+
+        if (dir.isEmpty()) return;
+
+        statusBar()->showMessage(tr("Exporting MATLAB files..."));
+        QApplication::processEvents();
+
+        const int numPhases = impl_->temporalNavigator.phaseCount();
+
+        // Collect velocity and magnitude data from all phases
+        std::vector<services::MatlabExporter::VectorImage3D::Pointer> velocityPhases;
+        std::vector<services::MatlabExporter::FloatImage3D::Pointer> magnitudePhases;
+        velocityPhases.reserve(numPhases);
+        magnitudePhases.reserve(numPhases);
+
+        for (int i = 0; i < numPhases; ++i) {
+            auto phaseResult = impl_->temporalNavigator.goToPhase(i);
+            if (!phaseResult) {
+                QMessageBox::warning(this, tr("Export MATLAB"),
+                    tr("Failed to load phase %1: %2")
+                        .arg(i)
+                        .arg(QString::fromStdString(phaseResult.error().message)));
+                statusBar()->showMessage(tr("MATLAB export failed"), 3000);
+                return;
+            }
+            velocityPhases.push_back(phaseResult->velocityField);
+            if (phaseResult->magnitudeImage) {
+                magnitudePhases.push_back(phaseResult->magnitudeImage);
+            }
+        }
+
+        // Extract spacing metadata from first velocity image
+        services::MatlabExporter::DicomMeta meta;
+        if (!velocityPhases.empty() && velocityPhases[0]) {
+            auto spacing = velocityPhases[0]->GetSpacing();
+            meta.pixelSpacingX = spacing[0];
+            meta.pixelSpacingY = spacing[1];
+            meta.sliceThickness = spacing[2];
+        }
+        meta.seriesDescription = "4D Flow MRI";
+        meta.imageType = "ORIGINAL\\PRIMARY";
+
+        // Export
+        services::MatlabExporter::ExportConfig config;
+        config.outputDir = std::filesystem::path(dir.toStdString());
+        config.exportMagnitude = !magnitudePhases.empty();
+
+        auto result = services::MatlabExporter::exportVelocityFields(
+            velocityPhases, magnitudePhases, meta, config);
+
+        if (result) {
+            int fileCount = 3 + (config.exportMagnitude ? 1 : 0);
+            statusBar()->showMessage(
+                tr("MATLAB export complete: %1 files written to %2")
+                    .arg(fileCount).arg(dir), 5000);
+        } else {
+            QMessageBox::warning(this, tr("Export MATLAB"),
+                tr("Export failed: %1")
+                    .arg(QString::fromStdString(result.error().toString())));
+            statusBar()->showMessage(tr("MATLAB export failed"), 3000);
+        }
+    });
 
     auto exportDicomAction = exportMenu->addAction(tr("Export &DICOM..."));
     exportDicomAction->setEnabled(false);
