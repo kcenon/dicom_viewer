@@ -521,6 +521,14 @@ void MainWindow::setupMenuBar()
 
     measureMenu->addSeparator();
 
+    auto placePlaneAction = measureMenu->addAction(tr("&Place Measurement Plane"));
+    placePlaneAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_P));
+    connect(placePlaneAction, &QAction::triggered, this, [this]() {
+        impl_->viewport->startPlanePositioning();
+        statusBar()->showMessage(
+            tr("Click and drag on the 2D view to position a measurement plane"), 5000);
+    });
+
     auto quantificationAction = measureMenu->addAction(tr("&Quantification..."));
     quantificationAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));
     connect(quantificationAction, &QAction::triggered, this, [this]() {
@@ -537,6 +545,42 @@ void MainWindow::setupMenuBar()
                 (void)impl_->temporalNavigator.goToPhase(phaseIndex);
                 impl_->phaseSlider->setCurrentPhase(phaseIndex);
                 impl_->viewport->setPhaseIndex(phaseIndex);
+            });
+            // Plane position sync: QuantificationWindow → viewport overlay
+            connect(impl_->quantificationWindow, &QuantificationWindow::planePositionChanged,
+                    this, [this](int index) {
+                auto* qw = impl_->quantificationWindow;
+                if (index != qw->activePlaneIndex()) return;
+                auto pos = qw->planePosition(index);
+                auto color = qw->planeColor(index);
+                impl_->viewport->showPlaneOverlay(
+                    pos, color.redF(), color.greenF(), color.blueF());
+            });
+            // Active plane change → update overlay to match selected plane
+            connect(impl_->quantificationWindow, &QuantificationWindow::activePlaneChanged,
+                    this, [this](int index) {
+                auto* qw = impl_->quantificationWindow;
+                if (index < 0 || index >= qw->planeCount()) {
+                    impl_->viewport->hidePlaneOverlay();
+                    return;
+                }
+                auto pos = qw->planePosition(index);
+                auto color = qw->planeColor(index);
+                impl_->viewport->showPlaneOverlay(
+                    pos, color.redF(), color.greenF(), color.blueF());
+            });
+            // Viewport → QuantificationWindow: interactive plane positioning
+            connect(impl_->viewport, &ViewportWidget::planePositioned,
+                    this, [this](const PlanePosition& pos) {
+                auto* qw = impl_->quantificationWindow;
+                if (!qw) return;
+                int active = qw->activePlaneIndex();
+                if (active < 0) {
+                    // Auto-add a plane if none exist
+                    qw->addPlane("Plane 1", QColor(0xE7, 0x4C, 0x3C), pos);
+                } else {
+                    qw->setPlanePosition(active, pos);
+                }
             });
         }
         impl_->quantificationWindow->show();

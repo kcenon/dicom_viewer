@@ -165,14 +165,15 @@ struct AreaMeasurement {
  * @brief Measurement tool mode
  */
 enum class MeasurementMode {
-    None,           ///< No measurement active
-    Distance,       ///< Distance measurement mode
-    Angle,          ///< Angle measurement mode
-    CobbAngle,      ///< Cobb angle measurement mode (spine)
-    AreaEllipse,    ///< Ellipse area measurement mode
-    AreaRectangle,  ///< Rectangle area measurement mode
-    AreaPolygon,    ///< Polygon area measurement mode
-    AreaFreehand    ///< Freehand area measurement mode
+    None,             ///< No measurement active
+    Distance,         ///< Distance measurement mode
+    Angle,            ///< Angle measurement mode
+    CobbAngle,        ///< Cobb angle measurement mode (spine)
+    AreaEllipse,      ///< Ellipse area measurement mode
+    AreaRectangle,    ///< Rectangle area measurement mode
+    AreaPolygon,      ///< Polygon area measurement mode
+    AreaFreehand,     ///< Freehand area measurement mode
+    PlanePositioning  ///< Interactive 2D measurement plane positioning
 };
 
 /**

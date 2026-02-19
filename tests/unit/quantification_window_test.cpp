@@ -951,3 +951,65 @@ TEST(QuantificationWindowTest, ProgrammaticAddPlane_UpdatesButtons) {
 TEST(QuantificationWindowTest, MaxPlanes_ConstantValue) {
     EXPECT_EQ(QuantificationWindow::kMaxPlanes, 5);
 }
+
+// =============================================================================
+// Plane positioning integration
+// =============================================================================
+
+TEST(QuantificationWindowTest, SetPlanePosition_UpdatesActivePlaneOverlay) {
+    QuantificationWindow window;
+
+    // Add two planes with specific positions
+    PlanePosition pos1;
+    pos1.normalX = 0.0; pos1.normalY = 1.0; pos1.normalZ = 0.0;
+    pos1.centerX = 10.0; pos1.centerY = 20.0; pos1.centerZ = 30.0;
+    pos1.extent = 60.0;
+    window.addPlane("Aorta", Qt::red, pos1);
+
+    PlanePosition pos2;
+    pos2.normalX = 1.0; pos2.normalY = 0.0; pos2.normalZ = 0.0;
+    pos2.centerX = 50.0; pos2.centerY = 50.0; pos2.centerZ = 50.0;
+    pos2.extent = 80.0;
+    window.addPlane("Pulmonary", Qt::blue, pos2);
+
+    // Update position of first plane
+    QSignalSpy spy(&window, &QuantificationWindow::planePositionChanged);
+    PlanePosition newPos;
+    newPos.normalX = 0.707; newPos.normalY = 0.707; newPos.normalZ = 0.0;
+    newPos.centerX = 15.0; newPos.centerY = 25.0; newPos.centerZ = 35.0;
+    newPos.extent = 70.0;
+    window.setPlanePosition(0, newPos);
+
+    EXPECT_EQ(spy.count(), 1);
+    EXPECT_EQ(spy.at(0).at(0).toInt(), 0);
+
+    auto retrieved = window.planePosition(0);
+    EXPECT_NEAR(retrieved.normalX, 0.707, 1e-9);
+    EXPECT_NEAR(retrieved.normalY, 0.707, 1e-9);
+    EXPECT_DOUBLE_EQ(retrieved.centerX, 15.0);
+    EXPECT_DOUBLE_EQ(retrieved.extent, 70.0);
+
+    // Second plane should be unchanged
+    auto plane2 = window.planePosition(1);
+    EXPECT_DOUBLE_EQ(plane2.normalX, 1.0);
+    EXPECT_DOUBLE_EQ(plane2.centerX, 50.0);
+}
+
+TEST(QuantificationWindowTest, AutoAddPlane_WhenNoneExist) {
+    QuantificationWindow window;
+    EXPECT_EQ(window.planeCount(), 0);
+
+    // Simulate what MainWindow does when viewport emits planePositioned
+    PlanePosition pos;
+    pos.normalX = -0.5; pos.normalY = 0.866; pos.normalZ = 0.0;
+    pos.centerX = 100.0; pos.centerY = 100.0; pos.centerZ = 50.0;
+    pos.extent = 45.0;
+
+    // Auto-add
+    window.addPlane("Plane 1", QColor(0xE7, 0x4C, 0x3C), pos);
+
+    EXPECT_EQ(window.planeCount(), 1);
+    auto retrieved = window.planePosition(0);
+    EXPECT_DOUBLE_EQ(retrieved.centerX, 100.0);
+    EXPECT_DOUBLE_EQ(retrieved.extent, 45.0);
+}

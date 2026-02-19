@@ -25,6 +25,7 @@
 #include <vtkPointPicker.h>
 #include <vtkCellPicker.h>
 #include <vtkEventQtSlotConnect.h>
+#include <vtkCoordinate.h>
 #include <vtkLineSource.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkActor.h>
@@ -69,6 +70,16 @@ public:
     vtkSmartPointer<vtkLineSource> crosshairVSource;
     bool crosshairLinesVisible = false;
     double crosshairWorldPos[3] = {0.0, 0.0, 0.0};
+
+    // Measurement plane overlay line
+    vtkSmartPointer<vtkActor> planeLineActor;
+    vtkSmartPointer<vtkLineSource> planeLineSource;
+
+    // Plane positioning interaction state
+    bool planePositioningMode = false;
+    bool planeDragging = false;
+    double planeCenterWorld[3] = {0.0, 0.0, 0.0};
+    double planeDragWorld[3] = {0.0, 0.0, 0.0};
 
     Impl() {
         renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
@@ -121,6 +132,16 @@ public:
         crosshairVLine->SetMapper(vMapper);
         crosshairVLine->GetProperty()->SetLineWidth(1.0);
         crosshairVLine->SetVisibility(false);
+
+        // Setup plane line overlay actor
+        planeLineSource = vtkSmartPointer<vtkLineSource>::New();
+        auto planeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+        planeMapper->SetInputConnection(planeLineSource->GetOutputPort());
+        planeLineActor = vtkSmartPointer<vtkActor>::New();
+        planeLineActor->SetMapper(planeMapper);
+        planeLineActor->GetProperty()->SetLineWidth(2.0);
+        planeLineActor->GetProperty()->SetColor(1.0, 0.3, 0.3);
+        planeLineActor->SetVisibility(false);
     }
 
     void updateInteractorStyle() {
@@ -149,6 +170,66 @@ public:
         // Add crosshair line actors (visibility controlled separately)
         renderer->AddActor(crosshairHLine);
         renderer->AddActor(crosshairVLine);
+        renderer->AddActor(planeLineActor);
+    }
+
+    bool screenToWorld(int screenX, int screenY, double worldOut[3]) {
+        if (!renderer) return false;
+        auto* coordinate = vtkCoordinate::New();
+        coordinate->SetCoordinateSystemToDisplay();
+        coordinate->SetValue(screenX, screenY, 0);
+        double* world = coordinate->GetComputedWorldValue(renderer);
+        worldOut[0] = world[0];
+        worldOut[1] = world[1];
+        worldOut[2] = world[2];
+        coordinate->Delete();
+        return true;
+    }
+
+    void updatePlaneLineFromDrag() {
+        if (!imageData) return;
+
+        double cx = planeCenterWorld[0];
+        double cy = planeCenterWorld[1];
+        double cz = planeCenterWorld[2];
+        double dx = planeDragWorld[0] - cx;
+        double dy = planeDragWorld[1] - cy;
+        double dz = planeDragWorld[2] - cz;
+
+        double len = std::sqrt(dx * dx + dy * dy + dz * dz);
+        if (len < 1e-6) {
+            // No drag yet — use default horizontal direction
+            dx = 1.0; dy = 0.0; dz = 0.0;
+            len = 1.0;
+        }
+
+        // Normalize direction
+        dx /= len; dy /= len; dz /= len;
+
+        // Extend line from center in both directions
+        double extent = 50.0;
+        if (len > 5.0) extent = len;
+
+        double p1[3] = {cx - dx * extent, cy - dy * extent, cz - dz * extent};
+        double p2[3] = {cx + dx * extent, cy + dy * extent, cz + dz * extent};
+
+        // Clamp to current slice Z for axial views
+        switch (sliceOrientation) {
+            case SliceOrientation::Axial:
+                p1[2] = cz; p2[2] = cz;
+                break;
+            case SliceOrientation::Coronal:
+                p1[1] = cy; p2[1] = cy;
+                break;
+            case SliceOrientation::Sagittal:
+                p1[0] = cx; p2[0] = cx;
+                break;
+        }
+
+        planeLineSource->SetPoint1(p1);
+        planeLineSource->SetPoint2(p2);
+        planeLineSource->Update();
+        planeLineActor->SetVisibility(true);
     }
 
     void updateCrosshairLines() {
@@ -476,14 +557,113 @@ void ViewportWidget::setScrollMode(ScrollMode mode)
 
 bool ViewportWidget::eventFilter(QObject* watched, QEvent* event)
 {
-    if (watched == impl_->vtkWidget && event->type() == QEvent::Wheel) {
+    if (watched != impl_->vtkWidget) {
+        return QWidget::eventFilter(watched, event);
+    }
+
+    // Phase scroll handling
+    if (event->type() == QEvent::Wheel) {
         if (impl_->scrollMode == ScrollMode::Phase) {
             auto* wheelEvent = static_cast<QWheelEvent*>(event);
             int delta = wheelEvent->angleDelta().y() > 0 ? -1 : 1;
             emit phaseScrollRequested(delta);
-            return true;  // Consume event — don't pass to VTK interactor
+            return true;
         }
     }
+
+    // Plane positioning mouse handling
+    if (impl_->planePositioningMode) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto* me = static_cast<QMouseEvent*>(event);
+            if (me->button() == Qt::LeftButton) {
+                // Convert screen to world coordinates
+                // Qt Y is top-down, VTK Y is bottom-up
+                int vtkY = impl_->vtkWidget->height() - me->pos().y();
+                if (impl_->screenToWorld(me->pos().x(), vtkY,
+                                         impl_->planeCenterWorld)) {
+                    // Snap center Z to current slice position
+                    double* origin = impl_->imageData->GetOrigin();
+                    double* spacing = impl_->imageData->GetSpacing();
+                    switch (impl_->sliceOrientation) {
+                        case SliceOrientation::Axial:
+                            impl_->planeCenterWorld[2] =
+                                origin[2] + impl_->currentSlice * spacing[2];
+                            break;
+                        case SliceOrientation::Coronal:
+                            impl_->planeCenterWorld[1] =
+                                origin[1] + impl_->currentSlice * spacing[1];
+                            break;
+                        case SliceOrientation::Sagittal:
+                            impl_->planeCenterWorld[0] =
+                                origin[0] + impl_->currentSlice * spacing[0];
+                            break;
+                    }
+                    impl_->planeDragWorld[0] = impl_->planeCenterWorld[0];
+                    impl_->planeDragWorld[1] = impl_->planeCenterWorld[1];
+                    impl_->planeDragWorld[2] = impl_->planeCenterWorld[2];
+                    impl_->planeDragging = true;
+                    impl_->updatePlaneLineFromDrag();
+                    impl_->vtkWidget->renderWindow()->Render();
+                }
+                return true;
+            }
+        } else if (event->type() == QEvent::MouseMove && impl_->planeDragging) {
+            auto* me = static_cast<QMouseEvent*>(event);
+            int vtkY = impl_->vtkWidget->height() - me->pos().y();
+            impl_->screenToWorld(me->pos().x(), vtkY, impl_->planeDragWorld);
+            impl_->updatePlaneLineFromDrag();
+            impl_->vtkWidget->renderWindow()->Render();
+            return true;
+        } else if (event->type() == QEvent::MouseButtonRelease && impl_->planeDragging) {
+            auto* me = static_cast<QMouseEvent*>(event);
+            if (me->button() == Qt::LeftButton) {
+                impl_->planeDragging = false;
+                impl_->planePositioningMode = false;
+
+                // Compute PlanePosition from center and drag direction
+                double cx = impl_->planeCenterWorld[0];
+                double cy = impl_->planeCenterWorld[1];
+                double cz = impl_->planeCenterWorld[2];
+                double dx = impl_->planeDragWorld[0] - cx;
+                double dy = impl_->planeDragWorld[1] - cy;
+                double dz = impl_->planeDragWorld[2] - cz;
+                double len = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+                PlanePosition pos;
+                pos.centerX = cx;
+                pos.centerY = cy;
+                pos.centerZ = cz;
+                pos.extent = std::max(len, 10.0);
+
+                // Normal is perpendicular to drag direction within the slice plane
+                if (len > 1e-6) {
+                    dx /= len; dy /= len; dz /= len;
+                    switch (impl_->sliceOrientation) {
+                        case SliceOrientation::Axial:
+                            pos.normalX = -dy;
+                            pos.normalY = dx;
+                            pos.normalZ = 0.0;
+                            break;
+                        case SliceOrientation::Coronal:
+                            pos.normalX = -dz;
+                            pos.normalY = 0.0;
+                            pos.normalZ = dx;
+                            break;
+                        case SliceOrientation::Sagittal:
+                            pos.normalX = 0.0;
+                            pos.normalY = -dz;
+                            pos.normalZ = dy;
+                            break;
+                    }
+                }
+
+                emit planePositioned(pos);
+                emit measurementModeChanged(services::MeasurementMode::None);
+                return true;
+            }
+        }
+    }
+
     return QWidget::eventFilter(watched, event);
 }
 
@@ -496,6 +676,77 @@ void ViewportWidget::resizeEvent(QResizeEvent* event)
     if (impl_->vtkWidget) {
         impl_->vtkWidget->renderWindow()->Render();
     }
+}
+
+void ViewportWidget::startPlanePositioning()
+{
+    // Cancel existing measurements
+    impl_->measurementTool->cancelMeasurement();
+    impl_->areaMeasurementTool->cancelCurrentRoi();
+
+    impl_->planePositioningMode = true;
+    impl_->planeDragging = false;
+    impl_->planeLineActor->SetVisibility(false);
+    emit measurementModeChanged(services::MeasurementMode::PlanePositioning);
+}
+
+void ViewportWidget::showPlaneOverlay(const PlanePosition& position,
+                                       double r, double g, double b)
+{
+    if (!impl_->imageData) return;
+
+    // Compute line endpoints from PlanePosition normal and center
+    // The line direction is perpendicular to the normal within the slice plane
+    double nx = position.normalX;
+    double ny = position.normalY;
+    double nz = position.normalZ;
+
+    // Determine line direction in the slice plane (perpendicular to normal)
+    double lx = 0.0, ly = 0.0, lz = 0.0;
+    switch (impl_->sliceOrientation) {
+        case SliceOrientation::Axial:
+            // In XY plane: line perpendicular to (nx,ny) projected onto XY
+            lx = -ny; ly = nx; lz = 0.0;
+            break;
+        case SliceOrientation::Coronal:
+            // In XZ plane: line perpendicular to (nx,nz) projected onto XZ
+            lx = -nz; ly = 0.0; lz = nx;
+            break;
+        case SliceOrientation::Sagittal:
+            // In YZ plane: line perpendicular to (ny,nz) projected onto YZ
+            lx = 0.0; ly = -nz; lz = ny;
+            break;
+    }
+
+    double len = std::sqrt(lx * lx + ly * ly + lz * lz);
+    if (len < 1e-6) {
+        // Normal is along the slice axis — plane is parallel to the slice
+        impl_->planeLineActor->SetVisibility(false);
+        impl_->vtkWidget->renderWindow()->Render();
+        return;
+    }
+    lx /= len; ly /= len; lz /= len;
+
+    double ext = position.extent;
+    double p1[3] = {position.centerX - lx * ext,
+                    position.centerY - ly * ext,
+                    position.centerZ - lz * ext};
+    double p2[3] = {position.centerX + lx * ext,
+                    position.centerY + ly * ext,
+                    position.centerZ + lz * ext};
+
+    impl_->planeLineSource->SetPoint1(p1);
+    impl_->planeLineSource->SetPoint2(p2);
+    impl_->planeLineSource->Update();
+    impl_->planeLineActor->GetProperty()->SetColor(r, g, b);
+    impl_->planeLineActor->SetVisibility(true);
+    impl_->vtkWidget->renderWindow()->Render();
+}
+
+void ViewportWidget::hidePlaneOverlay()
+{
+    impl_->planeLineActor->SetVisibility(false);
+    impl_->vtkWidget->renderWindow()->Render();
 }
 
 void ViewportWidget::startDistanceMeasurement()
@@ -544,6 +795,8 @@ void ViewportWidget::cancelMeasurement()
 {
     impl_->measurementTool->cancelMeasurement();
     impl_->areaMeasurementTool->cancelCurrentRoi();
+    impl_->planePositioningMode = false;
+    impl_->planeDragging = false;
     emit measurementModeChanged(services::MeasurementMode::None);
 }
 
