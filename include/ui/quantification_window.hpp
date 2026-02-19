@@ -265,6 +265,38 @@ public:
      */
     void clearVolumeStatistics();
 
+    // -- Inline contour editing API --
+
+    /**
+     * @brief Enable or disable inline contour editing tools
+     * @param enabled True to enable brush/eraser toolbar
+     */
+    void setEditingEnabled(bool enabled);
+
+    /**
+     * @brief Check if contour editing is enabled
+     */
+    [[nodiscard]] bool isEditingEnabled() const;
+
+    /**
+     * @brief Set undo/redo button enabled states
+     * @param canUndo True to enable undo button
+     * @param canRedo True to enable redo button
+     */
+    void setUndoRedoEnabled(bool canUndo, bool canRedo);
+
+    /**
+     * @brief Get current brush size
+     * @return Brush radius in pixels (1-20)
+     */
+    [[nodiscard]] int brushSize() const;
+
+    /**
+     * @brief Check if brush tool is active (vs eraser)
+     * @return True for brush, false for eraser
+     */
+    [[nodiscard]] bool isBrushActive() const;
+
     // -- Tab API --
 
     /**
@@ -321,6 +353,28 @@ signals:
      * @param index Plane index whose position changed
      */
     void planePositionChanged(int index);
+
+    /**
+     * @brief Emitted when the active editing tool changes
+     * @param isBrush True for brush, false for eraser
+     */
+    void editToolChanged(bool isBrush);
+
+    /**
+     * @brief Emitted when the brush size changes
+     * @param size New brush radius in pixels
+     */
+    void editBrushSizeChanged(int size);
+
+    /**
+     * @brief Emitted when user requests undo of a contour edit
+     */
+    void contourUndoRequested();
+
+    /**
+     * @brief Emitted when user requests redo of a contour edit
+     */
+    void contourRedoRequested();
 
 private:
     void setupUI();
