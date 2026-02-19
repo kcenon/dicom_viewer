@@ -11,6 +11,7 @@
 #include "ui/panels/segmentation_panel.hpp"
 #include "ui/panels/overlay_control_panel.hpp"
 #include "ui/panels/flow_tool_panel.hpp"
+#include "ui/panels/report_panel.hpp"
 #include "ui/display_3d_controller.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
 #include "ui/dialogs/mask_wizard.hpp"
@@ -70,11 +71,11 @@ public:
     QDockWidget* patientBrowserDock = nullptr;
     QDockWidget* toolsPanelDock = nullptr;
     QDockWidget* statisticsPanelDock = nullptr;
-    QDockWidget* segmentationPanelDock = nullptr;
     QDockWidget* overlayControlDock = nullptr;
     QDockWidget* flowToolDock = nullptr;
     StatisticsPanel* statisticsPanel = nullptr;
     SegmentationPanel* segmentationPanel = nullptr;
+    ReportPanel* reportPanel = nullptr;
     OverlayControlPanel* overlayControlPanel = nullptr;
     FlowToolPanel* flowToolPanel = nullptr;
 
@@ -90,7 +91,6 @@ public:
     QAction* togglePatientBrowserAction = nullptr;
     QAction* toggleToolsPanelAction = nullptr;
     QAction* toggleStatisticsPanelAction = nullptr;
-    QAction* toggleSegmentationPanelAction = nullptr;
     QAction* toggleOverlayControlAction = nullptr;
     QAction* toggleFlowToolAction = nullptr;
 
@@ -137,6 +137,11 @@ public:
 
     // Display 3D controller
     std::unique_ptr<Display3DController> display3DController;
+
+    // Export actions (for ReportPanel signal wiring)
+    QAction* saveScreenshotAction = nullptr;
+    QAction* saveMovieAction = nullptr;
+    QAction* exportMatlabAction = nullptr;
 
     // Project management
     std::unique_ptr<core::ProjectManager> projectManager;
@@ -446,25 +451,20 @@ void MainWindow::setupMenuBar()
     impl_->toggleStatisticsPanelAction->setChecked(false);
     impl_->toggleStatisticsPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_3));
 
-    impl_->toggleSegmentationPanelAction = panelsMenu->addAction(tr("Se&gmentation Panel"));
-    impl_->toggleSegmentationPanelAction->setCheckable(true);
-    impl_->toggleSegmentationPanelAction->setChecked(false);
-    impl_->toggleSegmentationPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_4));
-
     impl_->togglePhaseControlAction = panelsMenu->addAction(tr("&Phase Control"));
     impl_->togglePhaseControlAction->setCheckable(true);
     impl_->togglePhaseControlAction->setChecked(false);
-    impl_->togglePhaseControlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_5));
+    impl_->togglePhaseControlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_4));
 
     impl_->toggleOverlayControlAction = panelsMenu->addAction(tr("&Overlay Controls"));
     impl_->toggleOverlayControlAction->setCheckable(true);
     impl_->toggleOverlayControlAction->setChecked(false);
-    impl_->toggleOverlayControlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_6));
+    impl_->toggleOverlayControlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_5));
 
     impl_->toggleFlowToolAction = panelsMenu->addAction(tr("&Flow Tools"));
     impl_->toggleFlowToolAction->setCheckable(true);
     impl_->toggleFlowToolAction->setChecked(false);
-    impl_->toggleFlowToolAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_7));
+    impl_->toggleFlowToolAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_6));
 
     displayMenu->addSeparator();
 
@@ -676,9 +676,9 @@ void MainWindow::setupMenuBar()
     // =========================================================================
     auto exportMenu = menuBar()->addMenu(tr("E&xport"));
 
-    auto saveScreenshotAction = exportMenu->addAction(tr("Save Sc&reenshot..."));
-    saveScreenshotAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S));
-    connect(saveScreenshotAction, &QAction::triggered, this, [this]() {
+    impl_->saveScreenshotAction = exportMenu->addAction(tr("Save Sc&reenshot..."));
+    impl_->saveScreenshotAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S));
+    connect(impl_->saveScreenshotAction, &QAction::triggered, this, [this]() {
         QString filePath = QFileDialog::getSaveFileName(
             this, tr("Save Screenshot"), QString(),
             tr("PNG Images (*.png);;JPEG Images (*.jpg)"));
@@ -694,9 +694,9 @@ void MainWindow::setupMenuBar()
     exportEnsightAction->setEnabled(false);
     exportEnsightAction->setToolTip(tr("Export as Ensight format (not yet implemented)"));
 
-    auto exportMatlabAction = exportMenu->addAction(tr("Export &MATLAB..."));
-    exportMatlabAction->setToolTip(tr("Export velocity fields as MATLAB .mat files"));
-    connect(exportMatlabAction, &QAction::triggered, this, [this]() {
+    impl_->exportMatlabAction = exportMenu->addAction(tr("Export &MATLAB..."));
+    impl_->exportMatlabAction->setToolTip(tr("Export velocity fields as MATLAB .mat files"));
+    connect(impl_->exportMatlabAction, &QAction::triggered, this, [this]() {
         if (!impl_->temporalNavigator.isInitialized()) {
             QMessageBox::information(this, tr("Export MATLAB"),
                 tr("No 4D Flow data loaded. Please open a 4D Flow dataset first."));
@@ -768,10 +768,10 @@ void MainWindow::setupMenuBar()
         }
     });
 
-    auto saveMovieAction = exportMenu->addAction(tr("Save &Movie..."));
-    saveMovieAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_M));
-    saveMovieAction->setToolTip(tr("Export cine playback or 3D rotation as OGG Theora video"));
-    connect(saveMovieAction, &QAction::triggered, this, [this]() {
+    impl_->saveMovieAction = exportMenu->addAction(tr("Save &Movie..."));
+    impl_->saveMovieAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_M));
+    impl_->saveMovieAction->setToolTip(tr("Export cine playback or 3D rotation as OGG Theora video"));
+    connect(impl_->saveMovieAction, &QAction::triggered, this, [this]() {
         const int numPhases = impl_->temporalNavigator.isInitialized()
             ? impl_->temporalNavigator.phaseCount() : 0;
 
@@ -1039,15 +1039,15 @@ void MainWindow::setupDockWidgets()
     tabifyDockWidget(impl_->toolsPanelDock, impl_->statisticsPanelDock);
     impl_->statisticsPanelDock->hide();  // Initially hidden
 
-    // Segmentation Panel (right, tabbed with Tools and Statistics)
-    impl_->segmentationPanelDock = new QDockWidget(tr("Segmentation"), this);
-    impl_->segmentationPanelDock->setObjectName("SegmentationPanelDock");
+    // Segmentation Panel — embedded in WorkflowPanel Segmentation tab
     impl_->segmentationPanel = new SegmentationPanel();
-    impl_->segmentationPanelDock->setWidget(impl_->segmentationPanel);
-    impl_->segmentationPanelDock->setMinimumWidth(220);
-    addDockWidget(Qt::RightDockWidgetArea, impl_->segmentationPanelDock);
-    tabifyDockWidget(impl_->statisticsPanelDock, impl_->segmentationPanelDock);
-    impl_->segmentationPanelDock->hide();  // Initially hidden
+    impl_->workflowPanel->setStageWidget(WorkflowStage::Segmentation,
+                                          impl_->segmentationPanel);
+
+    // Report Panel — embedded in WorkflowPanel Report tab
+    impl_->reportPanel = new ReportPanel();
+    impl_->workflowPanel->setStageWidget(WorkflowStage::Report,
+                                          impl_->reportPanel);
 
     // Overlay Control Panel (right, tabbed with other panels)
     impl_->overlayControlDock = new QDockWidget(tr("Overlay Controls"), this);
@@ -1056,7 +1056,7 @@ void MainWindow::setupDockWidgets()
     impl_->overlayControlDock->setWidget(impl_->overlayControlPanel);
     impl_->overlayControlDock->setMinimumWidth(220);
     addDockWidget(Qt::RightDockWidgetArea, impl_->overlayControlDock);
-    tabifyDockWidget(impl_->segmentationPanelDock, impl_->overlayControlDock);
+    tabifyDockWidget(impl_->statisticsPanelDock, impl_->overlayControlDock);
     impl_->overlayControlDock->hide();  // Initially hidden
 
     // Flow Tool Panel (left, below Patient Browser)
@@ -1186,11 +1186,6 @@ void MainWindow::setupConnections()
             impl_->statisticsPanelDock, &QDockWidget::setVisible);
     connect(impl_->statisticsPanelDock, &QDockWidget::visibilityChanged,
             impl_->toggleStatisticsPanelAction, &QAction::setChecked);
-
-    connect(impl_->toggleSegmentationPanelAction, &QAction::toggled,
-            impl_->segmentationPanelDock, &QDockWidget::setVisible);
-    connect(impl_->segmentationPanelDock, &QDockWidget::visibilityChanged,
-            impl_->toggleSegmentationPanelAction, &QAction::setChecked);
 
     connect(impl_->togglePhaseControlAction, &QAction::toggled,
             impl_->phaseControlDock, &QDockWidget::setVisible);
@@ -1380,6 +1375,14 @@ void MainWindow::setupConnections()
                         tr("Could not open project:\n%1").arg(path));
                 }
             });
+
+    // Report panel -> Export menu actions
+    connect(impl_->reportPanel, &ReportPanel::screenshotRequested,
+            impl_->saveScreenshotAction, &QAction::trigger);
+    connect(impl_->reportPanel, &ReportPanel::movieRequested,
+            impl_->saveMovieAction, &QAction::trigger);
+    connect(impl_->reportPanel, &ReportPanel::matlabExportRequested,
+            impl_->exportMatlabAction, &QAction::trigger);
 
     // Populate IntroPage recent projects on startup
     updateIntroPageRecentProjects();
@@ -1787,7 +1790,6 @@ void MainWindow::onResetLayout()
     impl_->patientBrowserDock->setFloating(false);
     impl_->toolsPanelDock->setFloating(false);
     impl_->statisticsPanelDock->setFloating(false);
-    impl_->segmentationPanelDock->setFloating(false);
     impl_->overlayControlDock->setFloating(false);
     impl_->flowToolDock->setFloating(false);
     impl_->phaseControlDock->setFloating(false);
@@ -1796,11 +1798,9 @@ void MainWindow::onResetLayout()
     addDockWidget(Qt::LeftDockWidgetArea, impl_->phaseControlDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->toolsPanelDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->statisticsPanelDock);
-    addDockWidget(Qt::RightDockWidgetArea, impl_->segmentationPanelDock);
     addDockWidget(Qt::RightDockWidgetArea, impl_->overlayControlDock);
     tabifyDockWidget(impl_->toolsPanelDock, impl_->statisticsPanelDock);
-    tabifyDockWidget(impl_->statisticsPanelDock, impl_->segmentationPanelDock);
-    tabifyDockWidget(impl_->segmentationPanelDock, impl_->overlayControlDock);
+    tabifyDockWidget(impl_->statisticsPanelDock, impl_->overlayControlDock);
     impl_->patientBrowserDock->show();
     impl_->toolsPanelDock->show();
     impl_->toolsPanelDock->raise();  // Show Tools tab
