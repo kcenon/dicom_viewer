@@ -469,6 +469,11 @@ void ViewportWidget::resetCamera()
     impl_->vtkWidget->renderWindow()->Render();
 }
 
+vtkRenderWindow* ViewportWidget::getRenderWindow() const
+{
+    return impl_->renderWindow;
+}
+
 bool ViewportWidget::captureScreenshot(const QString& filePath)
 {
     auto windowToImage = vtkSmartPointer<vtkWindowToImageFilter>::New();

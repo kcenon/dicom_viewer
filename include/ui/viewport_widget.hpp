@@ -13,6 +13,7 @@
 #include "ui/quantification_window.hpp"
 
 class QVTKOpenGLNativeWidget;
+class vtkRenderWindow;
 
 namespace dicom_viewer::ui {
 
@@ -101,6 +102,12 @@ public:
      * @brief Reset camera to fit the data
      */
     void resetCamera();
+
+    /**
+     * @brief Get the underlying VTK render window
+     * @return Pointer to render window, or nullptr if not initialized
+     */
+    vtkRenderWindow* getRenderWindow() const;
 
     /**
      * @brief Capture screenshot
