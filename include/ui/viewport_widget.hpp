@@ -10,6 +10,7 @@
 
 #include "services/measurement/measurement_types.hpp"
 #include "services/segmentation/manual_segmentation_controller.hpp"
+#include "ui/quantification_window.hpp"
 
 class QVTKOpenGLNativeWidget;
 
@@ -125,6 +126,14 @@ public:
     void startAreaMeasurement(services::RoiType type);
 
     /**
+     * @brief Start interactive plane positioning mode
+     *
+     * Click on the 2D view to place the plane center, then drag to
+     * set the orientation. The plane line overlay is rendered on the view.
+     */
+    void startPlanePositioning();
+
+    /**
      * @brief Cancel any active measurement
      */
     void cancelMeasurement();
@@ -235,6 +244,19 @@ public:
     bool isSegmentationModeActive() const;
 
     /**
+     * @brief Show a measurement plane line overlay on the 2D view
+     * @param position Plane position in world coordinates
+     * @param color Line color (RGB)
+     */
+    void showPlaneOverlay(const PlanePosition& position,
+                          double r, double g, double b);
+
+    /**
+     * @brief Hide the measurement plane line overlay
+     */
+    void hidePlaneOverlay();
+
+    /**
      * @brief Show/hide MPR crosshair intersection lines
      * @param visible True to show crosshair lines
      */
@@ -281,6 +303,9 @@ signals:
 
     /// Emitted when undo/redo availability changes for segmentation command stack
     void segmentationUndoRedoChanged(bool canUndo, bool canRedo);
+
+    /// Emitted when user completes interactive plane positioning
+    void planePositioned(const PlanePosition& position);
 
 public slots:
     /// Set crosshair position from external source
