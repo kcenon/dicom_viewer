@@ -640,6 +640,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/widgets/flow_graph_widget.cpp
     src/ui/widgets/workflow_tab_bar.cpp
     src/ui/panels/workflow_panel.cpp
+    src/ui/panels/report_panel.cpp
     src/ui/intro_page.cpp
     # Headers with Q_OBJECT for AUTOMOC
     include/ui/main_window.hpp
@@ -665,6 +666,7 @@ add_library(dicom_viewer_ui STATIC
     include/ui/widgets/flow_graph_widget.hpp
     include/ui/widgets/workflow_tab_bar.hpp
     include/ui/panels/workflow_panel.hpp
+    include/ui/panels/report_panel.hpp
 )
 
 target_link_libraries(dicom_viewer_ui PUBLIC
