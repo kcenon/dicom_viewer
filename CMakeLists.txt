@@ -638,6 +638,8 @@ add_library(dicom_viewer_ui STATIC
     src/ui/mask_wizard_controller.cpp
     src/ui/drop_handler.cpp
     src/ui/widgets/flow_graph_widget.cpp
+    src/ui/widgets/workflow_tab_bar.cpp
+    src/ui/panels/workflow_panel.cpp
     # Headers with Q_OBJECT for AUTOMOC
     include/ui/main_window.hpp
     include/ui/viewport_widget.hpp
@@ -659,6 +661,8 @@ add_library(dicom_viewer_ui STATIC
     include/ui/mask_wizard_controller.hpp
     include/ui/drop_handler.hpp
     include/ui/widgets/flow_graph_widget.hpp
+    include/ui/widgets/workflow_tab_bar.hpp
+    include/ui/panels/workflow_panel.hpp
 )
 
 target_link_libraries(dicom_viewer_ui PUBLIC

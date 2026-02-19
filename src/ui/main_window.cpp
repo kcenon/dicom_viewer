@@ -5,6 +5,7 @@
 #include "ui/widgets/sp_mode_toggle.hpp"
 #include "ui/panels/patient_browser.hpp"
 #include "ui/panels/tools_panel.hpp"
+#include "ui/panels/workflow_panel.hpp"
 #include "ui/panels/statistics_panel.hpp"
 #include "ui/panels/segmentation_panel.hpp"
 #include "ui/panels/overlay_control_panel.hpp"
@@ -60,6 +61,7 @@ public:
     ViewportWidget* viewport = nullptr;
     PatientBrowser* patientBrowser = nullptr;
     ToolsPanel* toolsPanel = nullptr;
+    WorkflowPanel* workflowPanel = nullptr;
 
     QDockWidget* patientBrowserDock = nullptr;
     QDockWidget* toolsPanelDock = nullptr;
@@ -406,7 +408,7 @@ void MainWindow::setupMenuBar()
     impl_->togglePatientBrowserAction->setChecked(true);
     impl_->togglePatientBrowserAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_1));
 
-    impl_->toggleToolsPanelAction = panelsMenu->addAction(tr("&Tools Panel"));
+    impl_->toggleToolsPanelAction = panelsMenu->addAction(tr("&Workflow Panel"));
     impl_->toggleToolsPanelAction->setCheckable(true);
     impl_->toggleToolsPanelAction->setChecked(true);
     impl_->toggleToolsPanelAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_2));
@@ -990,11 +992,12 @@ void MainWindow::setupDockWidgets()
     impl_->patientBrowserDock->setMinimumWidth(250);
     addDockWidget(Qt::LeftDockWidgetArea, impl_->patientBrowserDock);
 
-    // Tools Panel (right)
-    impl_->toolsPanelDock = new QDockWidget(tr("Tools"), this);
+    // Workflow Panel (right) — wraps ToolsPanel as Analysis tab
+    impl_->toolsPanelDock = new QDockWidget(tr("Workflow"), this);
     impl_->toolsPanelDock->setObjectName("ToolsPanelDock");
     impl_->toolsPanel = new ToolsPanel();
-    impl_->toolsPanelDock->setWidget(impl_->toolsPanel);
+    impl_->workflowPanel = new WorkflowPanel(impl_->toolsPanel);
+    impl_->toolsPanelDock->setWidget(impl_->workflowPanel);
     impl_->toolsPanelDock->setMinimumWidth(200);
     addDockWidget(Qt::RightDockWidgetArea, impl_->toolsPanelDock);
 
@@ -1500,6 +1503,19 @@ void MainWindow::registerShortcuts()
     connect(brainPreset, &QShortcut::activated, this, [this](){
         impl_->viewport->applyPreset("CT Brain");
     });
+
+    // Workflow tab shortcuts (Alt+1/2/3/4)
+    for (int i = 0; i < 4; ++i) {
+        auto* shortcut = new QShortcut(
+            QKeySequence(Qt::ALT | static_cast<Qt::Key>(Qt::Key_1 + i)),
+            this);
+        connect(shortcut, &QShortcut::activated, this, [this, i]() {
+            impl_->workflowPanel->setCurrentStage(
+                static_cast<WorkflowStage>(i));
+            impl_->toolsPanelDock->show();
+            impl_->toolsPanelDock->raise();
+        });
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)
