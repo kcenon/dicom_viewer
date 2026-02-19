@@ -1,4 +1,5 @@
 #include "ui/main_window.hpp"
+#include "ui/intro_page.hpp"
 #include "ui/viewport_widget.hpp"
 #include "ui/viewport_layout_manager.hpp"
 #include "ui/widgets/phase_slider_widget.hpp"
@@ -49,6 +50,7 @@
 #include <QStyle>
 #include <QToolBar>
 #include <QShortcut>
+#include <QStackedWidget>
 #include <QActionGroup>
 #include <QLabel>
 #include <QTimer>
@@ -57,6 +59,8 @@ namespace dicom_viewer::ui {
 
 class MainWindow::Impl {
 public:
+    QStackedWidget* centralStack = nullptr;
+    IntroPage* introPage = nullptr;
     ViewportLayoutManager* layoutManager = nullptr;
     ViewportWidget* viewport = nullptr;
     PatientBrowser* patientBrowser = nullptr;
@@ -180,9 +184,20 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
+    impl_->centralStack = new QStackedWidget(this);
+
+    // Page 0: Intro page (shown on startup)
+    impl_->introPage = new IntroPage(this);
+    impl_->centralStack->addWidget(impl_->introPage);
+
+    // Page 1: Viewer layout (shown after data import)
     impl_->layoutManager = new ViewportLayoutManager(this);
     impl_->viewport = impl_->layoutManager->primaryViewport();
-    setCentralWidget(impl_->layoutManager);
+    impl_->centralStack->addWidget(impl_->layoutManager);
+
+    // Start on intro page
+    impl_->centralStack->setCurrentIndex(0);
+    setCentralWidget(impl_->centralStack);
 }
 
 void MainWindow::setupMenuBar()
@@ -1322,6 +1337,16 @@ void MainWindow::setupConnections()
                 }
                 uncheckAllMeasurementActions();
             });
+
+    // Intro page buttons -> existing import slots
+    connect(impl_->introPage, &IntroPage::importFolderRequested,
+            this, &MainWindow::onOpenDirectory);
+    connect(impl_->introPage, &IntroPage::importFileRequested,
+            this, &MainWindow::onOpenFile);
+    connect(impl_->introPage, &IntroPage::importPacsRequested,
+            this, &MainWindow::onConnectPACS);
+    connect(impl_->introPage, &IntroPage::openProjectRequested,
+            this, &MainWindow::onOpenProject);
 }
 
 void MainWindow::applyDarkTheme()
@@ -1635,6 +1660,9 @@ void MainWindow::onOpenDirectory()
         tr("Loaded %1 series from %2")
             .arg(scannedSeries.size())
             .arg(dir));
+
+    // Switch from Intro Page to viewer
+    impl_->centralStack->setCurrentIndex(1);
 }
 
 void MainWindow::onOpenFile()
@@ -1905,6 +1933,7 @@ void MainWindow::onOpenProject()
         impl_->projectManager->addToRecent(path);
         updateRecentProjectsMenu();
         updateWindowTitle();
+        impl_->centralStack->setCurrentIndex(1);
         statusBar()->showMessage(tr("Project loaded: %1").arg(filePath), 3000);
     } else {
         QMessageBox::warning(this, tr("Open Failed"),
