@@ -12,6 +12,7 @@
 #include "ui/panels/overlay_control_panel.hpp"
 #include "ui/panels/flow_tool_panel.hpp"
 #include "ui/panels/report_panel.hpp"
+#include "ui/drop_handler.hpp"
 #include "ui/display_3d_controller.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
 #include "ui/dialogs/mask_wizard.hpp"
@@ -1359,21 +1360,7 @@ void MainWindow::setupConnections()
     connect(impl_->introPage, &IntroPage::openRecentRequested,
             this, [this](const QString& path) {
                 if (!promptSaveIfModified()) return;
-
-                auto fsPath = std::filesystem::path(path.toStdString());
-                auto result = impl_->projectManager->loadProject(fsPath);
-                if (result) {
-                    impl_->projectManager->addToRecent(fsPath);
-                    updateRecentProjectsMenu();
-                    updateIntroPageRecentProjects();
-                    updateWindowTitle();
-                    impl_->centralStack->setCurrentIndex(1);
-                    impl_->closeCaseAction->setEnabled(true);
-                    statusBar()->showMessage(tr("Project loaded: %1").arg(path), 3000);
-                } else {
-                    QMessageBox::warning(this, tr("Open Failed"),
-                        tr("Could not open project:\n%1").arg(path));
-                }
+                importProjectFile(path);
             });
 
     // Report panel -> Export menu actions
@@ -1383,6 +1370,16 @@ void MainWindow::setupConnections()
             impl_->saveMovieAction, &QAction::trigger);
     connect(impl_->reportPanel, &ReportPanel::matlabExportRequested,
             impl_->exportMatlabAction, &QAction::trigger);
+
+    // Drag-and-drop: install DropHandler on central stack
+    auto* dropHandler = new DropHandler(impl_->centralStack, this);
+    connect(dropHandler, &DropHandler::dicomFolderDropped,
+            this, &MainWindow::importDicomDirectory);
+    connect(dropHandler, &DropHandler::projectFileDropped,
+            this, [this](const QString& path) {
+                if (!promptSaveIfModified()) return;
+                importProjectFile(path);
+            });
 
     // Populate IntroPage recent projects on startup
     updateIntroPageRecentProjects();
@@ -1605,6 +1602,11 @@ void MainWindow::onOpenDirectory()
 
     if (dir.isEmpty()) return;
 
+    importDicomDirectory(dir);
+}
+
+void MainWindow::importDicomDirectory(const QString& dir)
+{
     impl_->statusLabel->setText(tr("Scanning %1...").arg(dir));
     QApplication::processEvents();
 
@@ -1964,19 +1966,24 @@ void MainWindow::onOpenProject()
 
     if (filePath.isEmpty()) return;
 
-    auto path = std::filesystem::path(filePath.toStdString());
-    auto result = impl_->projectManager->loadProject(path);
+    importProjectFile(filePath);
+}
+
+void MainWindow::importProjectFile(const QString& path)
+{
+    auto fsPath = std::filesystem::path(path.toStdString());
+    auto result = impl_->projectManager->loadProject(fsPath);
     if (result) {
-        impl_->projectManager->addToRecent(path);
+        impl_->projectManager->addToRecent(fsPath);
         updateRecentProjectsMenu();
         updateIntroPageRecentProjects();
         updateWindowTitle();
         impl_->centralStack->setCurrentIndex(1);
         impl_->closeCaseAction->setEnabled(true);
-        statusBar()->showMessage(tr("Project loaded: %1").arg(filePath), 3000);
+        statusBar()->showMessage(tr("Project loaded: %1").arg(path), 3000);
     } else {
         QMessageBox::warning(this, tr("Open Failed"),
-            tr("Could not open project:\n%1").arg(filePath));
+            tr("Could not open project:\n%1").arg(path));
     }
 }
 
