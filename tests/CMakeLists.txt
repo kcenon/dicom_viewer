@@ -1933,3 +1933,20 @@ target_include_directories(drop_handler_test PRIVATE
 )
 
 gtest_discover_tests(drop_handler_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for MaskWizardController (service wiring)
+add_executable(mask_wizard_controller_test
+    unit/mask_wizard_controller_test.cpp
+)
+
+target_link_libraries(mask_wizard_controller_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+)
+
+target_include_directories(mask_wizard_controller_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(mask_wizard_controller_test DISCOVERY_TIMEOUT 60)

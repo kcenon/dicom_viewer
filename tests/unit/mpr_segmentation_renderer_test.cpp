@@ -437,10 +437,10 @@ TEST_F(MPRSegmentationRendererTest, SetRenderersTriple) {
     // Setting renderers should add actors
     renderer_.setRenderers(renderers_[0], renderers_[1], renderers_[2]);
 
-    // Actors should be added to renderers
-    EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_GT(renderers_[1]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_GT(renderers_[2]->GetActors()->GetNumberOfItems(), 0);
+    // vtkImageActor is not a vtkActor subclass, so use GetViewProps()
+    EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[1]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[2]->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 TEST_F(MPRSegmentationRendererTest, SetRendererSinglePlane) {
@@ -450,7 +450,7 @@ TEST_F(MPRSegmentationRendererTest, SetRendererSinglePlane) {
     auto singleRenderer = vtkSmartPointer<vtkRenderer>::New();
     renderer_.setRenderer(MPRPlane::Axial, singleRenderer);
 
-    EXPECT_GT(singleRenderer->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_GT(singleRenderer->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 TEST_F(MPRSegmentationRendererTest, RemoveFromRenderers) {
@@ -458,14 +458,14 @@ TEST_F(MPRSegmentationRendererTest, RemoveFromRenderers) {
     renderer_.setLabelMap(labelMap);
     renderer_.setRenderers(renderers_[0], renderers_[1], renderers_[2]);
 
-    int actorsBefore = renderers_[0]->GetActors()->GetNumberOfItems();
-    EXPECT_GT(actorsBefore, 0);
+    int propsBefore = renderers_[0]->GetViewProps()->GetNumberOfItems();
+    EXPECT_GT(propsBefore, 0);
 
     renderer_.removeFromRenderers();
 
-    EXPECT_EQ(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_EQ(renderers_[1]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_EQ(renderers_[2]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[1]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[2]->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 TEST_F(MPRSegmentationRendererTest, SetRenderersReplacePrevious) {
@@ -481,12 +481,12 @@ TEST_F(MPRSegmentationRendererTest, SetRenderersReplacePrevious) {
     renderer_.setRenderers(newAxial, newCoronal, newSagittal);
 
     // Old renderers should have actors removed
-    EXPECT_EQ(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_EQ(renderers_[1]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_EQ(renderers_[2]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[1]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[2]->GetViewProps()->GetNumberOfItems(), 0);
 
     // New renderers should have actors added
-    EXPECT_GT(newAxial->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_GT(newAxial->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 // =============================================================================
@@ -764,10 +764,10 @@ TEST_F(MPRSegmentationRendererTest, DestructionCleansUpActors) {
         localRenderer.setLabelMap(labelMap);
         localRenderer.setRenderers(renderers_[0], renderers_[1], renderers_[2]);
 
-        EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+        EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
     }
     // After destruction, actors should be removed
-    EXPECT_EQ(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_EQ(renderers_[1]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_EQ(renderers_[2]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[1]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[2]->GetViewProps()->GetNumberOfItems(), 0);
 }

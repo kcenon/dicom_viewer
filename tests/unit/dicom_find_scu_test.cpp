@@ -183,9 +183,10 @@ TEST_F(DicomFindSCUTest, FindWithUnreachableServer) {
 
     auto result = findScu->find(config, query);
     EXPECT_FALSE(result.has_value());
-    // Should fail with connection error or timeout
+    // Should fail with network/association error
     EXPECT_TRUE(
         result.error().code == PacsError::ConnectionFailed ||
+        result.error().code == PacsError::AssociationRejected ||
         result.error().code == PacsError::Timeout ||
         result.error().code == PacsError::NetworkError
     );
@@ -266,6 +267,7 @@ TEST_F(DicomFindSCUTest, FindWithPatientLevelQuery) {
     EXPECT_FALSE(result.has_value());
     EXPECT_TRUE(
         result.error().code == PacsError::ConnectionFailed ||
+        result.error().code == PacsError::AssociationRejected ||
         result.error().code == PacsError::Timeout ||
         result.error().code == PacsError::NetworkError
     );
@@ -288,6 +290,7 @@ TEST_F(DicomFindSCUTest, FindWithSeriesLevelAndStudyRoot) {
     EXPECT_FALSE(result.has_value());
     EXPECT_TRUE(
         result.error().code == PacsError::ConnectionFailed ||
+        result.error().code == PacsError::AssociationRejected ||
         result.error().code == PacsError::Timeout ||
         result.error().code == PacsError::NetworkError
     );

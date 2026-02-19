@@ -875,11 +875,14 @@ TEST(CoronaryCenterlineExtractor, StenosisPercentageWithinTolerance)
 TEST(CoronaryCenterlineExtractor, SmallVesselVesselnessResponse)
 {
     // Very small vessel: radius < 1mm
-    double centerX = 10.0, centerZ = 10.0;
+    constexpr int size = 40;
+    constexpr double spacing = 0.25;
+    double centerX = (size / 2) * spacing;
+    double centerZ = (size / 2) * spacing;
     double smallRadius = 0.4;  // 0.4mm radius = 0.8mm diameter
 
     auto image = createStraightTubePhantom(
-        40, 40, 40, centerX, centerZ, smallRadius, 0.25);
+        size, size, size, centerX, centerZ, smallRadius, spacing);
 
     CoronaryCenterlineExtractor extractor;
 
@@ -896,11 +899,11 @@ TEST(CoronaryCenterlineExtractor, SmallVesselVesselnessResponse)
     auto vesselness = result.value();
     ImageType::PointType physPoint;
     physPoint[0] = centerX;
-    physPoint[1] = 5.0;
+    physPoint[1] = (size / 2) * spacing;
     physPoint[2] = centerZ;
 
     FloatImageType::IndexType idx;
-    vesselness->TransformPhysicalPointToIndex(physPoint, idx);
+    ASSERT_TRUE(vesselness->TransformPhysicalPointToIndex(physPoint, idx));
     float centerResponse = vesselness->GetPixel(idx);
 
     EXPECT_GT(centerResponse, 0.0f)

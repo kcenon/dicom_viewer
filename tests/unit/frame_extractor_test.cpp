@@ -70,6 +70,34 @@ void insertStringElement(gdcm::DataSet& ds, const gdcm::Tag& tag,
     ds.Insert(de);
 }
 
+void insertUSElement(gdcm::DataSet& ds, const gdcm::Tag& tag, uint16_t value) {
+    gdcm::DataElement de(tag);
+    de.SetByteValue(reinterpret_cast<const char*>(&value), sizeof(uint16_t));
+    de.SetVR(gdcm::VR::US);
+    ds.Insert(de);
+}
+
+void setupFileMetaInfo(gdcm::File& file, const std::string& sopClass) {
+    auto& fmi = file.GetHeader();
+    fmi.Clear();
+    fmi.SetDataSetTransferSyntax(gdcm::TransferSyntax::ExplicitVRLittleEndian);
+
+    gdcm::UIDGenerator uidGen;
+
+    gdcm::DataElement msSop(tags::MediaStorageSOPClassUID);
+    msSop.SetByteValue(sopClass.c_str(),
+                       static_cast<uint32_t>(sopClass.size()));
+    msSop.SetVR(gdcm::VR::UI);
+    fmi.Insert(msSop);
+
+    gdcm::DataElement msInstance(tags::MediaStorageSOPInstanceUID);
+    std::string instUid = uidGen.Generate();
+    msInstance.SetByteValue(instUid.c_str(),
+                            static_cast<uint32_t>(instUid.size()));
+    msInstance.SetVR(gdcm::VR::UI);
+    fmi.Insert(msInstance);
+}
+
 void insertSequenceWithItem(gdcm::DataSet& parentDs, const gdcm::Tag& seqTag,
                             const gdcm::DataSet& itemDs) {
     auto sq = gdcm::SequenceOfItems::New();
@@ -159,16 +187,16 @@ protected:
         auto& file = writer.GetFile();
         auto& ds = file.GetDataSet();
 
-        // Required pixel format attributes
-        insertStringElement(ds, tags::SamplesPerPixel, "1");
+        // Required pixel format attributes (US VR tags use binary encoding)
+        insertUSElement(ds, tags::SamplesPerPixel, 1);
         insertStringElement(ds, tags::NumberOfFrames,
                             std::to_string(numFrames));
-        insertStringElement(ds, tags::Rows, std::to_string(rows));
-        insertStringElement(ds, tags::Columns, std::to_string(cols));
-        insertStringElement(ds, tags::BitsAllocated, "16");
-        insertStringElement(ds, tags::BitsStored, "16");
-        insertStringElement(ds, tags::HighBit, "15");
-        insertStringElement(ds, tags::PixelRepresentation, "1");  // signed
+        insertUSElement(ds, tags::Rows, static_cast<uint16_t>(rows));
+        insertUSElement(ds, tags::Columns, static_cast<uint16_t>(cols));
+        insertUSElement(ds, tags::BitsAllocated, 16);
+        insertUSElement(ds, tags::BitsStored, 16);
+        insertUSElement(ds, tags::HighBit, 15);
+        insertUSElement(ds, tags::PixelRepresentation, 1);  // signed
         insertStringElement(ds, tags::PhotometricInterpretation, "MONOCHROME2");
 
         // SOP Class / Instance UIDs
@@ -193,26 +221,10 @@ protected:
         pixelData.SetByteValue(
             reinterpret_cast<const char*>(pixelBuffer.data()),
             static_cast<uint32_t>(totalPixels * sizeof(short)));
+        pixelData.SetVR(gdcm::VR::OW);
         ds.Insert(pixelData);
 
-        // File meta information
-        auto& header = file.GetHeader();
-        gdcm::DataElement msSop(tags::MediaStorageSOPClassUID);
-        msSop.SetByteValue(sopClass.c_str(),
-                           static_cast<uint32_t>(sopClass.size()));
-        header.Insert(msSop);
-
-        gdcm::DataElement msInstance(tags::MediaStorageSOPInstanceUID);
-        std::string instUid = uidGen.Generate();
-        msInstance.SetByteValue(instUid.c_str(),
-                                static_cast<uint32_t>(instUid.size()));
-        header.Insert(msInstance);
-
-        std::string tsUid = "1.2.840.10008.1.2.1";  // Explicit VR Little Endian
-        gdcm::DataElement tsElem(tags::TransferSyntaxUID);
-        tsElem.SetByteValue(tsUid.c_str(),
-                            static_cast<uint32_t>(tsUid.size()));
-        header.Insert(tsElem);
+        setupFileMetaInfo(file, sopClass);
 
         writer.Write();
         return path;
@@ -231,15 +243,15 @@ protected:
         auto& file = writer.GetFile();
         auto& ds = file.GetDataSet();
 
-        insertStringElement(ds, tags::SamplesPerPixel, "1");
+        insertUSElement(ds, tags::SamplesPerPixel, 1);
         insertStringElement(ds, tags::NumberOfFrames,
                             std::to_string(numFrames));
-        insertStringElement(ds, tags::Rows, std::to_string(rows));
-        insertStringElement(ds, tags::Columns, std::to_string(cols));
-        insertStringElement(ds, tags::BitsAllocated, "16");
-        insertStringElement(ds, tags::BitsStored, "16");
-        insertStringElement(ds, tags::HighBit, "15");
-        insertStringElement(ds, tags::PixelRepresentation, "0");  // unsigned
+        insertUSElement(ds, tags::Rows, static_cast<uint16_t>(rows));
+        insertUSElement(ds, tags::Columns, static_cast<uint16_t>(cols));
+        insertUSElement(ds, tags::BitsAllocated, 16);
+        insertUSElement(ds, tags::BitsStored, 16);
+        insertUSElement(ds, tags::HighBit, 15);
+        insertUSElement(ds, tags::PixelRepresentation, 0);  // unsigned
         insertStringElement(ds, tags::PhotometricInterpretation, "MONOCHROME2");
 
         std::string sopClass = "1.2.840.10008.5.1.4.1.1.2.1";
@@ -262,25 +274,10 @@ protected:
         pixelData.SetByteValue(
             reinterpret_cast<const char*>(pixelBuffer.data()),
             static_cast<uint32_t>(totalPixels * sizeof(uint16_t)));
+        pixelData.SetVR(gdcm::VR::OW);
         ds.Insert(pixelData);
 
-        auto& header = file.GetHeader();
-        gdcm::DataElement msSop(tags::MediaStorageSOPClassUID);
-        msSop.SetByteValue(sopClass.c_str(),
-                           static_cast<uint32_t>(sopClass.size()));
-        header.Insert(msSop);
-
-        gdcm::DataElement msInstance(tags::MediaStorageSOPInstanceUID);
-        std::string instUid = uidGen.Generate();
-        msInstance.SetByteValue(instUid.c_str(),
-                                static_cast<uint32_t>(instUid.size()));
-        header.Insert(msInstance);
-
-        std::string tsUid = "1.2.840.10008.1.2.1";
-        gdcm::DataElement tsElem(tags::TransferSyntaxUID);
-        tsElem.SetByteValue(tsUid.c_str(),
-                            static_cast<uint32_t>(tsUid.size()));
-        header.Insert(tsElem);
+        setupFileMetaInfo(file, sopClass);
 
         writer.Write();
         return path;
@@ -300,16 +297,16 @@ protected:
         auto& file = writer.GetFile();
         auto& ds = file.GetDataSet();
 
-        insertStringElement(ds, tags::SamplesPerPixel, "1");
+        insertUSElement(ds, tags::SamplesPerPixel, 1);
         insertStringElement(ds, tags::NumberOfFrames,
                             std::to_string(numFrames));
-        insertStringElement(ds, tags::Rows, std::to_string(rows));
-        insertStringElement(ds, tags::Columns, std::to_string(cols));
-        insertStringElement(ds, tags::BitsAllocated, "8");
-        insertStringElement(ds, tags::BitsStored, "8");
-        insertStringElement(ds, tags::HighBit, "7");
-        insertStringElement(ds, tags::PixelRepresentation,
-                            isSigned ? "1" : "0");
+        insertUSElement(ds, tags::Rows, static_cast<uint16_t>(rows));
+        insertUSElement(ds, tags::Columns, static_cast<uint16_t>(cols));
+        insertUSElement(ds, tags::BitsAllocated, 8);
+        insertUSElement(ds, tags::BitsStored, 8);
+        insertUSElement(ds, tags::HighBit, 7);
+        insertUSElement(ds, tags::PixelRepresentation,
+                        static_cast<uint16_t>(isSigned ? 1 : 0));
         insertStringElement(ds, tags::PhotometricInterpretation, "MONOCHROME2");
 
         std::string sopClass = "1.2.840.10008.5.1.4.1.1.2.1";
@@ -332,25 +329,10 @@ protected:
         pixelData.SetByteValue(
             reinterpret_cast<const char*>(pixelBuffer.data()),
             static_cast<uint32_t>(totalPixels));
+        pixelData.SetVR(gdcm::VR::OB);
         ds.Insert(pixelData);
 
-        auto& header = file.GetHeader();
-        gdcm::DataElement msSop(tags::MediaStorageSOPClassUID);
-        msSop.SetByteValue(sopClass.c_str(),
-                           static_cast<uint32_t>(sopClass.size()));
-        header.Insert(msSop);
-
-        gdcm::DataElement msInstance(tags::MediaStorageSOPInstanceUID);
-        std::string instUid = uidGen.Generate();
-        msInstance.SetByteValue(instUid.c_str(),
-                                static_cast<uint32_t>(instUid.size()));
-        header.Insert(msInstance);
-
-        std::string tsUid = "1.2.840.10008.1.2.1";
-        gdcm::DataElement tsElem(tags::TransferSyntaxUID);
-        tsElem.SetByteValue(tsUid.c_str(),
-                            static_cast<uint32_t>(tsUid.size()));
-        header.Insert(tsElem);
+        setupFileMetaInfo(file, sopClass);
 
         writer.Write();
         return path;
@@ -372,16 +354,16 @@ protected:
         auto& file = writer.GetFile();
         auto& ds = file.GetDataSet();
 
-        // Pixel format attributes
-        insertStringElement(ds, tags::SamplesPerPixel, "1");
+        // Pixel format attributes (US VR tags use binary encoding)
+        insertUSElement(ds, tags::SamplesPerPixel, 1);
         insertStringElement(ds, tags::NumberOfFrames,
                             std::to_string(numFrames));
-        insertStringElement(ds, tags::Rows, std::to_string(rows));
-        insertStringElement(ds, tags::Columns, std::to_string(cols));
-        insertStringElement(ds, tags::BitsAllocated, "16");
-        insertStringElement(ds, tags::BitsStored, "16");
-        insertStringElement(ds, tags::HighBit, "15");
-        insertStringElement(ds, tags::PixelRepresentation, "1");
+        insertUSElement(ds, tags::Rows, static_cast<uint16_t>(rows));
+        insertUSElement(ds, tags::Columns, static_cast<uint16_t>(cols));
+        insertUSElement(ds, tags::BitsAllocated, 16);
+        insertUSElement(ds, tags::BitsStored, 16);
+        insertUSElement(ds, tags::HighBit, 15);
+        insertUSElement(ds, tags::PixelRepresentation, 1);
         insertStringElement(ds, tags::PhotometricInterpretation, "MONOCHROME2");
 
         std::string sopClass = "1.2.840.10008.5.1.4.1.1.2.1";
@@ -405,6 +387,7 @@ protected:
         pixelData.SetByteValue(
             reinterpret_cast<const char*>(pixelBuffer.data()),
             static_cast<uint32_t>(totalPixels * sizeof(short)));
+        pixelData.SetVR(gdcm::VR::OW);
         ds.Insert(pixelData);
 
         // Shared functional groups: pixel spacing + orientation
@@ -443,24 +426,7 @@ protected:
         insertSequenceWithItems(ds, tags::PerFrameFunctionalGroups,
                                 perFrameItems);
 
-        // File meta information
-        auto& header = file.GetHeader();
-        gdcm::DataElement msSop(tags::MediaStorageSOPClassUID);
-        msSop.SetByteValue(sopClass.c_str(),
-                           static_cast<uint32_t>(sopClass.size()));
-        header.Insert(msSop);
-
-        gdcm::DataElement msInstance(tags::MediaStorageSOPInstanceUID);
-        std::string instUid = uidGen.Generate();
-        msInstance.SetByteValue(instUid.c_str(),
-                                static_cast<uint32_t>(instUid.size()));
-        header.Insert(msInstance);
-
-        std::string tsUid = "1.2.840.10008.1.2.1";
-        gdcm::DataElement tsElem(tags::TransferSyntaxUID);
-        tsElem.SetByteValue(tsUid.c_str(),
-                            static_cast<uint32_t>(tsUid.size()));
-        header.Insert(tsElem);
+        setupFileMetaInfo(file, sopClass);
 
         writer.Write();
         return path;
@@ -1224,15 +1190,15 @@ TEST_F(FrameExtractorTest, AssembleVolumeMultiplePixelsPerFrame) {
     auto& file = writer.GetFile();
     auto& ds = file.GetDataSet();
 
-    insertStringElement(ds, tags::SamplesPerPixel, "1");
+    insertUSElement(ds, tags::SamplesPerPixel, 1);
     insertStringElement(ds, tags::NumberOfFrames,
                         std::to_string(numFrames));
-    insertStringElement(ds, tags::Rows, std::to_string(rows));
-    insertStringElement(ds, tags::Columns, std::to_string(cols));
-    insertStringElement(ds, tags::BitsAllocated, "16");
-    insertStringElement(ds, tags::BitsStored, "16");
-    insertStringElement(ds, tags::HighBit, "15");
-    insertStringElement(ds, tags::PixelRepresentation, "1");
+    insertUSElement(ds, tags::Rows, static_cast<uint16_t>(rows));
+    insertUSElement(ds, tags::Columns, static_cast<uint16_t>(cols));
+    insertUSElement(ds, tags::BitsAllocated, 16);
+    insertUSElement(ds, tags::BitsStored, 16);
+    insertUSElement(ds, tags::HighBit, 15);
+    insertUSElement(ds, tags::PixelRepresentation, 1);
     insertStringElement(ds, tags::PhotometricInterpretation, "MONOCHROME2");
 
     std::string sopClass = "1.2.840.10008.5.1.4.1.1.2.1";
@@ -1255,6 +1221,7 @@ TEST_F(FrameExtractorTest, AssembleVolumeMultiplePixelsPerFrame) {
     pixelData.SetByteValue(
         reinterpret_cast<const char*>(pixelBuffer.data()),
         static_cast<uint32_t>(pixelBuffer.size() * sizeof(short)));
+    pixelData.SetVR(gdcm::VR::OW);
     ds.Insert(pixelData);
 
     // Functional groups for volume assembly
@@ -1283,21 +1250,7 @@ TEST_F(FrameExtractorTest, AssembleVolumeMultiplePixelsPerFrame) {
     insertSequenceWithItems(ds, tags::PerFrameFunctionalGroups,
                             perFrameItems);
 
-    auto& header = file.GetHeader();
-    gdcm::DataElement msSop(tags::MediaStorageSOPClassUID);
-    msSop.SetByteValue(sopClass.c_str(),
-                       static_cast<uint32_t>(sopClass.size()));
-    header.Insert(msSop);
-    gdcm::DataElement msInstance(tags::MediaStorageSOPInstanceUID);
-    std::string instUid = uidGen.Generate();
-    msInstance.SetByteValue(instUid.c_str(),
-                            static_cast<uint32_t>(instUid.size()));
-    header.Insert(msInstance);
-    std::string tsUid = "1.2.840.10008.1.2.1";
-    gdcm::DataElement tsElem(tags::TransferSyntaxUID);
-    tsElem.SetByteValue(tsUid.c_str(),
-                        static_cast<uint32_t>(tsUid.size()));
-    header.Insert(tsElem);
+    setupFileMetaInfo(file, sopClass);
     writer.Write();
 
     // Now assemble volume
