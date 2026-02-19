@@ -14,8 +14,13 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPrinter>
+#include <QButtonGroup>
+#include <QFrame>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QSplitter>
+#include <QStyle>
+#include <QToolButton>
 #include <QTableWidget>
 #include <QTabWidget>
 #include <QTextStream>
@@ -130,6 +135,15 @@ public:
     // 3D Volume tab
     QWidget* volumePanel = nullptr;
     QTableWidget* volumeTable = nullptr;
+
+    // Contour editing toolbar
+    QWidget* editToolbar = nullptr;
+    QToolButton* brushBtn = nullptr;
+    QToolButton* eraserBtn = nullptr;
+    QSpinBox* brushSizeSpinBox = nullptr;
+    QPushButton* editUndoBtn = nullptr;
+    QPushButton* editRedoBtn = nullptr;
+    QFrame* contourViewArea = nullptr;
 
     // Data
     std::vector<QuantificationRow> rows;
@@ -267,6 +281,65 @@ void QuantificationWindow::setupUI()
     impl_->graphWidget->setYAxisLabel(tr("Flow Rate (mL/s)"));
     rightLayout->addWidget(impl_->graphWidget, 1);
 
+    // Contour editing toolbar
+    impl_->editToolbar = new QWidget(impl_->rightPanel);
+    auto* editLayout = new QHBoxLayout(impl_->editToolbar);
+    editLayout->setContentsMargins(0, 4, 0, 4);
+
+    impl_->brushBtn = new QToolButton(impl_->editToolbar);
+    impl_->brushBtn->setIcon(style()->standardIcon(QStyle::SP_ArrowRight));
+    impl_->brushBtn->setText(tr("Brush"));
+    impl_->brushBtn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    impl_->brushBtn->setToolTip(tr("Brush - add to contour"));
+    impl_->brushBtn->setCheckable(true);
+    impl_->brushBtn->setChecked(true);
+
+    impl_->eraserBtn = new QToolButton(impl_->editToolbar);
+    impl_->eraserBtn->setIcon(style()->standardIcon(QStyle::SP_DialogDiscardButton));
+    impl_->eraserBtn->setText(tr("Eraser"));
+    impl_->eraserBtn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    impl_->eraserBtn->setToolTip(tr("Eraser - remove from contour"));
+    impl_->eraserBtn->setCheckable(true);
+
+    auto* toolGroup = new QButtonGroup(impl_->editToolbar);
+    toolGroup->addButton(impl_->brushBtn);
+    toolGroup->addButton(impl_->eraserBtn);
+    toolGroup->setExclusive(true);
+
+    impl_->brushSizeSpinBox = new QSpinBox(impl_->editToolbar);
+    impl_->brushSizeSpinBox->setRange(1, 20);
+    impl_->brushSizeSpinBox->setValue(5);
+    impl_->brushSizeSpinBox->setPrefix(tr("Size: "));
+    impl_->brushSizeSpinBox->setToolTip(tr("Brush radius in pixels"));
+
+    impl_->editUndoBtn = new QPushButton(tr("Undo"), impl_->editToolbar);
+    impl_->editUndoBtn->setEnabled(false);
+    impl_->editRedoBtn = new QPushButton(tr("Redo"), impl_->editToolbar);
+    impl_->editRedoBtn->setEnabled(false);
+
+    editLayout->addWidget(impl_->brushBtn);
+    editLayout->addWidget(impl_->eraserBtn);
+    editLayout->addWidget(impl_->brushSizeSpinBox);
+    editLayout->addStretch();
+    editLayout->addWidget(impl_->editUndoBtn);
+    editLayout->addWidget(impl_->editRedoBtn);
+
+    impl_->editToolbar->setEnabled(false);
+    rightLayout->addWidget(impl_->editToolbar);
+
+    // Contour view area (placeholder for future VTK widget)
+    impl_->contourViewArea = new QFrame(impl_->rightPanel);
+    impl_->contourViewArea->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
+    impl_->contourViewArea->setMinimumHeight(80);
+    auto* contourPlaceholder = new QLabel(
+        tr("Contour editing area - connect a measurement plane to enable"),
+        impl_->contourViewArea);
+    contourPlaceholder->setAlignment(Qt::AlignCenter);
+    contourPlaceholder->setStyleSheet("color: gray;");
+    auto* contourLayout = new QVBoxLayout(impl_->contourViewArea);
+    contourLayout->addWidget(contourPlaceholder);
+    rightLayout->addWidget(impl_->contourViewArea, 1);
+
     // Flow direction flip button
     impl_->flipFlowBtn = new QPushButton(tr("Flip Flow Direction"), impl_->rightPanel);
     impl_->flipFlowBtn->setCheckable(true);
@@ -389,6 +462,24 @@ void QuantificationWindow::setupConnections()
     connectCheck(impl_->kineticEnergyCheck, MeasurementParameter::KineticEnergy);
     connectCheck(impl_->regurgitantFractionCheck, MeasurementParameter::RegurgitantFraction);
     connectCheck(impl_->strokeVolumeCheck, MeasurementParameter::StrokeVolume);
+
+    // Contour editing tool toggle
+    connect(impl_->brushBtn, &QToolButton::clicked, this, [this]() {
+        emit editToolChanged(true);
+    });
+    connect(impl_->eraserBtn, &QToolButton::clicked, this, [this]() {
+        emit editToolChanged(false);
+    });
+
+    // Brush size
+    connect(impl_->brushSizeSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &QuantificationWindow::editBrushSizeChanged);
+
+    // Undo/Redo
+    connect(impl_->editUndoBtn, &QPushButton::clicked,
+            this, &QuantificationWindow::contourUndoRequested);
+    connect(impl_->editRedoBtn, &QPushButton::clicked,
+            this, &QuantificationWindow::contourRedoRequested);
 }
 
 void QuantificationWindow::setStatistics(const std::vector<QuantificationRow>& rows)
@@ -791,6 +882,32 @@ void QuantificationWindow::setActiveTab(int index)
     if (index >= 0 && index < impl_->tabWidget->count()) {
         impl_->tabWidget->setCurrentIndex(index);
     }
+}
+
+void QuantificationWindow::setEditingEnabled(bool enabled)
+{
+    impl_->editToolbar->setEnabled(enabled);
+}
+
+bool QuantificationWindow::isEditingEnabled() const
+{
+    return impl_->editToolbar->isEnabled();
+}
+
+void QuantificationWindow::setUndoRedoEnabled(bool canUndo, bool canRedo)
+{
+    impl_->editUndoBtn->setEnabled(canUndo);
+    impl_->editRedoBtn->setEnabled(canRedo);
+}
+
+int QuantificationWindow::brushSize() const
+{
+    return impl_->brushSizeSpinBox->value();
+}
+
+bool QuantificationWindow::isBrushActive() const
+{
+    return impl_->brushBtn->isChecked();
 }
 
 } // namespace dicom_viewer::ui
