@@ -634,6 +634,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/dialogs/pacs_config_dialog.cpp
     src/ui/dialogs/quantification_window.cpp
     src/ui/dialogs/mask_wizard.cpp
+    src/ui/dialogs/video_export_dialog.cpp
     src/ui/mask_wizard_controller.cpp
     src/ui/drop_handler.cpp
     src/ui/widgets/flow_graph_widget.cpp
@@ -654,6 +655,7 @@ add_library(dicom_viewer_ui STATIC
     include/ui/dialogs/pacs_config_dialog.hpp
     include/ui/quantification_window.hpp
     include/ui/dialogs/mask_wizard.hpp
+    include/ui/dialogs/video_export_dialog.hpp
     include/ui/mask_wizard_controller.hpp
     include/ui/drop_handler.hpp
     include/ui/widgets/flow_graph_widget.hpp

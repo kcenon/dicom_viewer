@@ -22,10 +22,17 @@
 #include "services/dicom_store_scp.hpp"
 #include "services/measurement/roi_statistics.hpp"
 #include "services/export/matlab_exporter.hpp"
+#include "services/export/video_exporter.hpp"
 #include "services/flow/temporal_navigator.hpp"
+#include "ui/dialogs/video_export_dialog.hpp"
 
 #include <itkImage.h>
 #include <itkVTKImageToImageFilter.h>
+
+#include <vtkCamera.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderer.h>
+#include <vtkRendererCollection.h>
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -34,6 +41,7 @@
 #include <QFileDialog>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QProgressDialog>
 #include <QPalette>
 #include <QSettings>
 #include <QStatusBar>
@@ -727,6 +735,114 @@ void MainWindow::setupMenuBar()
                 tr("Export failed: %1")
                     .arg(QString::fromStdString(result.error().toString())));
             statusBar()->showMessage(tr("MATLAB export failed"), 3000);
+        }
+    });
+
+    auto saveMovieAction = exportMenu->addAction(tr("Save &Movie..."));
+    saveMovieAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_M));
+    saveMovieAction->setToolTip(tr("Export cine playback or 3D rotation as OGG Theora video"));
+    connect(saveMovieAction, &QAction::triggered, this, [this]() {
+        const int numPhases = impl_->temporalNavigator.isInitialized()
+            ? impl_->temporalNavigator.phaseCount() : 0;
+
+        VideoExportDialog dialog(numPhases, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+
+        if (dialog.outputPath().empty()) {
+            QMessageBox::warning(this, tr("Save Movie"),
+                tr("No output file selected."));
+            return;
+        }
+
+        auto* renderWindow = impl_->viewport->getRenderWindow();
+        if (!renderWindow) {
+            QMessageBox::warning(this, tr("Save Movie"),
+                tr("No active viewport available."));
+            return;
+        }
+
+        services::VideoExporter exporter;
+
+        QProgressDialog progress(tr("Exporting video..."), tr("Cancel"), 0, 100, this);
+        progress.setWindowModality(Qt::WindowModal);
+        progress.setMinimumDuration(0);
+
+        exporter.setProgressCallback(
+            [&progress](double p, const std::string& status) {
+                progress.setValue(static_cast<int>(p * 100));
+                progress.setLabelText(QString::fromStdString(status));
+                QApplication::processEvents();
+            });
+
+        std::expected<void, services::ExportError> result;
+
+        switch (dialog.exportMode()) {
+        case VideoExportDialog::ExportMode::Cine2D: {
+            auto config = dialog.buildCineConfig();
+            result = exporter.exportCine2D(renderWindow, config,
+                [this](int phase) {
+                    if (impl_->temporalNavigator.isInitialized()) {
+                        impl_->temporalNavigator.goToPhase(phase);
+                    }
+                });
+            break;
+        }
+        case VideoExportDialog::ExportMode::Rotation3D: {
+            auto config = dialog.buildRotationConfig();
+            result = exporter.exportRotation3D(renderWindow, config,
+                [renderWindow](double azimuth, double elevation) {
+                    auto* renderer = renderWindow->GetRenderers()
+                        ->GetFirstRenderer();
+                    if (renderer && renderer->GetActiveCamera()) {
+                        auto* camera = renderer->GetActiveCamera();
+                        camera->SetPosition(0, 0, 1);
+                        camera->SetFocalPoint(0, 0, 0);
+                        camera->SetViewUp(0, 1, 0);
+                        camera->Azimuth(azimuth);
+                        camera->Elevation(elevation);
+                        renderer->ResetCameraClippingRange();
+                    }
+                });
+            break;
+        }
+        case VideoExportDialog::ExportMode::Combined: {
+            auto config = dialog.buildCombinedConfig();
+            result = exporter.exportCombined3D(renderWindow, config,
+                [this](int phase) {
+                    if (impl_->temporalNavigator.isInitialized()) {
+                        impl_->temporalNavigator.goToPhase(phase);
+                    }
+                },
+                [renderWindow](double azimuth, double elevation) {
+                    auto* renderer = renderWindow->GetRenderers()
+                        ->GetFirstRenderer();
+                    if (renderer && renderer->GetActiveCamera()) {
+                        auto* camera = renderer->GetActiveCamera();
+                        camera->SetPosition(0, 0, 1);
+                        camera->SetFocalPoint(0, 0, 0);
+                        camera->SetViewUp(0, 1, 0);
+                        camera->Azimuth(azimuth);
+                        camera->Elevation(elevation);
+                        renderer->ResetCameraClippingRange();
+                    }
+                });
+            break;
+        }
+        }
+
+        progress.close();
+
+        if (result) {
+            statusBar()->showMessage(
+                tr("Video export complete: %1")
+                    .arg(QString::fromStdString(
+                        dialog.outputPath().string())), 5000);
+        } else {
+            QMessageBox::warning(this, tr("Save Movie"),
+                tr("Export failed: %1")
+                    .arg(QString::fromStdString(
+                        result.error().toString())));
+            statusBar()->showMessage(tr("Video export failed"), 3000);
         }
     });
 
