@@ -174,7 +174,188 @@ TEST(VideoExporterTest, CustomPhaseRangePasses) {
 }
 
 // =============================================================================
-// Export error handling tests
+// RotationConfig validation tests
+// =============================================================================
+
+TEST(VideoExporterTest, ValidRotationConfigPasses) {
+    VideoExporter::RotationConfig config;
+    config.outputPath = "/tmp/test.ogv";
+
+    auto result = VideoExporter::validateRotationConfig(config);
+    EXPECT_TRUE(result.has_value());
+}
+
+TEST(VideoExporterTest, RotationEmptyPathFails) {
+    VideoExporter::RotationConfig config;
+    auto result = VideoExporter::validateRotationConfig(config);
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, ExportError::Code::InvalidData);
+}
+
+TEST(VideoExporterTest, RotationZeroAngleRangeFails) {
+    VideoExporter::RotationConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.startAngle = 90.0;
+    config.endAngle = 90.0;
+
+    auto result = VideoExporter::validateRotationConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, RotationElevationTooHighFails) {
+    VideoExporter::RotationConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.elevation = 100.0;
+
+    auto result = VideoExporter::validateRotationConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, RotationElevationTooLowFails) {
+    VideoExporter::RotationConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.elevation = -95.0;
+
+    auto result = VideoExporter::validateRotationConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, RotationOneFrameFails) {
+    VideoExporter::RotationConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.totalFrames = 1;
+
+    auto result = VideoExporter::validateRotationConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, RotationInvalidResolutionFails) {
+    VideoExporter::RotationConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.width = 0;
+
+    auto result = VideoExporter::validateRotationConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, RotationInvalidFPSFails) {
+    VideoExporter::RotationConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.fps = 0;
+
+    auto result = VideoExporter::validateRotationConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, RotationCustomAnglePasses) {
+    VideoExporter::RotationConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.startAngle = -45.0;
+    config.endAngle = 45.0;
+    config.elevation = -30.0;
+    config.totalFrames = 90;
+
+    auto result = VideoExporter::validateRotationConfig(config);
+    EXPECT_TRUE(result.has_value());
+}
+
+TEST(VideoExporterTest, RotationConfigDefaults) {
+    VideoExporter::RotationConfig config;
+    EXPECT_EQ(config.width, 1920);
+    EXPECT_EQ(config.height, 1080);
+    EXPECT_EQ(config.fps, 30);
+    EXPECT_DOUBLE_EQ(config.startAngle, 0.0);
+    EXPECT_DOUBLE_EQ(config.endAngle, 360.0);
+    EXPECT_DOUBLE_EQ(config.elevation, 15.0);
+    EXPECT_EQ(config.totalFrames, 180);
+}
+
+// =============================================================================
+// CombinedConfig validation tests
+// =============================================================================
+
+TEST(VideoExporterTest, ValidCombinedConfigPasses) {
+    VideoExporter::CombinedConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.totalPhases = 20;
+
+    auto result = VideoExporter::validateCombinedConfig(config);
+    EXPECT_TRUE(result.has_value());
+}
+
+TEST(VideoExporterTest, CombinedEmptyPathFails) {
+    VideoExporter::CombinedConfig config;
+    config.totalPhases = 10;
+
+    auto result = VideoExporter::validateCombinedConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, CombinedZeroPhasesFails) {
+    VideoExporter::CombinedConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.totalPhases = 0;
+
+    auto result = VideoExporter::validateCombinedConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, CombinedZeroAngleRangeFails) {
+    VideoExporter::CombinedConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.totalPhases = 10;
+    config.startAngle = 180.0;
+    config.endAngle = 180.0;
+
+    auto result = VideoExporter::validateCombinedConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, CombinedZeroLoopsFails) {
+    VideoExporter::CombinedConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.totalPhases = 10;
+    config.phaseLoops = 0;
+
+    auto result = VideoExporter::validateCombinedConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, CombinedZeroFramesPerPhaseFails) {
+    VideoExporter::CombinedConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.totalPhases = 10;
+    config.framesPerPhase = 0;
+
+    auto result = VideoExporter::validateCombinedConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, CombinedInvalidElevationFails) {
+    VideoExporter::CombinedConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.totalPhases = 10;
+    config.elevation = 91.0;
+
+    auto result = VideoExporter::validateCombinedConfig(config);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(VideoExporterTest, CombinedConfigDefaults) {
+    VideoExporter::CombinedConfig config;
+    EXPECT_EQ(config.width, 1920);
+    EXPECT_EQ(config.height, 1080);
+    EXPECT_EQ(config.fps, 30);
+    EXPECT_DOUBLE_EQ(config.startAngle, 0.0);
+    EXPECT_DOUBLE_EQ(config.endAngle, 360.0);
+    EXPECT_DOUBLE_EQ(config.elevation, 15.0);
+    EXPECT_EQ(config.totalPhases, 0);
+    EXPECT_EQ(config.phaseLoops, 1);
+    EXPECT_EQ(config.framesPerPhase, 1);
+}
+
+// =============================================================================
+// Export error handling tests (Cine)
 // =============================================================================
 
 TEST(VideoExporterTest, NullRenderWindowReturnsError) {
@@ -210,6 +391,99 @@ TEST(VideoExporterTest, InvalidConfigInExportReturnsError) {
 
     auto result = exporter.exportCine2D(
         reinterpret_cast<vtkRenderWindow*>(0x1), config, [](int) {});
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, ExportError::Code::InvalidData);
+}
+
+// =============================================================================
+// Export error handling tests (Rotation)
+// =============================================================================
+
+TEST(VideoExporterTest, RotationNullRenderWindowReturnsError) {
+    VideoExporter exporter;
+    VideoExporter::RotationConfig config;
+    config.outputPath = "/tmp/test.ogv";
+
+    auto result = exporter.exportRotation3D(nullptr, config,
+                                             [](double, double) {});
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, ExportError::Code::InvalidData);
+}
+
+TEST(VideoExporterTest, RotationNullCameraCallbackReturnsError) {
+    VideoExporter exporter;
+    VideoExporter::RotationConfig config;
+    config.outputPath = "/tmp/test.ogv";
+
+    auto result = exporter.exportRotation3D(
+        reinterpret_cast<vtkRenderWindow*>(0x1), config, nullptr);
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, ExportError::Code::InvalidData);
+}
+
+TEST(VideoExporterTest, RotationInvalidConfigInExportReturnsError) {
+    VideoExporter exporter;
+    VideoExporter::RotationConfig config;
+    // Empty path
+    auto result = exporter.exportRotation3D(
+        reinterpret_cast<vtkRenderWindow*>(0x1), config,
+        [](double, double) {});
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, ExportError::Code::InvalidData);
+}
+
+// =============================================================================
+// Export error handling tests (Combined)
+// =============================================================================
+
+TEST(VideoExporterTest, CombinedNullRenderWindowReturnsError) {
+    VideoExporter exporter;
+    VideoExporter::CombinedConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.totalPhases = 10;
+
+    auto result = exporter.exportCombined3D(nullptr, config,
+                                             [](int) {},
+                                             [](double, double) {});
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, ExportError::Code::InvalidData);
+}
+
+TEST(VideoExporterTest, CombinedNullPhaseCallbackReturnsError) {
+    VideoExporter exporter;
+    VideoExporter::CombinedConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.totalPhases = 10;
+
+    auto result = exporter.exportCombined3D(
+        reinterpret_cast<vtkRenderWindow*>(0x1), config,
+        nullptr, [](double, double) {});
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, ExportError::Code::InvalidData);
+}
+
+TEST(VideoExporterTest, CombinedNullCameraCallbackReturnsError) {
+    VideoExporter exporter;
+    VideoExporter::CombinedConfig config;
+    config.outputPath = "/tmp/test.ogv";
+    config.totalPhases = 10;
+
+    auto result = exporter.exportCombined3D(
+        reinterpret_cast<vtkRenderWindow*>(0x1), config,
+        [](int) {}, nullptr);
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, ExportError::Code::InvalidData);
+}
+
+TEST(VideoExporterTest, CombinedInvalidConfigInExportReturnsError) {
+    VideoExporter exporter;
+    VideoExporter::CombinedConfig config;
+    config.totalPhases = 10;
+    // Empty path
+
+    auto result = exporter.exportCombined3D(
+        reinterpret_cast<vtkRenderWindow*>(0x1), config,
+        [](int) {}, [](double, double) {});
     EXPECT_FALSE(result.has_value());
     EXPECT_EQ(result.error().code, ExportError::Code::InvalidData);
 }
