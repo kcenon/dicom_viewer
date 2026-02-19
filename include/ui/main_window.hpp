@@ -89,6 +89,7 @@ private:
     void uncheckAllMeasurementActions();
     void updateWindowTitle();
     void updateRecentProjectsMenu();
+    void updateIntroPageRecentProjects();
     bool promptSaveIfModified();
 
     class Impl;
