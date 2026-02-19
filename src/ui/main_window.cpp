@@ -12,6 +12,7 @@
 #include "ui/display_3d_controller.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
 #include "ui/dialogs/mask_wizard.hpp"
+#include "ui/mask_wizard_controller.hpp"
 #include "ui/quantification_window.hpp"
 #include "core/project_manager.hpp"
 #include "core/series_builder.hpp"
@@ -305,11 +306,54 @@ void MainWindow::setupMenuBar()
     auto maskWizardAction = seg2dMenu->addAction(tr("&Mask Wizard..."));
     maskWizardAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
     connect(maskWizardAction, &QAction::triggered, this, [this]() {
+        auto vtkImage = impl_->viewport->getImageData();
+        if (!vtkImage) {
+            statusBar()->showMessage(tr("No image loaded"), 3000);
+            return;
+        }
+
         auto* wizard = new MaskWizard(this);
         wizard->setAttribute(Qt::WA_DeleteOnClose);
+
+        // Controller is parented to wizard → destroyed with it
+        auto* controller = new MaskWizardController(wizard, wizard);
+
+        // Convert VTK → ITK
+        using ImageType = itk::Image<short, 3>;
+        using FilterType = itk::VTKImageToImageFilter<ImageType>;
+        auto filter = FilterType::New();
+        filter->SetInput(vtkImage);
+
+        try {
+            filter->Update();
+        } catch (const itk::ExceptionObject& e) {
+            statusBar()->showMessage(
+                tr("Failed to convert image: %1").arg(e.what()), 3000);
+            delete wizard;
+            return;
+        }
+
+        // Build context
+        MaskWizardController::Context ctx;
+        ctx.sourceImage = filter->GetOutput();
+        ctx.currentPhase = impl_->temporalNavigator.isInitialized()
+            ? impl_->temporalNavigator.currentPhase() : 0;
+
+        controller->setContext(ctx);
+
+        // Set volume dimensions for crop page
+        int* dims = vtkImage->GetDimensions();
+        wizard->setVolumeDimensions(dims[0], dims[1], dims[2]);
+
         connect(wizard, &MaskWizard::wizardCompleted, this, [this]() {
             statusBar()->showMessage(tr("Mask Wizard completed"), 3000);
         });
+
+        connect(controller, &MaskWizardController::errorOccurred,
+                this, [this](const QString& msg) {
+            statusBar()->showMessage(tr("Mask Wizard error: %1").arg(msg), 5000);
+        });
+
         wizard->show();
     });
 

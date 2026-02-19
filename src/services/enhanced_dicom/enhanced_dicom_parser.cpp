@@ -5,12 +5,14 @@
 #include "core/logging.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <sstream>
 
 #include <gdcmAttribute.h>
 #include <gdcmDataSet.h>
 #include <gdcmReader.h>
 #include <gdcmTag.h>
+#include <gdcmVR.h>
 
 namespace dicom_viewer::services {
 
@@ -50,11 +52,35 @@ std::string getStringValue(const gdcm::DataSet& ds, const gdcm::Tag& tag) {
     return value;
 }
 
-/// Get integer attribute value
+/// Get integer attribute value (handles both IS string and US/SS binary VR)
 int getIntValue(const gdcm::DataSet& ds, const gdcm::Tag& tag,
                 int defaultValue = 0)
 {
-    std::string str = getStringValue(ds, tag);
+    if (!ds.FindDataElement(tag)) {
+        return defaultValue;
+    }
+    const auto& de = ds.GetDataElement(tag);
+    if (de.IsEmpty() || de.GetByteValue() == nullptr) {
+        return defaultValue;
+    }
+    const auto* bv = de.GetByteValue();
+    // Check VR for binary integer types
+    gdcm::VR vr = de.GetVR();
+    if (vr == gdcm::VR::US && bv->GetLength() >= sizeof(uint16_t)) {
+        uint16_t val = 0;
+        std::memcpy(&val, bv->GetPointer(), sizeof(uint16_t));
+        return static_cast<int>(val);
+    }
+    if (vr == gdcm::VR::SS && bv->GetLength() >= sizeof(int16_t)) {
+        int16_t val = 0;
+        std::memcpy(&val, bv->GetPointer(), sizeof(int16_t));
+        return static_cast<int>(val);
+    }
+    // IS VR or other string-based integer representations
+    std::string str(bv->GetPointer(), bv->GetLength());
+    while (!str.empty() && (str.back() == ' ' || str.back() == '\0')) {
+        str.pop_back();
+    }
     if (str.empty()) {
         return defaultValue;
     }

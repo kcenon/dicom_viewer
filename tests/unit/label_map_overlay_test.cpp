@@ -195,13 +195,13 @@ TEST_F(LabelMapOverlayTest, SetNullLabelMap) {
 TEST_F(LabelMapOverlayTest, SetLabelMapReSetupsAttachedPlanes) {
     // Attach renderer first, then set label map
     overlay_.attachToRenderer(renderers_[0], MPRPlane::Axial);
-    EXPECT_EQ(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
 
     auto labelMap = createTestLabelMap(8, 8, 4);
     overlay_.setLabelMap(labelMap);
 
     // After setting label map, actor should be added
-    EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 // =============================================================================
@@ -332,13 +332,13 @@ TEST_F(LabelMapOverlayTest, AttachToRendererWithLabelMap) {
     overlay_.setLabelMap(labelMap);
 
     overlay_.attachToRenderer(renderers_[0], MPRPlane::Axial);
-    EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 TEST_F(LabelMapOverlayTest, AttachToRendererWithoutLabelMap) {
     // Attaching without label map should not add actors yet
     overlay_.attachToRenderer(renderers_[0], MPRPlane::Axial);
-    EXPECT_EQ(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 TEST_F(LabelMapOverlayTest, AttachMultiplePlanes) {
@@ -349,9 +349,9 @@ TEST_F(LabelMapOverlayTest, AttachMultiplePlanes) {
     overlay_.attachToRenderer(renderers_[1], MPRPlane::Coronal);
     overlay_.attachToRenderer(renderers_[2], MPRPlane::Sagittal);
 
-    EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_GT(renderers_[1]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_GT(renderers_[2]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[1]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[2]->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 TEST_F(LabelMapOverlayTest, DetachFromRenderer) {
@@ -359,10 +359,10 @@ TEST_F(LabelMapOverlayTest, DetachFromRenderer) {
     overlay_.setLabelMap(labelMap);
     overlay_.attachToRenderer(renderers_[0], MPRPlane::Axial);
 
-    EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
 
     overlay_.detachFromRenderer(MPRPlane::Axial);
-    EXPECT_EQ(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 TEST_F(LabelMapOverlayTest, DetachFromRendererNotAttached) {
@@ -381,8 +381,8 @@ TEST_F(LabelMapOverlayTest, DetachOnlyTargetPlane) {
 
     overlay_.detachFromRenderer(MPRPlane::Axial);
 
-    EXPECT_EQ(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_GT(renderers_[1]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[1]->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 // =============================================================================
@@ -524,9 +524,9 @@ TEST_F(LabelMapOverlayTest, FullPipelineAllPlanes) {
     overlay_.attachToRenderer(renderers_[1], MPRPlane::Coronal);
     overlay_.attachToRenderer(renderers_[2], MPRPlane::Sagittal);
 
-    EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_GT(renderers_[1]->GetActors()->GetNumberOfItems(), 0);
-    EXPECT_GT(renderers_[2]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[1]->GetViewProps()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[2]->GetViewProps()->GetNumberOfItems(), 0);
 
     // Navigate through slices
     for (double z = 0.0; z < 4.0; z += 1.0) {
@@ -581,15 +581,15 @@ TEST_F(LabelMapOverlayTest, FullPipelineAttachDetachReattach) {
 
     // Attach
     overlay_.attachToRenderer(renderers_[0], MPRPlane::Axial);
-    EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
 
     // Detach
     overlay_.detachFromRenderer(MPRPlane::Axial);
-    EXPECT_EQ(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_EQ(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
 
     // Reattach
     overlay_.attachToRenderer(renderers_[0], MPRPlane::Axial);
-    EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
 }
 
 TEST_F(LabelMapOverlayTest, FullPipelineReplaceLabelMap) {
@@ -606,7 +606,7 @@ TEST_F(LabelMapOverlayTest, FullPipelineReplaceLabelMap) {
     EXPECT_EQ(overlay_.getLabelMap(), labelMap2);
 
     // Actor should still be present
-    EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+    EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
 
     overlay_.updateSlice(MPRPlane::Axial, 3.0);
 }
@@ -665,7 +665,7 @@ TEST_F(LabelMapOverlayTest, DestructionDoesNotCrash) {
         localOverlay.attachToRenderer(renderers_[1], MPRPlane::Coronal);
         localOverlay.attachToRenderer(renderers_[2], MPRPlane::Sagittal);
 
-        EXPECT_GT(renderers_[0]->GetActors()->GetNumberOfItems(), 0);
+        EXPECT_GT(renderers_[0]->GetViewProps()->GetNumberOfItems(), 0);
     }
     // After destruction, verify renderers are still valid
     // (actors may or may not be cleaned up automatically by VTK smart pointers)

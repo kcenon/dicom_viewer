@@ -14,6 +14,9 @@
 #include <gdcmItem.h>
 #include <gdcmSequenceOfItems.h>
 #include <gdcmTag.h>
+#include <gdcmUIDGenerator.h>
+#include <gdcmFileMetaInformation.h>
+#include <gdcmTransferSyntax.h>
 #include <gdcmWriter.h>
 
 using namespace dicom_viewer::services;
@@ -130,14 +133,33 @@ protected:
         auto path = (tempDir_ / filename).string();
         gdcm::Writer writer;
         writer.SetFileName(path.c_str());
-        writer.GetFile().GetDataSet() = ds;
-        // Set minimal file meta information
-        auto& header = writer.GetFile().GetHeader();
-        gdcm::DataElement mediaStorage(gdcm::Tag(0x0002, 0x0002));
+        auto& outDs = writer.GetFile().GetDataSet();
+        outDs = ds;
+
+        // GDCM Writer requires SOPClassUID + SOPInstanceUID in the DataSet
         std::string sopClass = "1.2.840.10008.5.1.4.1.1.2.1";  // Enhanced CT
+        gdcm::UIDGenerator uidGen;
+        insertStringElement(outDs, gdcm::Tag(0x0008, 0x0016), sopClass);
+        insertStringElement(outDs, gdcm::Tag(0x0008, 0x0018), uidGen.Generate());
+
+        // Set file meta information using proper GDCM API
+        auto& fmi = writer.GetFile().GetHeader();
+        fmi.Clear();
+        fmi.SetDataSetTransferSyntax(gdcm::TransferSyntax::ExplicitVRLittleEndian);
+
+        gdcm::DataElement mediaStorage(gdcm::Tag(0x0002, 0x0002));
         mediaStorage.SetByteValue(sopClass.c_str(),
                                   static_cast<uint32_t>(sopClass.size()));
-        header.Insert(mediaStorage);
+        mediaStorage.SetVR(gdcm::VR::UI);
+        fmi.Insert(mediaStorage);
+
+        gdcm::DataElement msInstance(gdcm::Tag(0x0002, 0x0003));
+        std::string instUid = uidGen.Generate();
+        msInstance.SetByteValue(instUid.c_str(),
+                                static_cast<uint32_t>(instUid.size()));
+        msInstance.SetVR(gdcm::VR::UI);
+        fmi.Insert(msInstance);
+
         writer.Write();
         return path;
     }

@@ -15,6 +15,8 @@
 #include <gdcmSequenceOfItems.h>
 #include <gdcmTag.h>
 #include <gdcmUIDGenerator.h>
+#include <gdcmFileMetaInformation.h>
+#include <gdcmTransferSyntax.h>
 #include <gdcmWriter.h>
 
 using namespace dicom_viewer::services;
@@ -402,6 +404,13 @@ void insertStringElement(gdcm::DataSet& ds, const gdcm::Tag& tag,
     ds.Insert(de);
 }
 
+void insertUSElement(gdcm::DataSet& ds, const gdcm::Tag& tag, uint16_t value) {
+    gdcm::DataElement de(tag);
+    de.SetByteValue(reinterpret_cast<const char*>(&value), sizeof(uint16_t));
+    de.SetVR(gdcm::VR::US);
+    ds.Insert(de);
+}
+
 void insertSequenceWithItem(gdcm::DataSet& parentDs, const gdcm::Tag& seqTag,
                             const gdcm::DataSet& itemDs) {
     auto sq = gdcm::SequenceOfItems::New();
@@ -600,15 +609,15 @@ private:
                                const std::string& modality,
                                int rows, int cols, int numFrames) {
         using namespace synthetic;
-        insertStringElement(ds, tags::SamplesPerPixel, "1");
+        insertUSElement(ds, tags::SamplesPerPixel, 1);
         insertStringElement(ds, tags::NumberOfFrames,
                             std::to_string(numFrames));
-        insertStringElement(ds, tags::Rows, std::to_string(rows));
-        insertStringElement(ds, tags::Columns, std::to_string(cols));
-        insertStringElement(ds, tags::BitsAllocated, "16");
-        insertStringElement(ds, tags::BitsStored, "16");
-        insertStringElement(ds, tags::HighBit, "15");
-        insertStringElement(ds, tags::PixelRepresentation, "1");
+        insertUSElement(ds, tags::Rows, static_cast<uint16_t>(rows));
+        insertUSElement(ds, tags::Columns, static_cast<uint16_t>(cols));
+        insertUSElement(ds, tags::BitsAllocated, 16);
+        insertUSElement(ds, tags::BitsStored, 16);
+        insertUSElement(ds, tags::HighBit, 15);
+        insertUSElement(ds, tags::PixelRepresentation, 1);
         insertStringElement(ds, tags::PhotometricInterpretation,
                             "MONOCHROME2");
         insertStringElement(ds, tags::SOPClassUID, sopClass);
@@ -643,6 +652,7 @@ private:
         pixelData.SetByteValue(
             reinterpret_cast<const char*>(pixelBuffer.data()),
             static_cast<uint32_t>(totalPixels * sizeof(short)));
+        pixelData.SetVR(gdcm::VR::OW);
         ds.Insert(pixelData);
     }
 
@@ -724,25 +734,24 @@ private:
 
     void writeFileMetaInfo(gdcm::File& file, const std::string& sopClass) {
         using namespace synthetic;
-        auto& header = file.GetHeader();
+        auto& fmi = file.GetHeader();
+        fmi.Clear();
+        fmi.SetDataSetTransferSyntax(gdcm::TransferSyntax::ExplicitVRLittleEndian);
+
         gdcm::UIDGenerator uidGen;
 
         gdcm::DataElement msSop(tags::MediaStorageSOPClassUID);
         msSop.SetByteValue(sopClass.c_str(),
                            static_cast<uint32_t>(sopClass.size()));
-        header.Insert(msSop);
+        msSop.SetVR(gdcm::VR::UI);
+        fmi.Insert(msSop);
 
         gdcm::DataElement msInstance(tags::MediaStorageSOPInstanceUID);
         std::string instUid = uidGen.Generate();
         msInstance.SetByteValue(instUid.c_str(),
                                 static_cast<uint32_t>(instUid.size()));
-        header.Insert(msInstance);
-
-        std::string tsUid = "1.2.840.10008.1.2.1";
-        gdcm::DataElement tsElem(tags::TransferSyntaxUID);
-        tsElem.SetByteValue(tsUid.c_str(),
-                            static_cast<uint32_t>(tsUid.size()));
-        header.Insert(tsElem);
+        msInstance.SetVR(gdcm::VR::UI);
+        fmi.Insert(msInstance);
     }
 };
 
