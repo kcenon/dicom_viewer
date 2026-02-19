@@ -45,6 +45,10 @@ public:
     /// Callback to advance the viewer to a specific cardiac phase
     using PhaseCallback = std::function<void(int phase)>;
 
+    /// Callback to position the 3D camera at a given azimuth and elevation
+    using CameraCallback =
+        std::function<void(double azimuth, double elevation)>;
+
     /**
      * @brief Configuration for 2D cine phase animation export
      */
@@ -57,6 +61,39 @@ public:
         int endPhase = -1;                 ///< Last phase (-1 = totalPhases - 1)
         int totalPhases = 0;               ///< Total number of cardiac phases
         int loops = 1;                     ///< Number of animation loops
+        int framesPerPhase = 1;            ///< Frames to hold each phase
+    };
+
+    /**
+     * @brief Configuration for 3D rotation animation export
+     */
+    struct RotationConfig {
+        std::filesystem::path outputPath;  ///< Output file path (.ogv)
+        int width = 1920;                  ///< Frame width in pixels
+        int height = 1080;                 ///< Frame height in pixels
+        int fps = 30;                      ///< Frames per second
+        double startAngle = 0.0;           ///< Start azimuth in degrees
+        double endAngle = 360.0;           ///< End azimuth in degrees
+        double elevation = 15.0;           ///< Camera elevation in degrees
+        int totalFrames = 180;             ///< Total frames for the rotation
+    };
+
+    /**
+     * @brief Configuration for combined rotation + phase animation export
+     *
+     * Camera rotates through the full angle range while phases cycle
+     * simultaneously. Total frames = totalPhases * phaseLoops * framesPerPhase.
+     */
+    struct CombinedConfig {
+        std::filesystem::path outputPath;  ///< Output file path (.ogv)
+        int width = 1920;                  ///< Frame width in pixels
+        int height = 1080;                 ///< Frame height in pixels
+        int fps = 30;                      ///< Frames per second
+        double startAngle = 0.0;           ///< Start azimuth in degrees
+        double endAngle = 360.0;           ///< End azimuth in degrees
+        double elevation = 15.0;           ///< Camera elevation in degrees
+        int totalPhases = 0;               ///< Total cardiac phases
+        int phaseLoops = 1;                ///< Phase cycles per rotation
         int framesPerPhase = 1;            ///< Frames to hold each phase
     };
 
@@ -90,16 +127,52 @@ public:
                  const CineConfig& config,
                  PhaseCallback setPhase) const;
 
+    /**
+     * @brief Export 3D rotation animation as OGG Theora video
+     *
+     * Orbits the camera around the scene from startAngle to endAngle
+     * at a fixed elevation, capturing each frame.
+     *
+     * @param renderWindow VTK render window to capture frames from
+     * @param config Rotation export configuration
+     * @param setCamera Callback to position camera at (azimuth, elevation)
+     * @return void on success, ExportError on failure
+     */
+    [[nodiscard]] std::expected<void, ExportError>
+    exportRotation3D(vtkRenderWindow* renderWindow,
+                     const RotationConfig& config,
+                     CameraCallback setCamera) const;
+
+    /**
+     * @brief Export combined rotation + phase animation as OGG Theora video
+     *
+     * Camera orbits while cardiac phases cycle simultaneously.
+     * Angle interpolation is distributed evenly across all frames.
+     *
+     * @param renderWindow VTK render window to capture frames from
+     * @param config Combined export configuration
+     * @param setPhase Callback to advance viewer to a specific phase
+     * @param setCamera Callback to position camera at (azimuth, elevation)
+     * @return void on success, ExportError on failure
+     */
+    [[nodiscard]] std::expected<void, ExportError>
+    exportCombined3D(vtkRenderWindow* renderWindow,
+                     const CombinedConfig& config,
+                     PhaseCallback setPhase,
+                     CameraCallback setCamera) const;
+
     // -----------------------------------------------------------------
     // Validation (public for testing)
     // -----------------------------------------------------------------
 
-    /**
-     * @brief Validate cine configuration
-     * @return Empty error on success, ExportError on invalid config
-     */
     [[nodiscard]] static std::expected<void, ExportError>
     validateCineConfig(const CineConfig& config);
+
+    [[nodiscard]] static std::expected<void, ExportError>
+    validateRotationConfig(const RotationConfig& config);
+
+    [[nodiscard]] static std::expected<void, ExportError>
+    validateCombinedConfig(const CombinedConfig& config);
 
 private:
     class Impl;
