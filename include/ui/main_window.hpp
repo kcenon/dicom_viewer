@@ -91,6 +91,8 @@ private:
     void updateRecentProjectsMenu();
     void updateIntroPageRecentProjects();
     bool promptSaveIfModified();
+    void importDicomDirectory(const QString& dir);
+    void importProjectFile(const QString& path);
 
     class Impl;
     std::unique_ptr<Impl> impl_;
