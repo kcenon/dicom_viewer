@@ -1724,6 +1724,25 @@ target_include_directories(matlab_exporter_test PRIVATE
 
 gtest_discover_tests(matlab_exporter_test DISCOVERY_TIMEOUT 60)
 
+# Unit tests for OGG Theora video exporter
+add_executable(video_exporter_test
+    unit/video_exporter_test.cpp
+)
+
+target_link_libraries(video_exporter_test PRIVATE
+    export_service
+    ${ITK_LIBRARIES}
+    ${VTK_LIBRARIES}
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(video_exporter_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(video_exporter_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for Vendor-specific Flow Parsers (fallback paths and edge cases)
 add_executable(vendor_flow_parsers_test
     unit/vendor_flow_parsers_test.cpp
