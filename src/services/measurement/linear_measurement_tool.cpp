@@ -226,7 +226,9 @@ LinearMeasurementTool::LinearMeasurementTool()
 }
 
 LinearMeasurementTool::~LinearMeasurementTool() {
-    deleteAllMeasurements();
+    if (impl_) {
+        deleteAllMeasurements();
+    }
 }
 
 LinearMeasurementTool::LinearMeasurementTool(LinearMeasurementTool&&) noexcept = default;

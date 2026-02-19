@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <numeric>
 
@@ -315,6 +316,10 @@ FlowQuantifier::exportToCSV(const TimeVelocityCurve& curve,
             "Empty file path"});
     }
 
+    std::filesystem::path path(filePath);
+    if (path.has_parent_path()) {
+        std::filesystem::create_directories(path.parent_path());
+    }
     std::ofstream ofs(filePath);
     if (!ofs.is_open()) {
         return std::unexpected(FlowError{

@@ -181,13 +181,32 @@ double SeriesBuilder::calculateSliceSpacing(const std::vector<SliceInfo>& slices
         return 1.0;
     }
 
-    // Calculate distances between consecutive slices
-    std::vector<double> spacings;
-    spacings.reserve(slices.size() - 1);
+    // Sort slices by position along slice normal for order-independent calculation
+    auto sorted = slices;
+    const auto& ori = sorted[0].imageOrientation;
+    // Compute slice normal as cross product of row and column direction cosines
+    double nx = ori[1] * ori[5] - ori[2] * ori[4];
+    double ny = ori[2] * ori[3] - ori[0] * ori[5];
+    double nz = ori[0] * ori[4] - ori[1] * ori[3];
 
-    for (size_t i = 1; i < slices.size(); ++i) {
-        const auto& prev = slices[i - 1];
-        const auto& curr = slices[i];
+    std::sort(sorted.begin(), sorted.end(),
+        [nx, ny, nz](const SliceInfo& a, const SliceInfo& b) {
+            double projA = a.imagePosition[0] * nx
+                         + a.imagePosition[1] * ny
+                         + a.imagePosition[2] * nz;
+            double projB = b.imagePosition[0] * nx
+                         + b.imagePosition[1] * ny
+                         + b.imagePosition[2] * nz;
+            return projA < projB;
+        });
+
+    // Calculate distances between consecutive sorted slices
+    std::vector<double> spacings;
+    spacings.reserve(sorted.size() - 1);
+
+    for (size_t i = 1; i < sorted.size(); ++i) {
+        const auto& prev = sorted[i - 1];
+        const auto& curr = sorted[i];
 
         // Calculate 3D distance between slice positions
         double dx = curr.imagePosition[0] - prev.imagePosition[0];
@@ -202,8 +221,8 @@ double SeriesBuilder::calculateSliceSpacing(const std::vector<SliceInfo>& slices
 
     if (spacings.empty()) {
         // Fallback: use slice location difference
-        double locDiff = std::abs(slices.back().sliceLocation - slices.front().sliceLocation);
-        return locDiff / (slices.size() - 1);
+        double locDiff = std::abs(sorted.back().sliceLocation - sorted.front().sliceLocation);
+        return locDiff / (sorted.size() - 1);
     }
 
     // Return median spacing for robustness against outliers

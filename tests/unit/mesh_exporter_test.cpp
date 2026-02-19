@@ -774,7 +774,7 @@ TEST_F(MeshExporterTest, ObjContainsVertexAndFaceLines) {
         polyData_, outputPath, MeshFormat::OBJ, options);
     ASSERT_TRUE(result.has_value());
 
-    std::string content = readFileContent(outputPath, 8192);
+    std::string content = readFileContent(outputPath, 131072);
 
     // OBJ format: 'v' lines for vertices, 'f' lines for faces
     EXPECT_NE(content.find("\nv "), std::string::npos)
