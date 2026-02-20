@@ -15,6 +15,7 @@
 #include "ui/drop_handler.hpp"
 #include "ui/display_3d_controller.hpp"
 #include "ui/dialogs/pacs_config_dialog.hpp"
+#include "ui/dialogs/settings_dialog.hpp"
 #include "ui/dialogs/mask_wizard.hpp"
 #include "ui/mask_wizard_controller.hpp"
 #include "ui/quantification_window.hpp"
@@ -1767,8 +1768,8 @@ void MainWindow::onToggleStorageSCP()
 
 void MainWindow::onShowSettings()
 {
-    QMessageBox::information(this, tr("Settings"),
-        tr("Settings dialog will be implemented in a future version."));
+    SettingsDialog dialog(this);
+    dialog.exec();
 }
 
 void MainWindow::onShowAbout()
