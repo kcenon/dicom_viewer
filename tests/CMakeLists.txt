@@ -1986,3 +1986,21 @@ target_include_directories(app_log_level_test PRIVATE
 )
 
 gtest_discover_tests(app_log_level_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for SettingsDialog (log level configuration)
+add_executable(settings_dialog_test
+    unit/settings_dialog_test.cpp
+)
+
+target_link_libraries(settings_dialog_test PRIVATE
+    dicom_viewer_ui
+    Qt6::Test
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(settings_dialog_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(settings_dialog_test DISCOVERY_TIMEOUT 60)

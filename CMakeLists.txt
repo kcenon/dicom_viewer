@@ -666,6 +666,7 @@ add_library(dicom_viewer_ui STATIC
     include/ui/panels/segmentation_panel.hpp
     include/ui/panels/overlay_control_panel.hpp
     include/ui/panels/flow_tool_panel.hpp
+    include/ui/dialogs/settings_dialog.hpp
     include/ui/dialogs/pacs_config_dialog.hpp
     include/ui/quantification_window.hpp
     include/ui/dialogs/mask_wizard.hpp
