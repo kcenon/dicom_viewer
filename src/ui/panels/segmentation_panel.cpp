@@ -27,6 +27,11 @@ public:
     QToolButton* freehandButton = nullptr;
     QToolButton* polygonButton = nullptr;
     QToolButton* smartScissorsButton = nullptr;
+    QToolButton* levelTracingButton = nullptr;
+
+    // Post-processing buttons
+    QPushButton* hollowButton = nullptr;
+    QPushButton* smoothButton = nullptr;
 
     // Brush settings
     QSlider* brushSizeSlider = nullptr;
@@ -142,12 +147,20 @@ void SegmentationPanel::setupUI()
     impl_->smartScissorsButton->setMinimumSize(60, 40);
     impl_->toolGroup->addButton(impl_->smartScissorsButton, static_cast<int>(services::SegmentationTool::SmartScissors));
 
+    impl_->levelTracingButton = new QToolButton();
+    impl_->levelTracingButton->setText(tr("Level\nTracing"));
+    impl_->levelTracingButton->setCheckable(true);
+    impl_->levelTracingButton->setMinimumSize(60, 40);
+    impl_->levelTracingButton->setToolTip(tr("Trace contour at intensity boundary"));
+    impl_->toolGroup->addButton(impl_->levelTracingButton, static_cast<int>(services::SegmentationTool::LevelTracing));
+
     toolsLayout->addWidget(impl_->brushButton, 0, 0);
     toolsLayout->addWidget(impl_->eraserButton, 0, 1);
     toolsLayout->addWidget(impl_->fillButton, 0, 2);
     toolsLayout->addWidget(impl_->freehandButton, 1, 0);
     toolsLayout->addWidget(impl_->polygonButton, 1, 1);
     toolsLayout->addWidget(impl_->smartScissorsButton, 1, 2);
+    toolsLayout->addWidget(impl_->levelTracingButton, 2, 0);
     mainLayout->addWidget(toolsGroup);
 
     // Brush options group
@@ -221,6 +234,17 @@ void SegmentationPanel::setupUI()
     actionsLayout->addWidget(impl_->completeButton);
     mainLayout->addWidget(impl_->polygonActionsWidget);
 
+    // Post-processing actions
+    auto postProcGroup = new QGroupBox(tr("Post-Processing"));
+    auto postProcLayout = new QHBoxLayout(postProcGroup);
+    impl_->hollowButton = new QPushButton(tr("Hollow"));
+    impl_->hollowButton->setToolTip(tr("Create hollow shell from solid mask"));
+    impl_->smoothButton = new QPushButton(tr("Smooth"));
+    impl_->smoothButton->setToolTip(tr("Smooth mask boundary (volume-preserving)"));
+    postProcLayout->addWidget(impl_->hollowButton);
+    postProcLayout->addWidget(impl_->smoothButton);
+    mainLayout->addWidget(postProcGroup);
+
     // History actions (Undo/Redo for command stack)
     auto historyGroup = new QGroupBox(tr("History"));
     auto historyLayout = new QHBoxLayout(historyGroup);
@@ -291,6 +315,12 @@ void SegmentationPanel::setupConnections()
             this, &SegmentationPanel::undoCommandRequested);
     connect(impl_->redoCommandButton, &QPushButton::clicked,
             this, &SegmentationPanel::redoCommandRequested);
+
+    // Post-processing
+    connect(impl_->hollowButton, &QPushButton::clicked,
+            this, &SegmentationPanel::hollowRequested);
+    connect(impl_->smoothButton, &QPushButton::clicked,
+            this, &SegmentationPanel::smoothRequested);
 }
 
 void SegmentationPanel::createToolSection() {}

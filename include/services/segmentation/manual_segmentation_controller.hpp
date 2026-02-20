@@ -19,13 +19,14 @@ namespace dicom_viewer::services {
  * @brief Available segmentation tools for manual drawing
  */
 enum class SegmentationTool {
-    None,         ///< No tool selected
-    Brush,        ///< Draw with circular/square brush
-    Eraser,       ///< Remove segmentation region
-    Fill,         ///< Flood fill closed region
-    Freehand,     ///< Draw freehand curve
-    Polygon,      ///< Polygon ROI
-    SmartScissors ///< Edge tracking (LiveWire)
+    None,          ///< No tool selected
+    Brush,         ///< Draw with circular/square brush
+    Eraser,        ///< Remove segmentation region
+    Fill,          ///< Flood fill closed region
+    Freehand,      ///< Draw freehand curve
+    Polygon,       ///< Polygon ROI
+    SmartScissors, ///< Edge tracking (LiveWire)
+    LevelTracing   ///< Edge-following contour at intensity boundary
 };
 
 /**

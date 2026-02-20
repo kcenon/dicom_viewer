@@ -131,6 +131,16 @@ signals:
      */
     void redoCommandRequested();
 
+    /**
+     * @brief Emitted when Hollow operation is requested on current mask
+     */
+    void hollowRequested();
+
+    /**
+     * @brief Emitted when Smoothing operation is requested on current mask
+     */
+    void smoothRequested();
+
 private slots:
     void onToolButtonClicked(int toolId);
     void onBrushSizeChanged(int size);
