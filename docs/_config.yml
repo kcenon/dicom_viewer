@@ -1,0 +1,55 @@
+# DICOM Viewer Documentation
+# Jekyll configuration for GitHub Pages
+
+title: DICOM Viewer Documentation
+description: High-Performance Medical Image Viewer - CT/MRI 3D Volume Rendering
+baseurl: "/dicom_viewer"
+url: "https://kcenon.github.io"
+
+# Theme
+remote_theme: pages-themes/cayman@v0.2.0
+plugins:
+  - jekyll-remote-theme
+
+# Markdown settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    default_lang: cpp
+    css_class: highlight
+
+# File handling
+include:
+  - _pages
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+
+# Navigation
+navigation:
+  - title: Home
+    url: /
+  - title: PRD
+    url: /PRD
+  - title: SRS
+    url: /SRS
+  - title: SDS
+    url: /SDS
+  - title: Reference
+    url: /reference/
+  - title: 한국어
+    url: /PRD.kr
