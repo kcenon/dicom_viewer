@@ -26,7 +26,8 @@ enum class SegmentationTool {
     Freehand,      ///< Draw freehand curve
     Polygon,       ///< Polygon ROI
     SmartScissors, ///< Edge tracking (LiveWire)
-    LevelTracing   ///< Edge-following contour at intensity boundary
+    LevelTracing,       ///< Edge-following contour at intensity boundary
+    CenterlineTracing   ///< Vessel centerline tracing between two points
 };
 
 /**
