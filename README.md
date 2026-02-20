@@ -2,7 +2,7 @@
 
 > **High-Performance Medical Image Viewer** - CT/MRI 3D Volume Rendering and MPR View Support
 
-[![Version](https://img.shields.io/badge/version-0.3.0--pre-orange)](https://github.com)
+[![Version](https://img.shields.io/badge/version-0.7.0--pre-orange)](https://github.com)
 [![C++](https://img.shields.io/badge/C++-23-blue.svg)](https://isocpp.org)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause-green.svg)](LICENSE)
 
@@ -78,6 +78,53 @@
 - Horizontal/Vertical flip
 - Grid view (multi-image comparison)
 
+### 4D Flow MRI Analysis (P1 - High)
+
+| Feature | Description |
+|---------|-------------|
+| **Flow DICOM Parsing** | Vendor-specific (Siemens, Philips, GE) 4D Flow DICOM parsing with VENC extraction |
+| **Velocity Field Assembly** | Vector field construction from velocity-encoded components with VENC scaling |
+| **Phase Correction** | Velocity aliasing unwrap, eddy current correction, Maxwell term correction |
+| **Flow Visualization** | Streamlines, pathlines, vector glyphs with color-mapped hemodynamic parameters |
+| **Flow Quantification** | Flow rate at cross-section, time-velocity curves, pressure gradient estimation |
+| **Hemodynamic Analysis** | Wall Shear Stress (WSS), Oscillatory Shear Index (OSI), Turbulent Kinetic Energy (TKE) |
+
+### Enhanced DICOM Support (P0 - Critical)
+
+| Feature | Description |
+|---------|-------------|
+| **Enhanced CT/MR IOD** | Multi-frame Enhanced DICOM parsing with per-frame functional groups |
+| **Frame Extraction** | Individual frame extraction from multi-frame pixel data |
+| **Series Classification** | Automatic classification of Enhanced series by type |
+
+### Cardiac CT Analysis (P1 - High)
+
+| Feature | Description |
+|---------|-------------|
+| **ECG-Gated Phases** | Cardiac phase detection and separation from ECG-gated CT |
+| **Coronary CTA** | Centerline extraction, CPR (Curved Planar Reformation), stenosis measurement |
+| **Calcium Scoring** | Agatston, volume, and mass calcium scores with per-artery breakdown |
+| **Cine MRI** | Multi-phase cardiac cine playback with orientation detection (SA, 2CH, 3CH, 4CH) |
+
+### Data Export and Interoperability (P1 - High)
+
+| Feature | Description |
+|---------|-------------|
+| **Image Export** | NRRD and DICOM format export with metadata preservation |
+| **Mesh Export** | STL (binary/ASCII), OBJ, PLY 3D mesh export |
+| **Measurement Export** | JSON, CSV serialization and DICOM Structured Report |
+| **Video Export** | AVI/MP4/MOV generation with configurable FPS and codec |
+| **Research Export** | MATLAB .mat and Ensight Gold format for external analysis |
+| **Report Generation** | PDF/HTML medical imaging reports with templates |
+
+### Project Management
+
+| Feature | Description |
+|---------|-------------|
+| **Project Files** | .flo project file format (ZIP-based container) |
+| **Save/Load** | Persist and restore display settings, segmentation, analysis results |
+| **Drag & Drop** | Drag-and-drop DICOM and project file import |
+
 ## Technology Stack
 
 | Component | Technology | Version |
@@ -100,7 +147,8 @@ DICOM Viewer adopts a **3-Layer Architecture** to maximize separation of concern
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Presentation Layer (Qt6)                                               │
 │  • MainWindow, ViewportWidget, PatientBrowser, ToolsPanel               │
-│  • SegmentationPanel, StatisticsPanel, PacsConfigDialog                 │
+│  • SegmentationPanel, StatisticsPanel, FlowToolPanel, ReportPanel       │
+│  • SettingsDialog, PacsConfigDialog, QuantificationWindow               │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  Service Layer                                                          │
 │  • Render: VolumeRenderer, SurfaceRenderer, MPRRenderer (VTK)           │
@@ -108,7 +156,10 @@ DICOM Viewer adopts a **3-Layer Architecture** to maximize separation of concern
 │  • Measurement: Linear, Area, Volume, ROI Statistics, ShapeAnalyzer     │
 │  • Preprocessing: Gaussian, AnisotropicDiffusion, N4Bias, Resampler     │
 │  • PACS: DicomFind/Move/Store/Echo (pacs_system)                        │
-│  • Export: Report, MeshExporter, DicomSR, DataExporter                  │
+│  • Flow: FlowDicomParser, VelocityField, FlowVisualizer, Quantifier    │
+│  • Export: Report, MeshExporter, DicomSR, DataExporter, VideoExporter   │
+│  • Cardiac: PhaseDetector, CenterlineExtractor, CalciumScorer           │
+│  • Enhanced DICOM: EnhancedParser, FrameExtractor, SeriesClassifier     │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  Core / Data Layer                                                      │
 │  • DicomLoader, SeriesBuilder, TransferSyntaxDecoder                    │
@@ -254,7 +305,10 @@ dicom_viewer/
 │   │   ├── preprocessing/          # Image filters (Gaussian, N4, etc.)
 │   │   ├── segmentation/           # Segmentation algorithms and label mgmt
 │   │   ├── pacs/                   # PACS connectivity (C-ECHO, C-FIND, etc.)
-│   │   ├── export/                 # Report generation, mesh/data export
+│   │   ├── export/                 # Report, mesh, data, video export
+│   │   ├── flow/                   # 4D Flow MRI analysis
+│   │   ├── enhanced_dicom/         # Enhanced DICOM IOD parsing
+│   │   ├── cardiac/                # Cardiac CT/MRI analysis
 │   │   └── coordinate/             # MPR coordinate transformations
 │   └── ui/                         # Qt UI Components
 │       ├── widgets/                # ViewportWidget, MPRViewWidget, DRViewer
@@ -280,18 +334,20 @@ dicom_viewer/
 ## Roadmap
 
 ```
-v0.1 → v0.2 → v0.3 (MVP) → v0.4 → v0.5 → v1.0
-───────────────────────────────────────────────
-Phase 1        Phase 2: Core     Phase 3
-Foundation     Features          Enhancement
+v0.1 → v0.2 → v0.3 (MVP) → v0.4 → v0.5 → v0.6 → v0.7 → v1.0
+──────────────────────────────────────────────────────────────────
+Phase 1        Phase 2: Core     Phase 3          Phase 4
+Foundation     Features          Enhancement      Advanced
 ```
 
-| Version | Goal | Key Features |
-|---------|------|--------------|
-| v0.3 (MVP) | CT/MRI Viewer | DICOM loading, Volume/Surface rendering, MPR, Presets |
-| v0.4 | Core Features | PACS integration, Measurement tools, Basic segmentation, Preprocessing |
-| v0.5 | Enhancement | DR/CR viewing, Advanced segmentation, Report generation |
-| v1.0 | Release | Stabilization, User settings, Layout persistence |
+| Version | Goal | Key Features | Status |
+|---------|------|--------------|--------|
+| v0.3 (MVP) | CT/MRI Viewer | DICOM loading, Volume/Surface rendering, MPR, Presets | ✅ Complete |
+| v0.4 | Core Features | PACS integration, Measurement tools, Basic segmentation, Preprocessing | ✅ Complete |
+| v0.5 | Enhancement | DR/CR viewing, Advanced segmentation, Report generation | ✅ Complete |
+| v0.6 | 4D Flow MRI | Flow DICOM parsing, Velocity field, Streamlines, Hemodynamic analysis | ✅ Complete |
+| v0.7 | Cardiac & Export | Enhanced DICOM, Cardiac CT, Cine MRI, Data export, Project management | ✅ Complete |
+| v1.0 | Release | Stabilization, Performance optimization, User documentation | Next target |
 
 ## Target Users
 

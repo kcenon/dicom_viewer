@@ -1,11 +1,11 @@
 # DICOM Viewer - Software Design Specification (SDS)
 
-> **Version**: 0.6.0
+> **Version**: 0.7.0
 > **Created**: 2025-12-31
-> **Last Updated**: 2026-02-12
+> **Last Updated**: 2026-02-20
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
-> **Based on**: [SRS v0.6.0](SRS.md), [PRD v0.5.0](PRD.md)
+> **Based on**: [SRS v0.7.0](SRS.md), [PRD v0.6.0](PRD.md)
 
 ---
 
@@ -20,6 +20,8 @@
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 | 0.4.0 | 2026-02-11 | Development Team | Fixed SRS-FR traceability references; aligned with SRS v0.4.0 |
 | 0.5.0 | 2026-02-11 | Development Team | Added SDS-MOD-007 Flow Analysis Module with 4D Flow MRI support |
+| 0.6.0 | 2026-02-12 | Development Team | Added SDS-MOD-008 (Enhanced DICOM Module, 4 components), SDS-MOD-009 (Cardiac CT Analysis Module, 5 components); updated traceability matrices for SRS-FR-049~053 |
+| 0.7.0 | 2026-02-20 | Development Team | Updated implementation statuses for MOD-007/008/009 to Implemented; added SDS-MOD-010 Export Service Module (8 components); expanded MOD-002 with advanced segmentation tools, MOD-003 with hemodynamic renderers, MOD-006 with 20 additional UI components; updated traceability matrices |
 
 ### Referenced Documents
 
@@ -701,9 +703,9 @@ classDiagram
 
 ### SDS-MOD-002: Image Service Module
 
-**Traces to**: SRS-FR-001 ~ SRS-FR-004, SRS-FR-016 ~ SRS-FR-025, SRS-FR-041, SRS-FR-042
+**Traces to**: SRS-FR-001 ~ SRS-FR-004, SRS-FR-016 ~ SRS-FR-025, SRS-FR-041, SRS-FR-042, SRS-FR-055
 
-**Purpose**: Provide DICOM loading, preprocessing, segmentation, and conversion functionality
+**Purpose**: Provide DICOM loading, preprocessing, segmentation (including advanced tools), and conversion functionality
 
 **Components**:
 
@@ -724,6 +726,16 @@ classDiagram
 | ManualSegmentationController | Brush, eraser, fill, smart scissors | SRS-FR-023 |
 | MorphologicalProcessor | Erosion, dilation, opening, closing | SRS-FR-025 |
 | LabelManager | Multi-label management and merging | SRS-FR-024 |
+| CenterlineTracer | Vessel centerline extraction between seed points | SRS-FR-055 |
+| LevelTracingTool | Edge-following contour at intensity boundary | SRS-FR-055 |
+| HollowTool | Hollow shell creation with configurable wall thickness | SRS-FR-055 |
+| MaskSmoother | Binary mask smoothing via morphological operations | SRS-FR-055 |
+| SliceInterpolator | Morphological interpolation between annotated slices | SRS-FR-055 |
+| MaskBooleanOperations | Union, intersection, difference, XOR on masks | SRS-FR-055 |
+| SegmentationCommand | Command pattern for undo/redo segmentation actions | SRS-FR-055 |
+| SnapshotCommand | Snapshot-based undo stack for segmentation state | SRS-FR-055 |
+| PhaseTracker | Phase-aware segmentation tracking | SRS-FR-055 |
+| EllipseROI | Elliptical region of interest tool | SRS-FR-055 |
 
 **Class Diagram**:
 
@@ -873,6 +885,10 @@ classDiagram
 | ObliquResliceRenderer | Arbitrary angle reslicing | SRS-FR-011 |
 | TransferFunctionManager | Transfer function preset management | SRS-FR-006 |
 | DRViewer | Dedicated DR/CR 2D viewer | SRS-FR-033 |
+| HemodynamicOverlayRenderer | WSS/pressure overlay on volume rendering | SRS-FR-047 |
+| StreamlineOverlayRenderer | Streamline tubes in volume viewer | SRS-FR-046 |
+| HemodynamicSurfaceManager | Vessel surface hemodynamic mapping | SRS-FR-047 |
+| ASCViewController | Multi-phase cardiac view control | SRS-FR-050 |
 
 > **Implementation Note**: The class diagram below shows an `IRenderService` interface from the original design.
 > This interface is **not implemented** — components are accessed directly. See SDS-IF-001 for details.
@@ -1147,9 +1163,9 @@ classDiagram
 
 ### SDS-MOD-006: UI Module
 
-**Traces to**: SRS-FR-039, SRS-FR-040
+**Traces to**: SRS-FR-039, SRS-FR-040, SRS-FR-056
 
-**Purpose**: Provide Qt6-based user interface
+**Purpose**: Provide Qt6-based user interface with comprehensive panels, dialogs, and widgets
 
 **Components**:
 
@@ -1161,6 +1177,25 @@ classDiagram
 | ToolsPanel | Window/level controls, presets, visualization modes | SRS-FR-039 | ✅ Implemented |
 | SegmentationPanel | Segmentation tools panel (brush, eraser, fill, polygon, smart scissors) | SRS-FR-024 | ✅ Implemented |
 | StatisticsPanel | ROI statistics display, histogram, multi-ROI comparison, CSV export | SRS-FR-028 | ✅ Implemented |
+| OverlayControlPanel | Overlay visibility and parameter controls | SRS-FR-039 | ✅ Implemented |
+| FlowToolPanel | 4D Flow analysis tool controls (streamlines, planes, quantification) | SRS-FR-046 | ✅ Implemented |
+| WorkflowPanel | Workflow step management panel | SRS-FR-039 | ✅ Implemented |
+| ReportPanel | Report generation and preview panel | SRS-FR-054 | ✅ Implemented |
+| SettingsDialog | Application settings dialog (rendering, memory, paths) | SRS-FR-040 | ✅ Implemented |
+| PacsConfigDialog | PACS server configuration and connection test | SRS-FR-038 | ✅ Implemented |
+| QuantificationWindow | Flow quantification results window with contour editing | SRS-FR-047 | ✅ Implemented |
+| MaskWizard | Step-by-step mask creation wizard | SRS-FR-055 | ✅ Implemented |
+| VideoExportDialog | Video export configuration (format, FPS, codec) | SRS-FR-054 | ✅ Implemented |
+| PhaseSliderWidget | Cardiac/temporal phase slider widget | SRS-FR-048 | ✅ Implemented |
+| SPModeToggle | Single-phase / multi-phase mode toggle | SRS-FR-050 | ✅ Implemented |
+| FlowGraphWidget | Time-velocity curve and flow rate graph display | SRS-FR-047 | ✅ Implemented |
+| WorkflowTabBar | Workflow tab navigation bar | SRS-FR-039 | ✅ Implemented |
+| MPRViewWidget | Dedicated MPR view widget with crosshair sync | SRS-FR-008 | ✅ Implemented |
+| ViewportLayoutManager | Multi-viewport layout management (1x1, 2x2, 1x3) | SRS-FR-039 | ✅ Implemented |
+| Display3DController | 3D display parameter control (lighting, clipping, orientation) | SRS-FR-005 | ✅ Implemented |
+| DropHandler | Drag-and-drop DICOM and project file import handler | SRS-FR-039 | ✅ Implemented |
+| IntroPage | Application intro/welcome page | SRS-FR-039 | ✅ Implemented |
+| MaskWizardController | Controller for mask wizard workflow logic | SRS-FR-055 | ✅ Implemented |
 
 **Widget Hierarchy**:
 
@@ -1271,17 +1306,17 @@ classDiagram
 
 **Components**:
 
-> **Implementation Note**: This module is designed as a new service layer (`flow_service`) with dependencies on `image_service` (for DICOM loading) and `render_service` (for VTK integration). All components are planned for implementation in Phase 4.
+> **Implementation Note**: This module is implemented as a service layer (`flow_service`) with dependencies on `image_service` (for DICOM loading) and `render_service` (for VTK integration). All components were implemented in Phase 4 (v0.6.0).
 
 | Component | Description | Traces to | Status |
 |-----------|-------------|-----------|--------|
-| FlowDicomParser | Vendor-specific 4D Flow DICOM parsing (Siemens, Philips, GE) | SRS-FR-043 | ⬜ Planned |
-| VelocityFieldAssembler | Vector field construction from velocity-encoded components with VENC scaling | SRS-FR-044 | ⬜ Planned |
-| PhaseCorrector | Velocity aliasing unwrap, eddy current correction, Maxwell term correction | SRS-FR-045 | ⬜ Planned |
-| FlowVisualizer | Streamline, pathline, and vector glyph rendering via VTK | SRS-FR-046 | ⬜ Planned |
-| FlowQuantifier | Flow rate, time-velocity curves, pressure gradient calculations | SRS-FR-047 | ⬜ Planned |
-| VesselAnalyzer | WSS, OSI, TKE, vorticity, and helicity analysis | SRS-FR-047 | ⬜ Planned |
-| TemporalNavigator | Cardiac phase navigation, cine playback, sliding window cache | SRS-FR-048 | ⬜ Planned |
+| FlowDicomParser | Vendor-specific 4D Flow DICOM parsing (Siemens, Philips, GE) | SRS-FR-043 | ✅ Implemented |
+| VelocityFieldAssembler | Vector field construction from velocity-encoded components with VENC scaling | SRS-FR-044 | ✅ Implemented |
+| PhaseCorrector | Velocity aliasing unwrap, eddy current correction, Maxwell term correction | SRS-FR-045 | ✅ Implemented |
+| FlowVisualizer | Streamline, pathline, and vector glyph rendering via VTK | SRS-FR-046 | ✅ Implemented |
+| FlowQuantifier | Flow rate, time-velocity curves, pressure gradient calculations | SRS-FR-047 | ✅ Implemented |
+| VesselAnalyzer | WSS, OSI, TKE, vorticity, and helicity analysis | SRS-FR-047 | ✅ Implemented |
+| TemporalNavigator | Cardiac phase navigation, cine playback, sliding window cache | SRS-FR-048 | ✅ Implemented |
 
 **Class Diagram**:
 
@@ -1486,10 +1521,11 @@ classDiagram
 
 | Component | Description | Traces to | Status |
 |-----------|-------------|-----------|--------|
-| EnhancedDicomParser | Detect and parse Enhanced CT/MR IODs | SRS-FR-049 | ⬜ Planned |
-| FrameExtractor | Extract individual frames from multi-frame pixel data | SRS-FR-049 | ⬜ Planned |
-| FunctionalGroupParser | Parse Shared/PerFrame FunctionalGroupsSequence | SRS-FR-049 | ⬜ Planned |
-| DimensionIndexSorter | Sort frames by DimensionIndexSequence | SRS-FR-049 | ⬜ Planned |
+| EnhancedDicomParser | Detect and parse Enhanced CT/MR IODs | SRS-FR-049 | ✅ Implemented |
+| FrameExtractor | Extract individual frames from multi-frame pixel data | SRS-FR-049 | ✅ Implemented |
+| FunctionalGroupParser | Parse Shared/PerFrame FunctionalGroupsSequence | SRS-FR-049 | ✅ Implemented |
+| DimensionIndexSorter | Sort frames by DimensionIndexSequence | SRS-FR-049 | ✅ Implemented |
+| SeriesClassifier | Classify Enhanced series by type | SRS-FR-049 | ✅ Implemented |
 
 **Class Diagram**:
 
@@ -1573,11 +1609,11 @@ struct EnhancedSeriesInfo {
 
 | Component | Description | Traces to | Status |
 |-----------|-------------|-----------|--------|
-| CardiacPhaseDetector | Detect and separate ECG-gated cardiac phases | SRS-FR-050 | ⬜ Planned |
-| CoronaryCenterlineExtractor | Extract coronary artery centerlines (Frangi vesselness + minimal path) | SRS-FR-051 | ⬜ Planned |
-| CurvedPlanarReformatter | Generate CPR views along extracted centerlines | SRS-FR-051 | ⬜ Planned |
-| CalciumScorer | Compute Agatston, volume, and mass calcium scores | SRS-FR-052 | ⬜ Planned |
-| CineOrganizer | Detect and organize multi-phase cine MRI series | SRS-FR-053 | ⬜ Planned |
+| CardiacPhaseDetector | Detect and separate ECG-gated cardiac phases | SRS-FR-050 | ✅ Implemented |
+| CoronaryLineCenterlineExtractor | Extract coronary artery centerlines (Frangi vesselness + minimal path) | SRS-FR-051 | ✅ Implemented |
+| CurvedPlanarReformatter | Generate CPR views along extracted centerlines | SRS-FR-051 | ✅ Implemented |
+| CalciumScorer | Compute Agatston, volume, and mass calcium scores | SRS-FR-052 | ✅ Implemented |
+| CineOrganizer | Detect and organize multi-phase cine MRI series | SRS-FR-053 | ✅ Implemented |
 
 **Class Diagram**:
 
@@ -1587,7 +1623,7 @@ struct EnhancedSeriesInfo {
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                               │
 │   ┌────────────────────────┐   ┌────────────────────────────────────────┐  │
-│   │ CardiacPhaseDetector   │   │ CoronaryCenterlineExtractor            │  │
+│   │ CardiacPhaseDetector   │   │ CoronaryLineCenterlineExtractor            │  │
 │   │                        │   │                                        │  │
 │   │ • detectECGGating()    │   │ • computeVesselness(image)             │  │
 │   │ • separatePhases()     │   │ • extractCenterline(seed, vesselness)  │  │
@@ -1657,6 +1693,111 @@ struct CineSeriesInfo {
 | Phase Separation | Trigger Time grouping | Standard ECG-gated CT acquisition metadata |
 | TemporalNavigator Reuse | Composition (not inheritance) | Cardiac CT phases share same navigation pattern as 4D Flow |
 | Calcium Threshold | Fixed 130 HU (Agatston standard) | Clinical standard, non-configurable for reproducibility |
+
+---
+
+### SDS-MOD-010: Export Service Module
+
+**Traces to**: SRS-FR-054
+
+**Purpose**: Provide multi-format data export including medical reports, 3D meshes, measurement data, DICOM Structured Reports, CFD interoperability, research data formats, and video generation.
+
+**Components**:
+
+| Component | Description | Traces to | Status |
+|-----------|-------------|-----------|--------|
+| ReportGenerator | PDF/HTML medical imaging reports with customizable templates | SRS-FR-054.8 | ✅ Implemented |
+| DataExporter | NRRD/DICOM volumetric data export with metadata preservation | SRS-FR-054.1 | ✅ Implemented |
+| MeasurementSerializer | JSON/CSV measurement serialization with schema validation | SRS-FR-054.3 | ✅ Implemented |
+| MeshExporter | STL (binary/ASCII), OBJ (with materials), PLY mesh export | SRS-FR-054.2 | ✅ Implemented |
+| DicomSRWriter | DICOM Structured Report generation (SR IOD compliant) | SRS-FR-054.4 | ✅ Implemented |
+| EnsightExporter | CFD Ensight Gold format export for external analysis tools | SRS-FR-054.5 | ✅ Implemented |
+| MatlabExporter | MATLAB .mat v5 format export for research data | SRS-FR-054.6 | ✅ Implemented |
+| VideoExporter | AVI/MP4/MOV video generation from temporal sequences | SRS-FR-054.7 | ✅ Implemented |
+
+**Class Diagram**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                   SDS-MOD-010: Export Service Module                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   ┌──────────────────────────┐   ┌──────────────────────────────────────┐  │
+│   │ ReportGenerator          │   │ DataExporter                         │  │
+│   │                          │   │                                      │  │
+│   │ • generatePDF(data)      │   │ • exportNRRD(image, path)            │  │
+│   │ • generateHTML(data)     │   │ • exportDICOM(image, metadata, path) │  │
+│   │ • loadTemplate(name)     │   │ • exportWithMetadata(image, meta)    │  │
+│   │ • embedImages(images)    │   │                                      │  │
+│   └──────────────────────────┘   └──────────────────────────────────────┘  │
+│                                                                               │
+│   ┌──────────────────────────┐   ┌──────────────────────────────────────┐  │
+│   │ MeasurementSerializer    │   │ MeshExporter                         │  │
+│   │                          │   │                                      │  │
+│   │ • toJSON(measurements)   │   │ • exportSTL(mesh, path, binary)      │  │
+│   │ • toCSV(measurements)    │   │ • exportOBJ(mesh, materials, path)   │  │
+│   │ • fromJSON(json)         │   │ • exportPLY(mesh, path)              │  │
+│   │ • validateSchema(json)   │   │ • setCoordinateTransform(matrix)     │  │
+│   └──────────────────────────┘   └──────────────────────────────────────┘  │
+│                                                                               │
+│   ┌──────────────────────────┐   ┌──────────────────────────────────────┐  │
+│   │ DicomSRWriter            │   │ EnsightExporter                      │  │
+│   │                          │   │                                      │  │
+│   │ • createSR(measurements) │   │ • exportCase(velocity, mesh, path)   │  │
+│   │ • addCodedTerm(code)     │   │ • writeGeometry(mesh)                │  │
+│   │ • addMeasurement(data)   │   │ • writeVariable(field, name)         │  │
+│   │ • writeDICOM(path)       │   │ • writeTimesteps(times)              │  │
+│   └──────────────────────────┘   └──────────────────────────────────────┘  │
+│                                                                               │
+│   ┌──────────────────────────┐   ┌──────────────────────────────────────┐  │
+│   │ MatlabExporter           │   │ VideoExporter                        │  │
+│   │                          │   │                                      │  │
+│   │ • exportMat(data, path)  │   │ • setFormat(AVI/MP4/MOV)             │  │
+│   │ • addMatrix(name, data)  │   │ • setFPS(fps)                        │  │
+│   │ • addStruct(name, fields)│   │ • setCodec(codec)                    │  │
+│   │ • addCellArray(name, arr)│   │ • addFrame(image)                    │  │
+│   └──────────────────────────┘   │ • addOverlay(overlay)                │  │
+│                                   │ • finalize(path)                     │  │
+│                                   └──────────────────────────────────────┘  │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Data Structures**:
+
+```cpp
+struct ExportConfig {
+    std::string outputPath;
+    std::string format;        // "nrrd", "dicom", "stl", "obj", "ply", "json", "csv"
+    bool preserveMetadata;
+    std::optional<std::array<std::array<double, 4>, 4>> coordinateTransform;
+};
+
+struct ReportConfig {
+    std::string templateName;  // "standard", "cardiac", "flow"
+    std::string outputFormat;  // "pdf", "html"
+    bool embedImages;
+    std::vector<std::string> sections;  // sections to include
+};
+
+struct VideoConfig {
+    std::string format;        // "avi", "mp4", "mov"
+    int fps;                   // 1-60
+    std::string codec;         // "h264", "mjpeg", "raw"
+    int width, height;
+    bool includeOverlays;
+};
+```
+
+**Key Design Decisions**:
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Export Architecture | Strategy pattern per format | Each format has unique requirements; isolates format-specific logic |
+| DICOM SR | IOD-compliant generation | Ensures interoperability with clinical systems |
+| STL Binary/ASCII | User-selectable mode | Binary for efficiency, ASCII for debugging and compatibility |
+| Video Encoding | FFmpeg-based pipeline | Industry standard, wide codec support, cross-platform |
+| MATLAB Format | .mat v5 specification | Broad MATLAB/Octave compatibility |
 
 ---
 
@@ -3109,11 +3250,14 @@ sequenceDiagram
 | SRS-FR-046 | SDS-MOD-007 (FlowVisualizer), SDS-SEQ-006 | Flow Analysis |
 | SRS-FR-047 | SDS-MOD-007 (FlowQuantifier, VesselAnalyzer), SDS-SEQ-007 | Flow Analysis |
 | SRS-FR-048 | SDS-MOD-007 (TemporalNavigator), SDS-DATA-006, SDS-SEQ-006, SDS-SEQ-007 | Flow Analysis |
-| SRS-FR-049 | SDS-MOD-008 (EnhancedDicomParser, FrameExtractor, FunctionalGroupParser, DimensionIndexSorter) | Enhanced DICOM |
+| SRS-FR-049 | SDS-MOD-008 (EnhancedDicomParser, FrameExtractor, FunctionalGroupParser, DimensionIndexSorter, SeriesClassifier) | Enhanced DICOM |
 | SRS-FR-050 | SDS-MOD-009 (CardiacPhaseDetector) | Cardiac CT |
-| SRS-FR-051 | SDS-MOD-009 (CoronaryCenterlineExtractor, CurvedPlanarReformatter) | Cardiac CT |
+| SRS-FR-051 | SDS-MOD-009 (CoronaryLineCenterlineExtractor, CurvedPlanarReformatter) | Cardiac CT |
 | SRS-FR-052 | SDS-MOD-009 (CalciumScorer) | Cardiac CT |
 | SRS-FR-053 | SDS-MOD-009 (CineOrganizer) + SDS-MOD-007 (TemporalNavigator) | Cardiac CT / Cine MRI |
+| SRS-FR-054 | SDS-MOD-010 (ReportGenerator, DataExporter, MeasurementSerializer, MeshExporter, DicomSRWriter, EnsightExporter, MatlabExporter, VideoExporter) | Export Service |
+| SRS-FR-055 | SDS-MOD-002 (CenterlineTracer, LevelTracingTool, HollowTool, MaskSmoother, SliceInterpolator, MaskBooleanOperations, SegmentationCommand, SnapshotCommand) | Image Service |
+| SRS-FR-056 | SDS-MOD-006 (ProjectManager) | UI Module |
 
 ---
 
@@ -3158,22 +3302,27 @@ sequenceDiagram
 | FR-007.15~20 | SRS-FR-028 | SDS-MOD-004 | Measurement (ROIStatistics) | ✅ Implemented |
 | FR-007.21~25 | SRS-FR-030 | SDS-MOD-004 | Measurement (ShapeAnalyzer) | ✅ Implemented |
 | FR-010.1~5 | SRS-FR-034~038 | SDS-MOD-005 | PACS (DicomFindSCU, DicomMoveSCU, DicomStoreSCP, DicomEchoSCU, PacsConfigManager) | ✅ Implemented |
-| FR-011.1~6 | SRS-FR-039, SRS-FR-040 | SDS-MOD-006 | UI (MainWindow, ViewportWidget, Panels, Dialogs) | 🟡 Partially Implemented |
+| FR-011.1~6 | SRS-FR-039, SRS-FR-040 | SDS-MOD-006 | UI (MainWindow, ViewportWidget, Panels, Dialogs) | ✅ Implemented |
 | FR-012.1~8 | SRS-FR-031 | SDS-MOD-004 | Measurement (ROIManager) | ✅ Implemented |
 | FR-013.1~6 | SRS-FR-032 | SDS-MOD-004 | Measurement (ReportGenerator) | ✅ Implemented |
-| FR-014.1~2 | SRS-FR-043 | SDS-MOD-007, SDS-SEQ-005 | Flow (FlowDicomParser) | ⬜ Planned |
-| FR-014.3 | SRS-FR-044 | SDS-MOD-007, SDS-SEQ-005 | Flow (VelocityFieldAssembler) | ⬜ Planned |
-| FR-014.4 | SRS-FR-045 | SDS-MOD-007, SDS-SEQ-005 | Flow (PhaseCorrector) | ⬜ Planned |
-| FR-014.5~8 | SRS-FR-046 | SDS-MOD-007, SDS-SEQ-006 | Flow (FlowVisualizer) | ⬜ Planned |
-| FR-014.9~11 | SRS-FR-048 | SDS-MOD-007, SDS-DATA-006 | Flow (TemporalNavigator) | ⬜ Planned |
-| FR-014.12~18 | SRS-FR-047 | SDS-MOD-007, SDS-SEQ-007 | Flow (FlowQuantifier) | ⬜ Planned |
-| FR-014.19~21 | SRS-FR-047 | SDS-MOD-007, SDS-SEQ-007 | Flow (VesselAnalyzer, Export) | ⬜ Planned |
-| FR-015.1~6 | SRS-FR-049 | SDS-MOD-008 | Enhanced DICOM (EnhancedDicomParser, FrameExtractor, FunctionalGroupParser, DimensionIndexSorter) | ⬜ Planned |
-| FR-016.1~4 | SRS-FR-050 | SDS-MOD-009 | Cardiac CT (CardiacPhaseDetector) | ⬜ Planned |
-| FR-016.5~8 | SRS-FR-051 | SDS-MOD-009 | Cardiac CT (CoronaryCenterlineExtractor, CurvedPlanarReformatter) | ⬜ Planned |
-| FR-016.9~12 | SRS-FR-052 | SDS-MOD-009 | Cardiac CT (CalciumScorer) | ⬜ Planned |
-| FR-016.13~14 | SRS-FR-050 | SDS-MOD-009 | Cardiac CT (CardiacPhaseDetector - EF) | ⬜ Planned |
-| FR-017.1~4 | SRS-FR-053 | SDS-MOD-009, SDS-MOD-007 | Cine MRI (CineOrganizer + TemporalNavigator) | ⬜ Planned |
+| FR-014.1~2 | SRS-FR-043 | SDS-MOD-007, SDS-SEQ-005 | Flow (FlowDicomParser) | ✅ Implemented |
+| FR-014.3 | SRS-FR-044 | SDS-MOD-007, SDS-SEQ-005 | Flow (VelocityFieldAssembler) | ✅ Implemented |
+| FR-014.4 | SRS-FR-045 | SDS-MOD-007, SDS-SEQ-005 | Flow (PhaseCorrector) | ✅ Implemented |
+| FR-014.5~8 | SRS-FR-046 | SDS-MOD-007, SDS-SEQ-006 | Flow (FlowVisualizer) | ✅ Implemented |
+| FR-014.9~11 | SRS-FR-048 | SDS-MOD-007, SDS-DATA-006 | Flow (TemporalNavigator) | ✅ Implemented |
+| FR-014.12~18 | SRS-FR-047 | SDS-MOD-007, SDS-SEQ-007 | Flow (FlowQuantifier) | ✅ Implemented |
+| FR-014.19~21 | SRS-FR-047 | SDS-MOD-007, SDS-SEQ-007 | Flow (VesselAnalyzer, Export) | ✅ Implemented |
+| FR-015.1~6 | SRS-FR-049 | SDS-MOD-008 | Enhanced DICOM (EnhancedDicomParser, FrameExtractor, FunctionalGroupParser, DimensionIndexSorter, SeriesClassifier) | ✅ Implemented |
+| FR-016.1~4 | SRS-FR-050 | SDS-MOD-009 | Cardiac CT (CardiacPhaseDetector) | ✅ Implemented |
+| FR-016.5~8 | SRS-FR-051 | SDS-MOD-009 | Cardiac CT (CoronaryLineCenterlineExtractor, CurvedPlanarReformatter) | ✅ Implemented |
+| FR-016.9~12 | SRS-FR-052 | SDS-MOD-009 | Cardiac CT (CalciumScorer) | ✅ Implemented |
+| FR-016.13~14 | SRS-FR-050 | SDS-MOD-009 | Cardiac CT (CardiacPhaseDetector - EF) | ✅ Implemented |
+| FR-017.1~4 | SRS-FR-053 | SDS-MOD-009, SDS-MOD-007 | Cine MRI (CineOrganizer + TemporalNavigator) | ✅ Implemented |
+| FR-018.1~2 | SRS-FR-054 | SDS-MOD-010 | Export (DataExporter, MeshExporter) | ✅ Implemented |
+| FR-018.3 | SRS-FR-054 | SDS-MOD-010 | Export (MeasurementSerializer, DicomSRWriter) | ✅ Implemented |
+| FR-018.4~5 | SRS-FR-054 | SDS-MOD-010 | Export (EnsightExporter, MatlabExporter) | ✅ Implemented |
+| FR-018.6 | SRS-FR-054 | SDS-MOD-010 | Export (VideoExporter) | ✅ Implemented |
+| FR-018.7 | SRS-FR-054 | SDS-MOD-010 | Export (ReportGenerator) | ✅ Implemented |
 
 ---
 
@@ -3226,7 +3375,16 @@ dicom_viewer/
 │       │   │   ├── label_manager.hpp
 │       │   │   ├── label_map_overlay.hpp
 │       │   │   ├── slice_interpolator.hpp
-│       │   │   └── mpr_segmentation_renderer.hpp
+│       │   │   ├── mpr_segmentation_renderer.hpp
+│       │   │   ├── centerline_tracer.hpp
+│       │   │   ├── level_tracing_tool.hpp
+│       │   │   ├── hollow_tool.hpp
+│       │   │   ├── mask_smoother.hpp
+│       │   │   ├── mask_boolean_operations.hpp
+│       │   │   ├── segmentation_command.hpp
+│       │   │   ├── snapshot_command.hpp
+│       │   │   ├── phase_tracker.hpp
+│       │   │   └── ellipse_roi.hpp
 │       │   ├── render/                 # SDS-MOD-003
 │       │   │   ├── volume_renderer.hpp
 │       │   │   └── surface_renderer.hpp
@@ -3244,12 +3402,15 @@ dicom_viewer/
 │       │   │   ├── dicom_move_scu.hpp
 │       │   │   ├── dicom_store_scp.hpp
 │       │   │   └── pacs_config_manager.hpp
-│       │   ├── export/
+│       │   ├── export/                 # SDS-MOD-010
 │       │   │   ├── report_generator.hpp
 │       │   │   ├── data_exporter.hpp
 │       │   │   ├── measurement_serializer.hpp
 │       │   │   ├── mesh_exporter.hpp
-│       │   │   └── dicom_sr_writer.hpp
+│       │   │   ├── dicom_sr_writer.hpp
+│       │   │   ├── ensight_exporter.hpp
+│       │   │   ├── matlab_exporter.hpp
+│       │   │   └── video_exporter.hpp
 │       │   ├── enhanced_dicom/           # SDS-MOD-008
 │       │   │   ├── enhanced_dicom_parser.hpp
 │       │   │   ├── frame_extractor.hpp
@@ -3285,15 +3446,31 @@ dicom_viewer/
 │           │   ├── viewport_widget.hpp
 │           │   ├── mpr_widget.hpp
 │           │   ├── mpr_view_widget.hpp
-│           │   └── dr_viewer.hpp
+│           │   ├── dr_viewer.hpp
+│           │   ├── phase_slider_widget.hpp
+│           │   ├── sp_mode_toggle.hpp
+│           │   ├── flow_graph_widget.hpp
+│           │   ├── workflow_tab_bar.hpp
+│           │   ├── viewport_layout_manager.hpp
+│           │   ├── display_3d_controller.hpp
+│           │   ├── drop_handler.hpp
+│           │   └── intro_page.hpp
 │           ├── panels/
 │           │   ├── patient_browser.hpp
 │           │   ├── tools_panel.hpp
 │           │   ├── statistics_panel.hpp
-│           │   └── segmentation_panel.hpp
+│           │   ├── segmentation_panel.hpp
+│           │   ├── overlay_control_panel.hpp
+│           │   ├── flow_tool_panel.hpp
+│           │   ├── workflow_panel.hpp
+│           │   └── report_panel.hpp
 │           └── dialogs/
 │               ├── settings_dialog.hpp
-│               └── pacs_config_dialog.hpp
+│               ├── pacs_config_dialog.hpp
+│               ├── quantification_window.hpp
+│               ├── mask_wizard.hpp
+│               ├── mask_wizard_controller.hpp
+│               └── video_export_dialog.hpp
 │
 ├── src/
 │   ├── app/
@@ -3355,7 +3532,10 @@ dicom_viewer/
 │   │   │   ├── data_exporter.cpp
 │   │   │   ├── measurement_serializer.cpp
 │   │   │   ├── mesh_exporter.cpp
-│   │   │   └── dicom_sr_writer.cpp
+│   │   │   ├── dicom_sr_writer.cpp
+│   │   │   ├── ensight_exporter.cpp
+│   │   │   ├── matlab_exporter.cpp
+│   │   │   └── video_exporter.cpp
 │   │   └── flow/
 │   │       ├── flow_dicom_parser.cpp
 │   │       ├── vendor_parsers/
@@ -3459,6 +3639,7 @@ dicom_viewer/
 | 0.4.0 | 2026-02-11 | Development Team | Fixed SRS-FR traceability references throughout (SRS has 42 requirements, not 60); aligned with SRS v0.4.0 |
 | 0.5.0 | 2026-02-11 | Development Team | Added SDS-MOD-007 Flow Analysis Module (7 components), SDS-DATA-006 flow data structures, SDS-SEQ-005~007 flow sequence diagrams; updated ARCH-002/003 and traceability matrices for SRS-FR-043~048 |
 | 0.6.0 | 2026-02-12 | Development Team | Added SDS-MOD-008 (Enhanced DICOM Module, 4 components), SDS-MOD-009 (Cardiac CT Analysis Module, 5 components); updated traceability matrices for SRS-FR-049~053 |
+| 0.7.0 | 2026-02-20 | Development Team | Updated implementation statuses for MOD-007/008/009 to Implemented; added SDS-MOD-010 Export Service Module (8 components); expanded MOD-002 with advanced segmentation tools, MOD-003 with hemodynamic renderers, MOD-006 with 20 additional UI components; updated traceability matrices |
 
 > **Note**: v0.x.x versions are pre-release. Official release starts from v1.0.0.
 

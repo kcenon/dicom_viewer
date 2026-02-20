@@ -1,8 +1,8 @@
 # DICOM Viewer - Product Requirements Document (PRD)
 
-> **Version**: 0.5.0
+> **Version**: 0.6.0
 > **Created**: 2025-12-31
-> **Last Updated**: 2026-02-12
+> **Last Updated**: 2026-02-20
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
 
@@ -107,6 +107,7 @@
 | UC-14 | Radiologist | Calculate Agatston calcium score from non-contrast cardiac CT | P1 |
 | UC-15 | Radiologist | Evaluate cardiac wall motion from cine MRI with temporal playback | P2 |
 | UC-16 | Radiologist | Load Enhanced DICOM multi-frame dataset from modern Siemens/Philips scanner | P0 |
+| UC-17 | Researcher | Export segmentation as STL mesh, measurements as CSV, and generate PDF analysis report | P1 |
 
 ---
 
@@ -741,6 +742,18 @@
 | FR-017.3 | Short-axis stack and long-axis (2CH, 3CH, 4CH) view reconstruction | P2 |
 | FR-017.4 | Cardiac phase-matched display (synchronize multiple cine series) | P3 |
 
+#### FR-018: Data Export and Interoperability
+
+| Requirement | Description |
+|-------------|-------------|
+| FR-018.1 | Image data export in NRRD and DICOM formats with metadata preservation |
+| FR-018.2 | 3D mesh export in STL (binary/ASCII), OBJ, and PLY formats |
+| FR-018.3 | Measurement data serialization in JSON and CSV formats, DICOM Structured Report |
+| FR-018.4 | CFD interoperability export in Ensight Gold format for external analysis tools |
+| FR-018.5 | Research data export in MATLAB .mat format |
+| FR-018.6 | Video export (AVI/MP4/MOV) with configurable FPS, codec, and overlay options |
+| FR-018.7 | Medical report generation in PDF/HTML with customizable templates |
+
 ---
 
 ## 4. Non-Functional Requirements
@@ -979,29 +992,30 @@
 ### 7.1 Release Schedule
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          Release Timeline                                │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│   Phase 1: Foundation    Phase 2: Core     Phase 3: Enhance  Phase 4: Flow│
-│   ─────────────────      ──────────────   ────────────────   ────────────│
-│                                                                         │
-│   v0.1 ─┬─ v0.2 ─┬─ v0.3 ─┬─ v0.4 ─┬─ v0.5 ─┬─ v0.6 ─┬─ v1.0        │
-│   (Pre) │ (Pre)  │ (MVP)  │ (Core) │ (Enh)  │ (Flow) │ (Release)     │
-│   ┌─────┘  ┌─────┘  ┌─────┘  ┌─────┘  ┌─────┘  ┌─────┘               │
-│   │        │        │        │        │        │                       │
-│   Wk 1-2   Wk 3-4   Wk 5-8   Wk 9-12  Wk 13-16 Wk 17-24             │
-│                                                                         │
-│   • Project • DICOM  • MPR    • PACS   • DR/CR  • 4D Flow             │
-│     setup     load   • Volume   integr.• Adv.     DICOM               │
-│   • Basic  • ITK/     render.• Measure   segm.  • Flow viz            │
-│     UI       VTK    • Surface• Basic   • Quant.  • Quantify           │
-│              integr.   render.  segm.    analysis• WSS/TKE            │
-│                      • Presets         • Reports                       │
-│                                                                         │
-│   ※ v0.x.x: Pre-release (in development) / v1.0.0+: Official release  │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          Release Timeline                                        │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│   Phase 1: Foundation    Phase 2: Core     Phase 3: Enhance  Phase 4: Advanced  │
+│   ─────────────────      ──────────────   ────────────────   ──────────────────  │
+│                                                                                 │
+│   v0.1 ─┬─ v0.2 ─┬─ v0.3 ─┬─ v0.4 ─┬─ v0.5 ─┬─ v0.6 ─┬─ v0.7 ─┬─ v1.0      │
+│   (Pre) │ (Pre)  │ (MVP)  │ (Core) │ (Enh)  │ (Flow) │(Card.) │ (Release)   │
+│         │        │  ✅    │  ✅    │  ✅    │  ✅    │  ✅    │              │
+│   ┌─────┘  ┌─────┘  ┌─────┘  ┌─────┘  ┌─────┘  ┌─────┘  ┌─────┘             │
+│   │        │        │        │        │        │        │                     │
+│   Wk 1-2   Wk 3-4   Wk 5-8   Wk 9-12  Wk 13-16 Wk 17-24 Wk 25-32           │
+│                                                                                 │
+│   • Project • DICOM  • MPR    • PACS   • DR/CR  • 4D Flow • Cardiac           │
+│     setup     load   • Volume   integr.• Adv.     DICOM    CT/MRI             │
+│   • Basic  • ITK/     render.• Measure   segm.  • Flow viz• Enhanced          │
+│     UI       VTK    • Surface• Basic   • Quant.  • Quantify  DICOM            │
+│              integr.   render.  segm.    analysis• WSS/TKE • Export            │
+│                      • Presets         • Reports                               │
+│                                                                                 │
+│   ※ v0.x.x: Pre-release (in development) / v1.0.0+: Official release          │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 7.2 Milestone Details
@@ -1153,6 +1167,7 @@ For coordinate system information, see [03-itk-vtk-integration.md](reference/03-
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 | 0.4.0 | 2026-02-11 | Development Team | Added FR-014 (4D Flow MRI Analysis) with 21 sub-requirements; added NFR-016~020 for tiered performance targets; added UC-11, UC-12; added Milestone 5 (v0.6.0) |
 | 0.5.0 | 2026-02-12 | Development Team | Added FR-015 (Enhanced DICOM IOD, 6 sub-reqs), FR-016 (Cardiac CT, 14 sub-reqs), FR-017 (Cine MRI, 4 sub-reqs); added NFR-021~024; added UC-13~16; added Milestone 6 (v0.7.0) |
+| 0.6.0 | 2026-02-20 | Development Team | Added FR-018 (Data Export and Interoperability, 7 sub-reqs); added UC-17; updated release timeline with completion status for v0.3-v0.7 |
 
 > **Note**: v0.x.x are Pre-release versions. Official releases start from v1.0.0.
 
