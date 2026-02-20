@@ -177,6 +177,15 @@ if(EXISTS "${THREAD_SYSTEM_ROOT}/include")
     message(STATUS "Found thread_system at: ${THREAD_SYSTEM_ROOT}")
 endif()
 
+# logger_system for ecosystem logging
+if(NOT LOGGER_SYSTEM_ROOT)
+    set(LOGGER_SYSTEM_ROOT "${CMAKE_SOURCE_DIR}/../logger_system" CACHE PATH "Path to logger_system source")
+endif()
+if(EXISTS "${LOGGER_SYSTEM_ROOT}/include")
+    set(LOGGER_SYSTEM_INCLUDE_DIR "${LOGGER_SYSTEM_ROOT}/include")
+    message(STATUS "Found logger_system at: ${LOGGER_SYSTEM_ROOT}")
+endif()
+
 if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
     message(STATUS "Found pacs_system at: ${PACS_SYSTEM_ROOT}")
     message(STATUS "pacs_system build directory: ${PACS_SYSTEM_BUILD_DIR}")
@@ -369,6 +378,9 @@ add_library(dicom_viewer_core STATIC
 
 target_include_directories(dicom_viewer_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include/core
+    ${COMMON_SYSTEM_INCLUDE_DIR}
+    ${LOGGER_SYSTEM_INCLUDE_DIR}
+    ${THREAD_SYSTEM_INCLUDE_DIR}
 )
 
 target_link_directories(dicom_viewer_core PUBLIC
