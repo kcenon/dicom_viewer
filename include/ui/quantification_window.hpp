@@ -8,7 +8,10 @@
 #include <QMainWindow>
 #include <QRectF>
 
+#include <vtkSmartPointer.h>
+
 class QPainter;
+class vtkImageData;
 
 namespace dicom_viewer::ui {
 
@@ -296,6 +299,19 @@ public:
      * @return True for brush, false for eraser
      */
     [[nodiscard]] bool isBrushActive() const;
+
+    // -- 3D Volume visualization API --
+
+    /**
+     * @brief Set velocity field for 3D streamline rendering in Volume tab
+     * @param velocityField 3D vtkImageData with 3-component velocity vectors
+     */
+    void setVolumeVelocityField(vtkSmartPointer<vtkImageData> velocityField);
+
+    /**
+     * @brief Reset the 3D volume camera to fit all visible actors
+     */
+    void resetVolumeCamera();
 
     // -- Tab API --
 
