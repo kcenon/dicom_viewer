@@ -1,11 +1,11 @@
 # DICOM Viewer - Software Requirements Specification (SRS)
 
-> **Version**: 0.6.0
+> **Version**: 0.7.0
 > **Created**: 2025-12-31
-> **Last Updated**: 2026-02-12
+> **Last Updated**: 2026-02-20
 > **Status**: Draft (Pre-release)
 > **Author**: Development Team
-> **Based on**: [PRD v0.5.0](PRD.md)
+> **Based on**: [PRD v0.6.0](PRD.md)
 
 ---
 
@@ -20,6 +20,8 @@
 | 0.3.0 | 2026-02-11 | Development Team | Replaced DCMTK with pacs_system for DICOM network operations; version sync with build system |
 | 0.4.0 | 2026-02-11 | Development Team | Added SRS-FR-041, SRS-FR-042; fixed PRD traceability gaps |
 | 0.5.0 | 2026-02-11 | Development Team | Added SRS-FR-043~048 (4D Flow MRI), SRS-NFR-021~026; updated traceability |
+| 0.6.0 | 2026-02-12 | Development Team | Added SRS-FR-049~053 (Enhanced DICOM, Cardiac CT, Cine MRI); added SRS-NFR-027~030 |
+| 0.7.0 | 2026-02-20 | Development Team | Added SRS-FR-054 (Data Export Service), SRS-FR-055 (Advanced Segmentation Tools), SRS-FR-056 (Project Management); updated traceability matrices |
 
 ### Referenced Documents
 
@@ -1768,6 +1770,48 @@ struct CineSeriesInfo {
 
 ---
 
+#### SRS-FR-054: Data Export Service
+
+**Traces to**: PRD FR-018
+
+| Sub-ID | Requirement | Description |
+|--------|-------------|-------------|
+| SRS-FR-054.1 | Multi-format image export | Export volumetric data in NRRD format with full metadata preservation; export as DICOM series with proper SOP Instance UID generation |
+| SRS-FR-054.2 | 3D mesh export | Export surface meshes in STL (binary and ASCII modes), OBJ (with material files), and PLY formats; support coordinate system transformation |
+| SRS-FR-054.3 | Measurement serialization | Serialize measurement data to JSON (with schema validation) and CSV (tabular format); support batch export of all measurements |
+| SRS-FR-054.4 | DICOM Structured Report | Generate DICOM SR IOD compliant reports with measurement references and coded terminology |
+| SRS-FR-054.5 | CFD interoperability export | Export velocity fields and mesh data in Ensight Gold format for external CFD analysis tools |
+| SRS-FR-054.6 | Research data export | Export analysis results in MATLAB .mat v5 format including velocity fields, segmentation masks, and measurement data |
+| SRS-FR-054.7 | Video generation | Generate video files (AVI/MP4/MOV) from temporal sequences with configurable FPS (1-60), codec selection, and optional overlay rendering |
+| SRS-FR-054.8 | Report generation | Generate medical imaging reports in PDF and HTML formats with customizable templates, embedded images, and measurement summaries |
+
+#### SRS-FR-055: Advanced Segmentation Tools
+
+**Traces to**: PRD FR-006
+
+| Sub-ID | Requirement | Description |
+|--------|-------------|-------------|
+| SRS-FR-055.1 | Centerline Tracing | Extract vessel centerline between two user-defined seed points using minimal path algorithm on vesselness-enhanced image |
+| SRS-FR-055.2 | Level Tracing | Generate contour by following intensity edge boundary from a seed point; output closed contour at iso-intensity level |
+| SRS-FR-055.3 | Hollow Tool | Create hollow shell from solid segmentation mask with user-configurable wall thickness (1-10 voxels) |
+| SRS-FR-055.4 | Mask Smoothing | Smooth binary segmentation masks using morphological opening/closing with configurable kernel radius |
+| SRS-FR-055.5 | Slice Interpolation | Interpolate segmentation masks between annotated slices using morphological interpolation algorithm |
+| SRS-FR-055.6 | Mask Boolean Operations | Perform union, intersection, difference, and XOR operations between two segmentation masks |
+| SRS-FR-055.7 | Undo/Redo | Command pattern with snapshot-based undo stack; support unlimited undo depth with memory-managed snapshot pruning |
+
+#### SRS-FR-056: Project Management
+
+**Traces to**: PRD FR-011
+
+| Sub-ID | Requirement | Description |
+|--------|-------------|-------------|
+| SRS-FR-056.1 | Project file format | Define .flo project file format as ZIP-based container with manifest, settings, and data references |
+| SRS-FR-056.2 | Project save | Persist patient info, DICOM file references, display settings (window/level, presets), view state (camera, layout), velocity fields, segmentation masks, and analysis results |
+| SRS-FR-056.3 | Project load | Restore complete application state from .flo project file with validation of referenced DICOM data availability |
+| SRS-FR-056.4 | Recent projects | Maintain list of recently opened projects with quick access from File menu and intro page |
+
+---
+
 ## 3. Non-Functional Requirements
 
 ### 3.1 Performance Requirements
@@ -2271,6 +2315,11 @@ See SRS-FR-039 for detailed layout specification.
 | FR-016.9~12 | Calcium scoring | SRS-FR-052 |
 | FR-016.13~14 | Cardiac function (EF) | SRS-FR-050 |
 | FR-017.1~4 | Cine MRI temporal display | SRS-FR-053 |
+| FR-018.1~2 | Data export (image, mesh) | SRS-FR-054 |
+| FR-018.3 | Measurement serialization | SRS-FR-054 |
+| FR-018.4~5 | CFD and research export | SRS-FR-054 |
+| FR-018.6 | Video export | SRS-FR-054 |
+| FR-018.7 | Medical report generation | SRS-FR-054 |
 | NFR-001 | Loading time | SRS-NFR-001 |
 | NFR-002 | Rendering FPS | SRS-NFR-002 |
 | NFR-003 | Slice transition response | SRS-NFR-003 |
@@ -2318,6 +2367,9 @@ See SRS-FR-039 for detailed layout specification.
 | SRS-FR-051 | REF-001, REF-002 |
 | SRS-FR-052 | REF-004 |
 | SRS-FR-053 | REF-004, REF-006 |
+| SRS-FR-054 | REF-004, REF-005 |
+| SRS-FR-055 | REF-001 |
+| SRS-FR-056 | — |
 
 ---
 
@@ -2360,6 +2412,7 @@ See SRS-FR-039 for detailed layout specification.
 | 0.4.0 | 2026-02-11 | Development Team | Added SRS-FR-041 (Histogram Equalization), SRS-FR-042 (Watershed Segmentation); fixed PRD traceability gaps for FR-005.3 and FR-006.6 |
 | 0.5.0 | 2026-02-11 | Development Team | Added SRS-FR-043~048 (4D Flow MRI: DICOM parsing, velocity assembly, phase correction, visualization, quantification, temporal navigation); added SRS-NFR-021~026 (tiered performance targets); updated PRD→SRS and SRS→Reference traceability |
 | 0.6.0 | 2026-02-12 | Development Team | Added SRS-FR-049 (Enhanced DICOM IOD), SRS-FR-050 (ECG-Gated Phase Separation), SRS-FR-051 (Coronary CTA), SRS-FR-052 (Calcium Scoring), SRS-FR-053 (Cine MRI); added SRS-NFR-027~030; updated traceability matrices |
+| 0.7.0 | 2026-02-20 | Development Team | Added SRS-FR-054 (Data Export Service), SRS-FR-055 (Advanced Segmentation Tools), SRS-FR-056 (Project Management); updated traceability matrices |
 
 ---
 
