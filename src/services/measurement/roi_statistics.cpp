@@ -1,5 +1,4 @@
 #include "services/measurement/roi_statistics.hpp"
-#include "core/logging.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -8,17 +7,12 @@
 #include <numeric>
 #include <sstream>
 
+#include <kcenon/common/logging/log_macros.h>
+
 #include <itkImageRegionIterator.h>
 #include <itkLabelStatisticsImageFilter.h>
 
 namespace dicom_viewer::services {
-
-namespace {
-auto& getLogger() {
-    static auto logger = logging::LoggerFactory::create("RoiStatistics");
-    return logger;
-}
-}
 
 // =============================================================================
 // RoiStatistics implementation

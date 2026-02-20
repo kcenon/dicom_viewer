@@ -2,10 +2,11 @@
 #include "services/enhanced_dicom/dimension_index_sorter.hpp"
 #include "services/enhanced_dicom/frame_extractor.hpp"
 #include "services/enhanced_dicom/functional_group_parser.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 
 #include <algorithm>
 #include <cstring>
+#include <format>
 #include <sstream>
 
 #include <gdcmAttribute.h>
@@ -95,14 +96,11 @@ int getIntValue(const gdcm::DataSet& ds, const gdcm::Tag& tag,
 
 class EnhancedDicomParser::Impl {
 public:
-    std::shared_ptr<spdlog::logger> logger;
     FunctionalGroupParser groupParser;
     FrameExtractor frameExtractor;
     DimensionIndexSorter dimensionSorter;
     DimensionOrganization dimOrg;
     ProgressCallback progressCallback;
-
-    Impl() : logger(logging::LoggerFactory::create("EnhancedDicomParser")) {}
 
     void reportProgress(double progress) {
         if (progressCallback) {
@@ -144,14 +142,14 @@ bool EnhancedDicomParser::detectEnhancedIOD(const std::string& sopClassUid) {
 std::expected<EnhancedSeriesInfo, EnhancedDicomError>
 EnhancedDicomParser::parseFile(const std::string& filePath)
 {
-    impl_->logger->info("Parsing Enhanced DICOM file: {}", filePath);
+    LOG_INFO(std::format("Parsing Enhanced DICOM file: {}", filePath));
     impl_->reportProgress(0.0);
 
     // Step 1: Read file header and top-level attributes
     gdcm::Reader reader;
     reader.SetFileName(filePath.c_str());
     if (!reader.Read()) {
-        impl_->logger->error("Failed to read DICOM file: {}", filePath);
+        LOG_ERROR(std::format("Failed to read DICOM file: {}", filePath));
         return std::unexpected(EnhancedDicomError{
             EnhancedDicomError::Code::ParseFailed,
             "Failed to read DICOM file: " + filePath
@@ -165,7 +163,7 @@ EnhancedDicomParser::parseFile(const std::string& filePath)
     // Verify SOP Class UID
     std::string sopClassUid = getStringValue(ds, kSOPClassUID);
     if (!isEnhancedSopClass(sopClassUid)) {
-        impl_->logger->warn("Not an Enhanced IOD: {}", sopClassUid);
+        LOG_WARNING(std::format("Not an Enhanced IOD: {}", sopClassUid));
         return std::unexpected(EnhancedDicomError{
             EnhancedDicomError::Code::NotEnhancedIOD,
             "SOP Class UID " + sopClassUid + " is not an Enhanced IOD"
@@ -206,10 +204,10 @@ EnhancedDicomParser::parseFile(const std::string& filePath)
     // Transfer syntax from file meta information
     info.transferSyntaxUid = getStringValue(header, kTransferSyntaxUID);
 
-    impl_->logger->info(
+    LOG_INFO(std::format(
         "Enhanced {} ({}): {}x{}, {} frames, {} bits",
         enhancedSopClassName(sopClassUid), info.modality,
-        info.columns, info.rows, info.numberOfFrames, info.bitsAllocated);
+        info.columns, info.rows, info.numberOfFrames, info.bitsAllocated));
 
     impl_->reportProgress(0.2);
 
@@ -231,16 +229,16 @@ EnhancedDicomParser::parseFile(const std::string& filePath)
         if (!impl_->dimOrg.dimensions.empty()) {
             info.frames = impl_->dimensionSorter.sortFrames(
                 info.frames, impl_->dimOrg);
-            impl_->logger->info(
+            LOG_INFO(std::format(
                 "Frames sorted by {} dimensions from DimensionIndexSequence",
-                impl_->dimOrg.dimensions.size());
+                impl_->dimOrg.dimensions.size()));
         }
     }
 
     impl_->reportProgress(0.9);
 
-    impl_->logger->info("Enhanced DICOM parsed: {} frames with metadata",
-                        info.frames.size());
+    LOG_INFO(std::format("Enhanced DICOM parsed: {} frames with metadata",
+                        info.frames.size()));
     impl_->reportProgress(1.0);
 
     return info;

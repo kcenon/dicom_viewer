@@ -1,11 +1,13 @@
 #include "core/dicom_loader.hpp"
-#include "core/logging.hpp"
 #include "core/transfer_syntax_decoder.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <map>
 #include <sstream>
+
+#include <kcenon/common/logging/log_macros.h>
 
 #include <gdcmReader.h>
 #include <gdcmTag.h>
@@ -21,11 +23,9 @@ namespace dicom_viewer::core {
 class DicomLoader::Impl {
 public:
     itk::GDCMImageIO::Pointer gdcmIO;
-    std::shared_ptr<spdlog::logger> logger;
 
     Impl()
         : gdcmIO(itk::GDCMImageIO::New())
-        , logger(logging::LoggerFactory::create("DicomLoader"))
     {}
 };
 
@@ -39,10 +39,10 @@ DicomLoader& DicomLoader::operator=(DicomLoader&&) noexcept = default;
 std::expected<DicomMetadata, DicomErrorInfo>
 DicomLoader::loadFile(const std::filesystem::path& filePath)
 {
-    impl_->logger->debug("Loading DICOM file: {}", filePath.string());
+    LOG_DEBUG(std::format("Loading DICOM file: {}", filePath.string()));
 
     if (!std::filesystem::exists(filePath)) {
-        impl_->logger->error("File not found: {}", filePath.string());
+        LOG_ERROR(std::format("File not found: {}", filePath.string()));
         return std::unexpected(DicomErrorInfo{
             DicomError::FileNotFound,
             "File not found: " + filePath.string()
@@ -94,11 +94,11 @@ DicomLoader::loadFile(const std::filesystem::path& filePath)
         metadata_.rescaleSlope = impl_->gdcmIO->GetRescaleSlope();
         metadata_.rescaleIntercept = impl_->gdcmIO->GetRescaleIntercept();
 
-        impl_->logger->info("Loaded DICOM: {}x{}, {}", metadata_.columns, metadata_.rows, metadata_.modality);
+        LOG_INFO(std::format("Loaded DICOM: {}x{}, {}", metadata_.columns, metadata_.rows, metadata_.modality));
         return metadata_;
 
     } catch (const itk::ExceptionObject& e) {
-        impl_->logger->error("Failed to load DICOM file: {}", e.what());
+        LOG_ERROR(std::format("Failed to load DICOM file: {}", e.what()));
         return std::unexpected(DicomErrorInfo{
             DicomError::InvalidDicomFormat,
             std::string("Failed to load DICOM file: ") + e.what()
@@ -206,11 +206,11 @@ SliceInfo extractSliceInfo(const std::filesystem::path& filePath,
 std::expected<std::map<std::string, std::vector<SliceInfo>>, DicomErrorInfo>
 DicomLoader::scanDirectory(const std::filesystem::path& directoryPath)
 {
-    impl_->logger->info("Scanning directory: {}", directoryPath.string());
+    LOG_INFO(std::format("Scanning directory: {}", directoryPath.string()));
 
     if (!std::filesystem::exists(directoryPath) ||
         !std::filesystem::is_directory(directoryPath)) {
-        impl_->logger->error("Directory not found: {}", directoryPath.string());
+        LOG_ERROR(std::format("Directory not found: {}", directoryPath.string()));
         return std::unexpected(DicomErrorInfo{
             DicomError::FileNotFound,
             "Directory not found: " + directoryPath.string()
@@ -227,7 +227,7 @@ DicomLoader::scanDirectory(const std::filesystem::path& directoryPath)
         std::map<std::string, std::vector<SliceInfo>> seriesMap;
 
         const auto& seriesUIDs = namesGenerator->GetSeriesUIDs();
-        impl_->logger->debug("Found {} series in directory", seriesUIDs.size());
+        LOG_DEBUG(std::format("Found {} series in directory", seriesUIDs.size()));
 
         for (const auto& uid : seriesUIDs) {
             const auto& fileNames = namesGenerator->GetFileNames(uid);
@@ -242,14 +242,14 @@ DicomLoader::scanDirectory(const std::filesystem::path& directoryPath)
 
             sortSlices(slices);
             seriesMap[uid] = std::move(slices);
-            impl_->logger->debug("Series {}: {} slices", uid.substr(0, 20), slices.size());
+            LOG_DEBUG(std::format("Series {}: {} slices", uid.substr(0, 20), slices.size()));
         }
 
-        impl_->logger->info("Directory scan complete: {} series found", seriesMap.size());
+        LOG_INFO(std::format("Directory scan complete: {} series found", seriesMap.size()));
         return seriesMap;
 
     } catch (const std::exception& e) {
-        impl_->logger->error("Failed to scan directory: {}", e.what());
+        LOG_ERROR(std::format("Failed to scan directory: {}", e.what()));
         return std::unexpected(DicomErrorInfo{
             DicomError::SeriesAssemblyFailed,
             std::string("Failed to scan directory: ") + e.what()
@@ -260,10 +260,10 @@ DicomLoader::scanDirectory(const std::filesystem::path& directoryPath)
 std::expected<CTImageType::Pointer, DicomErrorInfo>
 DicomLoader::loadCTSeries(const std::vector<SliceInfo>& slices)
 {
-    impl_->logger->info("Loading CT series with {} slices", slices.size());
+    LOG_INFO(std::format("Loading CT series with {} slices", slices.size()));
 
     if (slices.empty()) {
-        impl_->logger->error("No slices provided for CT series");
+        LOG_ERROR("No slices provided for CT series");
         return std::unexpected(DicomErrorInfo{
             DicomError::SeriesAssemblyFailed,
             "No slices provided"
@@ -287,12 +287,12 @@ DicomLoader::loadCTSeries(const std::vector<SliceInfo>& slices)
 
         auto output = reader->GetOutput();
         auto size = output->GetLargestPossibleRegion().GetSize();
-        impl_->logger->info("CT series loaded: {}x{}x{}", size[0], size[1], size[2]);
+        LOG_INFO(std::format("CT series loaded: {}x{}x{}", size[0], size[1], size[2]));
 
         return output;
 
     } catch (const itk::ExceptionObject& e) {
-        impl_->logger->error("Failed to load CT series: {}", e.what());
+        LOG_ERROR(std::format("Failed to load CT series: {}", e.what()));
         return std::unexpected(DicomErrorInfo{
             DicomError::SeriesAssemblyFailed,
             std::string("Failed to load CT series: ") + e.what()
@@ -303,10 +303,10 @@ DicomLoader::loadCTSeries(const std::vector<SliceInfo>& slices)
 std::expected<MRImageType::Pointer, DicomErrorInfo>
 DicomLoader::loadMRSeries(const std::vector<SliceInfo>& slices)
 {
-    impl_->logger->info("Loading MR series with {} slices", slices.size());
+    LOG_INFO(std::format("Loading MR series with {} slices", slices.size()));
 
     if (slices.empty()) {
-        impl_->logger->error("No slices provided for MR series");
+        LOG_ERROR("No slices provided for MR series");
         return std::unexpected(DicomErrorInfo{
             DicomError::SeriesAssemblyFailed,
             "No slices provided"
@@ -330,12 +330,12 @@ DicomLoader::loadMRSeries(const std::vector<SliceInfo>& slices)
 
         auto output = reader->GetOutput();
         auto size = output->GetLargestPossibleRegion().GetSize();
-        impl_->logger->info("MR series loaded: {}x{}x{}", size[0], size[1], size[2]);
+        LOG_INFO(std::format("MR series loaded: {}x{}x{}", size[0], size[1], size[2]));
 
         return output;
 
     } catch (const itk::ExceptionObject& e) {
-        impl_->logger->error("Failed to load MR series: {}", e.what());
+        LOG_ERROR(std::format("Failed to load MR series: {}", e.what()));
         return std::unexpected(DicomErrorInfo{
             DicomError::SeriesAssemblyFailed,
             std::string("Failed to load MR series: ") + e.what()

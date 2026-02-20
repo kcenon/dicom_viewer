@@ -1,6 +1,7 @@
 #include "services/flow/flow_dicom_parser.hpp"
 
 #include <algorithm>
+#include <format>
 #include <map>
 #include <set>
 
@@ -8,17 +9,13 @@
 #include <itkGDCMSeriesFileNames.h>
 #include <itkMetaDataObject.h>
 
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
+
 #include "services/flow/vendor_parsers/ge_flow_parser.hpp"
 #include "services/flow/vendor_parsers/philips_flow_parser.hpp"
 #include "services/flow/vendor_parsers/siemens_flow_parser.hpp"
 
 namespace {
-
-auto& getLogger() {
-    static auto logger = dicom_viewer::logging::LoggerFactory::create("FlowDicomParser");
-    return logger;
-}
 
 std::string getMetaString(const itk::MetaDataDictionary& dict,
                           const std::string& key) {
@@ -120,7 +117,7 @@ bool FlowDicomParser::is4DFlowSeries(
         return indicators >= 2;
 
     } catch (const itk::ExceptionObject& e) {
-        getLogger()->warn("Failed to read DICOM metadata: {}", e.GetDescription());
+        LOG_WARNING(std::format("Failed to read DICOM metadata: {}", e.GetDescription()));
         return false;
     } catch (...) {
         return false;
@@ -160,8 +157,6 @@ FlowVendorType FlowDicomParser::detectVendor(
 
 std::expected<FlowSeriesInfo, FlowError>
 FlowDicomParser::parseSeries(const std::vector<std::string>& dicomFiles) const {
-    auto logger = getLogger();
-
     if (dicomFiles.empty()) {
         return std::unexpected(FlowError{
             FlowError::Code::InvalidInput,
@@ -185,8 +180,8 @@ FlowDicomParser::parseSeries(const std::vector<std::string>& dicomFiles) const {
             "No parser available for vendor: " + vendorToString(vendor)});
     }
 
-    logger->info("Detected vendor: {}, parsing {} files",
-                 vendorToString(vendor), dicomFiles.size());
+    LOG_INFO(std::format("Detected vendor: {}, parsing {} files",
+                         vendorToString(vendor), dicomFiles.size()));
 
     impl_->reportProgress(0.1);
 
@@ -217,8 +212,8 @@ FlowDicomParser::parseSeries(const std::vector<std::string>& dicomFiles) const {
             frames.push_back(std::move(frame));
 
         } catch (const itk::ExceptionObject& e) {
-            logger->warn("Failed to parse frame {}: {}", dicomFiles[i],
-                         e.GetDescription());
+            LOG_WARNING(std::format("Failed to parse frame {}: {}", dicomFiles[i],
+                                    e.GetDescription()));
         }
 
         // Report progress (10% - 70%)
@@ -302,8 +297,8 @@ FlowDicomParser::parseSeries(const std::vector<std::string>& dicomFiles) const {
 
     impl_->reportProgress(1.0);
 
-    logger->info("Parsed 4D Flow series: {} phases, VENC={:.1f} cm/s, {} frames",
-                 info.phaseCount, maxVenc, frames.size());
+    LOG_INFO(std::format("Parsed 4D Flow series: {} phases, VENC={:.1f} cm/s, {} frames",
+                         info.phaseCount, maxVenc, frames.size()));
 
     return info;
 }

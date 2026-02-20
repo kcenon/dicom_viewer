@@ -1,12 +1,14 @@
 #include "services/cardiac/cardiac_phase_detector.hpp"
 #include "services/enhanced_dicom/frame_extractor.hpp"
 #include "core/dicom_loader.hpp"
-#include "core/logging.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <numeric>
 #include <sstream>
+
+#include <kcenon/common/logging/log_macros.h>
 
 #include <itkImageRegionIterator.h>
 
@@ -172,10 +174,7 @@ void sortFramesBySpatialPosition(
 
 class CardiacPhaseDetector::Impl {
 public:
-    std::shared_ptr<spdlog::logger> logger;
     FrameExtractor frameExtractor;
-
-    Impl() : logger(logging::LoggerFactory::create("CardiacPhaseDetector")) {}
 };
 
 CardiacPhaseDetector::CardiacPhaseDetector()
@@ -194,10 +193,10 @@ bool CardiacPhaseDetector::detectECGGating(
     // Check 1: Does any frame have a trigger time?
     for (const auto& frame : series.frames) {
         if (frame.triggerTime.has_value()) {
-            impl_->logger->debug("ECG gating detected: frame {} has trigger "
+            LOG_DEBUG(std::format("ECG gating detected: frame {} has trigger "
                                  "time {}ms",
                                  frame.frameIndex,
-                                 frame.triggerTime.value());
+                                 frame.triggerTime.value()));
             return true;
         }
     }
@@ -205,10 +204,10 @@ bool CardiacPhaseDetector::detectECGGating(
     // Check 2: Does any frame have a temporal position index?
     for (const auto& frame : series.frames) {
         if (frame.temporalPositionIndex.has_value()) {
-            impl_->logger->debug("ECG gating detected: frame {} has temporal "
+            LOG_DEBUG(std::format("ECG gating detected: frame {} has temporal "
                                  "position index {}",
                                  frame.frameIndex,
-                                 frame.temporalPositionIndex.value());
+                                 frame.temporalPositionIndex.value()));
             return true;
         }
     }
@@ -216,14 +215,14 @@ bool CardiacPhaseDetector::detectECGGating(
     // Check 3: Do frames have NominalPercentage dimension index?
     for (const auto& frame : series.frames) {
         if (frame.dimensionIndices.count(cardiac_tag::NominalPercentage) > 0) {
-            impl_->logger->debug("ECG gating detected: frame {} has nominal "
+            LOG_DEBUG(std::format("ECG gating detected: frame {} has nominal "
                                  "percentage dimension index",
-                                 frame.frameIndex);
+                                 frame.frameIndex));
             return true;
         }
     }
 
-    impl_->logger->debug("No ECG gating detected in Enhanced series");
+    LOG_DEBUG("No ECG gating detected in Enhanced series");
     return false;
 }
 
@@ -248,9 +247,9 @@ bool CardiacPhaseDetector::detectECGGating(
         return false;
     }
 
-    impl_->logger->debug("Classic IOD cardiac detection: {} slices, "
+    LOG_DEBUG(std::format("Classic IOD cardiac detection: {} slices, "
                          "modality={}",
-                         classicSeries.size(), first.modality);
+                         classicSeries.size(), first.modality));
 
     // With Classic IOD, we can't easily detect ECG gating without
     // reading the raw DICOM tags. Return false for now; callers should
@@ -261,8 +260,8 @@ bool CardiacPhaseDetector::detectECGGating(
 std::expected<CardiacPhaseResult, CardiacError>
 CardiacPhaseDetector::separatePhases(const EnhancedSeriesInfo& series) const
 {
-    impl_->logger->info("Separating cardiac phases for {} frames",
-                        series.frames.size());
+    LOG_INFO(std::format("Separating cardiac phases for {} frames",
+                        series.frames.size()));
 
     if (series.frames.empty()) {
         return std::unexpected(CardiacError{
@@ -321,9 +320,9 @@ int CardiacPhaseDetector::selectBestPhase(
     }
 
     int idx = findClosestPhase(result.phases, targetPct);
-    impl_->logger->info("Best phase for target {}%: phase {} ({})",
+    LOG_INFO(std::format("Best phase for target {}%: phase {} ({})",
                         targetPct, idx,
-                        idx >= 0 ? result.phases[idx].phaseLabel : "none");
+                        idx >= 0 ? result.phases[idx].phaseLabel : "none"));
     return idx;
 }
 
@@ -334,8 +333,8 @@ CardiacPhaseDetector::buildPhaseVolumes(
     const CardiacPhaseResult& result,
     const EnhancedSeriesInfo& seriesInfo) const
 {
-    impl_->logger->info("Building {} phase volumes from {}",
-                        result.phases.size(), seriesInfo.filePath);
+    LOG_INFO(std::format("Building {} phase volumes from {}",
+                        result.phases.size(), seriesInfo.filePath));
 
     std::vector<std::pair<CardiacPhaseInfo, itk::Image<short, 3>::Pointer>>
         volumes;
@@ -343,8 +342,8 @@ CardiacPhaseDetector::buildPhaseVolumes(
 
     for (const auto& phase : result.phases) {
         if (phase.frameIndices.empty()) {
-            impl_->logger->warn("Phase {} has no frames, skipping",
-                                phase.phaseIndex);
+            LOG_WARNING(std::format("Phase {} has no frames, skipping",
+                                phase.phaseIndex));
             continue;
         }
 
@@ -363,7 +362,7 @@ CardiacPhaseDetector::buildPhaseVolumes(
         volumes.emplace_back(phase, volumeResult.value());
     }
 
-    impl_->logger->info("Built {} phase volumes successfully", volumes.size());
+    LOG_INFO(std::format("Built {} phase volumes successfully", volumes.size()));
     return volumes;
 }
 
@@ -413,8 +412,8 @@ CardiacPhaseDetector::estimateEjectionFraction(
     double edVolume = edCount * edVoxelVol;  // mL
     double esVolume = esCount * esVoxelVol;  // mL
 
-    impl_->logger->info("EF estimation: EDV={:.1f}mL, ESV={:.1f}mL",
-                        edVolume, esVolume);
+    LOG_INFO(std::format("EF estimation: EDV={:.1f}mL, ESV={:.1f}mL",
+                        edVolume, esVolume));
 
     if (edVolume <= 0.0) {
         return std::unexpected(CardiacError{
@@ -424,7 +423,7 @@ CardiacPhaseDetector::estimateEjectionFraction(
     }
 
     double ef = (edVolume - esVolume) / edVolume * 100.0;
-    impl_->logger->info("Estimated EF: {:.1f}%", ef);
+    LOG_INFO(std::format("Estimated EF: {:.1f}%", ef));
     return ef;
 }
 
@@ -463,10 +462,10 @@ CardiacPhaseDetector::buildResultFromNominalGroups(
     result.bestSystolicPhase = findClosestPhase(
         result.phases, cardiac_constants::kSystoleOptimal);
 
-    impl_->logger->info("Phase separation by nominal %: {} phases, "
+    LOG_INFO(std::format("Phase separation by nominal %: {} phases, "
                         "{} slices/phase, R-R={:.0f}ms",
                         result.phases.size(), result.slicesPerPhase,
-                        result.rrInterval);
+                        result.rrInterval));
 
     return result;
 }
@@ -523,10 +522,10 @@ CardiacPhaseDetector::buildResultFromTriggerTimeClusters(
     result.bestSystolicPhase = findClosestPhase(
         result.phases, cardiac_constants::kSystoleOptimal);
 
-    impl_->logger->info("Phase separation by trigger time: {} phases, "
+    LOG_INFO(std::format("Phase separation by trigger time: {} phases, "
                         "{} slices/phase, R-R={:.0f}ms",
                         result.phases.size(), result.slicesPerPhase,
-                        result.rrInterval);
+                        result.rrInterval));
 
     return result;
 }
@@ -604,9 +603,9 @@ CardiacPhaseDetector::buildResultFromTemporalGroups(
     result.bestSystolicPhase = findClosestPhase(
         result.phases, cardiac_constants::kSystoleOptimal);
 
-    impl_->logger->info("Phase separation by temporal index: {} phases, "
+    LOG_INFO(std::format("Phase separation by temporal index: {} phases, "
                         "{} slices/phase",
-                        result.phases.size(), result.slicesPerPhase);
+                        result.phases.size(), result.slicesPerPhase));
 
     return result;
 }

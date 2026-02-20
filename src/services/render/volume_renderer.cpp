@@ -1,5 +1,5 @@
 #include "services/volume_renderer.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 
 #include <vtkGPUVolumeRayCastMapper.h>
 #include <vtkSmartVolumeMapper.h>
@@ -12,6 +12,7 @@
 #include <vtkDoubleArray.h>
 #include <vtkNew.h>
 
+#include <format>
 #include <map>
 
 namespace dicom_viewer::services {
@@ -40,7 +41,6 @@ public:
     vtkSmartPointer<vtkPiecewiseFunction> opacityTF;
     vtkSmartPointer<vtkPiecewiseFunction> gradientOpacityTF;
     vtkSmartPointer<vtkPlanes> clippingPlanes;
-    std::shared_ptr<spdlog::logger> logger;
 
     vtkSmartPointer<vtkImageData> inputData;
     bool useGPU = true;
@@ -50,7 +50,7 @@ public:
     // Scalar overlays (name → entry)
     std::map<std::string, ScalarOverlayEntry> overlays;
 
-    Impl() : logger(logging::LoggerFactory::create("VolumeRenderer")) {
+    Impl() {
         volume = vtkSmartPointer<vtkVolume>::New();
         gpuMapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
         smartMapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
@@ -103,7 +103,7 @@ void VolumeRenderer::setInputData(vtkSmartPointer<vtkImageData> imageData)
     impl_->inputData = imageData;
     if (imageData) {
         int* dims = imageData->GetDimensions();
-        impl_->logger->info("Volume data set: {}x{}x{}", dims[0], dims[1], dims[2]);
+        LOG_INFO(std::format("Volume data set: {}x{}x{}", dims[0], dims[1], dims[2]));
     }
     impl_->updateMapper();
 }
@@ -115,7 +115,7 @@ vtkSmartPointer<vtkVolume> VolumeRenderer::getVolume() const
 
 void VolumeRenderer::applyPreset(const TransferFunctionPreset& preset)
 {
-    impl_->logger->info("Applying preset: {}", preset.name);
+    LOG_INFO(std::format("Applying preset: {}", preset.name));
 
     impl_->colorTF->RemoveAllPoints();
     for (const auto& [value, r, g, b] : preset.colorPoints) {
@@ -188,7 +188,7 @@ bool VolumeRenderer::isGPURenderingEnabled() const
 bool VolumeRenderer::validateGPUSupport(vtkSmartPointer<vtkRenderWindow> renderWindow)
 {
     if (!renderWindow) {
-        impl_->logger->warn("No render window provided for GPU validation");
+        LOG_WARNING("No render window provided for GPU validation");
         impl_->gpuValidated = false;
         impl_->updateMapper();
         return false;
@@ -198,7 +198,7 @@ bool VolumeRenderer::validateGPUSupport(vtkSmartPointer<vtkRenderWindow> renderW
         renderWindow, impl_->property);
 
     impl_->gpuValidated = gpuSupported;
-    impl_->logger->info("GPU rendering {}", gpuSupported ? "enabled" : "not supported, using CPU fallback");
+    LOG_INFO(std::format("GPU rendering {}", gpuSupported ? "enabled" : "not supported, using CPU fallback"));
     impl_->updateMapper();
     return impl_->gpuValidated;
 }
@@ -420,7 +420,7 @@ void VolumeRenderer::addScalarOverlay(
     entry.volume->SetProperty(entry.property);
 
     impl_->overlays[name] = std::move(entry);
-    impl_->logger->info("Added scalar overlay: {}", name);
+    LOG_INFO(std::format("Added scalar overlay: {}", name));
 }
 
 bool VolumeRenderer::removeScalarOverlay(const std::string& name)
@@ -431,7 +431,7 @@ bool VolumeRenderer::removeScalarOverlay(const std::string& name)
     }
 
     impl_->overlays.erase(it);
-    impl_->logger->info("Removed scalar overlay: {}", name);
+    LOG_INFO(std::format("Removed scalar overlay: {}", name));
     return true;
 }
 

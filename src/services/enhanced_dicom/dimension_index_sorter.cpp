@@ -1,9 +1,10 @@
 #include "services/enhanced_dicom/dimension_index_sorter.hpp"
 #include "services/enhanced_dicom/frame_extractor.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <numeric>
 
 #include <gdcmDataSet.h>
@@ -84,10 +85,7 @@ double projectOntoNormal(const std::array<double, 3>& position,
 
 class DimensionIndexSorter::Impl {
 public:
-    std::shared_ptr<spdlog::logger> logger;
     FrameExtractor frameExtractor;
-
-    Impl() : logger(logging::LoggerFactory::create("DimensionIndexSorter")) {}
 };
 
 DimensionIndexSorter::DimensionIndexSorter()
@@ -103,7 +101,7 @@ DimensionIndexSorter& DimensionIndexSorter::operator=(
 std::expected<DimensionOrganization, EnhancedDicomError>
 DimensionIndexSorter::parseDimensionIndex(const std::string& filePath)
 {
-    impl_->logger->debug("Parsing DimensionIndexSequence from: {}", filePath);
+    LOG_DEBUG(std::format("Parsing DimensionIndexSequence from: {}", filePath));
 
     gdcm::Reader reader;
     reader.SetFileName(filePath.c_str());
@@ -117,14 +115,14 @@ DimensionIndexSorter::parseDimensionIndex(const std::string& filePath)
     const auto& ds = reader.GetFile().GetDataSet();
 
     if (!ds.FindDataElement(kDimensionIndexSequence)) {
-        impl_->logger->debug("No DimensionIndexSequence found in file");
+        LOG_DEBUG("No DimensionIndexSequence found in file");
         return DimensionOrganization{};  // Empty = no dimension info
     }
 
     const auto& de = ds.GetDataElement(kDimensionIndexSequence);
     auto sq = de.GetValueAsSQ();
     if (!sq || sq->GetNumberOfItems() == 0) {
-        impl_->logger->debug("DimensionIndexSequence is empty");
+        LOG_DEBUG("DimensionIndexSequence is empty");
         return DimensionOrganization{};
     }
 
@@ -146,16 +144,16 @@ DimensionIndexSorter::parseDimensionIndex(const std::string& filePath)
 
         if (def.dimensionIndexPointer != 0) {
             org.dimensions.push_back(std::move(def));
-            impl_->logger->debug(
+            LOG_DEBUG(std::format(
                 "Dimension {}: pointer=0x{:08X}, group=0x{:08X}, desc={}",
                 i, org.dimensions.back().dimensionIndexPointer,
                 org.dimensions.back().functionalGroupPointer,
-                org.dimensions.back().dimensionDescription);
+                org.dimensions.back().dimensionDescription));
         }
     }
 
-    impl_->logger->info("Parsed {} dimensions from DimensionIndexSequence",
-                        org.dimensions.size());
+    LOG_INFO(std::format("Parsed {} dimensions from DimensionIndexSequence",
+                        org.dimensions.size()));
     return org;
 }
 
@@ -169,7 +167,7 @@ std::vector<EnhancedFrameInfo> DimensionIndexSorter::sortFrames(
 
     // If no dimension organization, fall back to spatial sort
     if (dimOrg.dimensions.empty()) {
-        impl_->logger->debug(
+        LOG_DEBUG(
             "No dimension organization; falling back to spatial sort");
         return sortFramesBySpatialPosition(frames);
     }
@@ -209,8 +207,8 @@ std::vector<EnhancedFrameInfo> DimensionIndexSorter::sortFrames(
             return a.frameIndex < b.frameIndex;
         });
 
-    impl_->logger->debug("Sorted {} frames by {} dimensions",
-                         sorted.size(), dimPointers.size());
+    LOG_DEBUG(std::format("Sorted {} frames by {} dimensions",
+                         sorted.size(), dimPointers.size()));
     return sorted;
 }
 
@@ -235,8 +233,8 @@ std::vector<EnhancedFrameInfo> DimensionIndexSorter::sortFramesBySpatialPosition
             return a.frameIndex < b.frameIndex;
         });
 
-    impl_->logger->debug("Sorted {} frames by spatial position",
-                         sorted.size());
+    LOG_DEBUG(std::format("Sorted {} frames by spatial position",
+                         sorted.size()));
     return sorted;
 }
 
@@ -256,8 +254,8 @@ DimensionIndexSorter::groupByDimension(
         groups[value].push_back(frame);
     }
 
-    impl_->logger->debug("Grouped {} frames into {} groups by dimension 0x{:08X}",
-                         frames.size(), groups.size(), dimensionPointer);
+    LOG_DEBUG(std::format("Grouped {} frames into {} groups by dimension 0x{:08X}",
+                         frames.size(), groups.size(), dimensionPointer));
     return groups;
 }
 
@@ -268,8 +266,8 @@ DimensionIndexSorter::reconstructVolumes(
     const EnhancedSeriesInfo& info,
     const DimensionOrganization& dimOrg)
 {
-    impl_->logger->info("Reconstructing volumes from {} frames with {} dimensions",
-                        info.frames.size(), dimOrg.dimensions.size());
+    LOG_INFO(std::format("Reconstructing volumes from {} frames with {} dimensions",
+                        info.frames.size(), dimOrg.dimensions.size()));
 
     if (info.frames.empty()) {
         return std::unexpected(EnhancedDicomError{
@@ -324,19 +322,19 @@ DimensionIndexSorter::reconstructVolumes(
         auto volumeResult = impl_->frameExtractor.assembleVolumeFromFrames(
             info.filePath, info, indices);
         if (!volumeResult) {
-            impl_->logger->error(
+            LOG_ERROR(std::format(
                 "Failed to assemble volume for dimension group {}: {}",
-                groupValue, volumeResult.error().toString());
+                groupValue, volumeResult.error().toString()));
             return std::unexpected(volumeResult.error());
         }
 
         result[groupValue] = volumeResult.value();
-        impl_->logger->debug("Assembled volume for group {}: {} frames",
-                             groupValue, indices.size());
+        LOG_DEBUG(std::format("Assembled volume for group {}: {} frames",
+                             groupValue, indices.size()));
     }
 
-    impl_->logger->info("Reconstructed {} volumes from {} dimension groups",
-                        result.size(), groups.size());
+    LOG_INFO(std::format("Reconstructed {} volumes from {} dimension groups",
+                        result.size(), groups.size()));
     return result;
 }
 

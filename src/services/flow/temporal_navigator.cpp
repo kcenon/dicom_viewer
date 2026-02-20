@@ -2,18 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 
-#include "core/logging.hpp"
-
-namespace {
-
-auto& getLogger() {
-    static auto logger =
-        dicom_viewer::logging::LoggerFactory::create("TemporalNavigator");
-    return logger;
-}
-
-}  // anonymous namespace
+#include <kcenon/common/logging/log_macros.h>
 
 namespace dicom_viewer::services {
 
@@ -190,8 +181,8 @@ void TemporalNavigator::initialize(
     impl_->playback.currentPhase = 0;
     impl_->playback.currentTimeMs = 0.0;
 
-    getLogger()->info("Initialized: {} phases, {:.1f} ms/phase, cache={}",
-                      phaseCount, temporalResolution, cacheWindowSize);
+    LOG_INFO(std::format("Initialized: {} phases, {:.1f} ms/phase, cache={}",
+                         phaseCount, temporalResolution, cacheWindowSize));
 }
 
 void TemporalNavigator::setPhaseLoader(
@@ -272,7 +263,7 @@ void TemporalNavigator::play(double fps) {
     impl_->playback.isPlaying = true;
     impl_->playback.fps = std::clamp(fps, 1.0, 60.0);
     impl_->notifyPlaybackChanged();
-    getLogger()->debug("Playback started: {:.1f} fps", fps);
+    LOG_DEBUG(std::format("Playback started: {:.1f} fps", fps));
 }
 
 void TemporalNavigator::pause() {

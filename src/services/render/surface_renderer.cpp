@@ -1,5 +1,5 @@
 #include "services/surface_renderer.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 
 #include <vtkMarchingCubes.h>
 #include <vtkWindowedSincPolyDataFilter.h>
@@ -14,6 +14,7 @@
 #include <vtkNew.h>
 
 #include <algorithm>
+#include <format>
 #include <stdexcept>
 
 namespace dicom_viewer::services {
@@ -38,9 +39,6 @@ public:
     vtkSmartPointer<vtkImageData> inputData;
     std::vector<SurfaceEntry> surfaces;
     SurfaceQuality quality = SurfaceQuality::Medium;
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("SurfaceRenderer")) {}
 
     SurfaceEntry createSurfaceEntry(const SurfaceConfig& config) {
         SurfaceEntry entry;
@@ -184,7 +182,7 @@ void SurfaceRenderer::setInputData(vtkSmartPointer<vtkImageData> imageData)
     impl_->inputData = imageData;
     if (imageData) {
         int* dims = imageData->GetDimensions();
-        impl_->logger->info("Surface renderer input: {}x{}x{}", dims[0], dims[1], dims[2]);
+        LOG_INFO(std::format("Surface renderer input: {}x{}x{}", dims[0], dims[1], dims[2]));
     }
     for (auto& entry : impl_->surfaces) {
         entry.needsUpdate = true;
@@ -193,7 +191,7 @@ void SurfaceRenderer::setInputData(vtkSmartPointer<vtkImageData> imageData)
 
 size_t SurfaceRenderer::addSurface(const SurfaceConfig& config)
 {
-    impl_->logger->info("Adding surface '{}' with isovalue: {}", config.name, config.isovalue);
+    LOG_INFO(std::format("Adding surface '{}' with isovalue: {}", config.name, config.isovalue));
     auto entry = impl_->createSurfaceEntry(config);
     entry.needsUpdate = true;
     impl_->surfaces.push_back(std::move(entry));
@@ -479,8 +477,8 @@ size_t SurfaceRenderer::addScalarSurface(
     vtkSmartPointer<vtkPolyData> surface,
     const std::string& activeArrayName)
 {
-    impl_->logger->info("Adding scalar surface '{}' with array '{}'",
-                        name, activeArrayName);
+    LOG_INFO(std::format("Adding scalar surface '{}' with array '{}'",
+                        name, activeArrayName));
 
     SurfaceEntry entry;
     entry.config.name = name;

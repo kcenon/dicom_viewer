@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 
 #include <vtkArrowSource.h>
 #include <vtkCellArray.h>
@@ -18,17 +19,7 @@
 #include <vtkStreamTracer.h>
 #include <vtkTubeFilter.h>
 
-#include "core/logging.hpp"
-
-namespace {
-
-auto& getLogger() {
-    static auto logger =
-        dicom_viewer::logging::LoggerFactory::create("FlowVisualizer");
-    return logger;
-}
-
-}  // anonymous namespace
+#include <kcenon/common/logging/log_macros.h>
 
 namespace dicom_viewer::services {
 
@@ -124,7 +115,7 @@ FlowVisualizer::setVelocityField(const VelocityPhase& phase) {
         }
     }
 
-    getLogger()->debug("Velocity field set for phase {}", phase.phaseIndex);
+    LOG_DEBUG(std::format("Velocity field set for phase {}", phase.phaseIndex));
     return {};
 }
 
@@ -173,9 +164,9 @@ FlowVisualizer::generateStreamlines(const StreamlineParams& params) const {
     auto output = vtkSmartPointer<vtkPolyData>::New();
     output->DeepCopy(tubeFilter->GetOutput());
 
-    getLogger()->info("Streamlines: {} cells, {} points",
-                      output->GetNumberOfCells(),
-                      output->GetNumberOfPoints());
+    LOG_INFO(std::format("Streamlines: {} cells, {} points",
+                         output->GetNumberOfCells(),
+                         output->GetNumberOfPoints()));
     return output;
 }
 
@@ -281,9 +272,9 @@ FlowVisualizer::generatePathlines(const std::vector<VelocityPhase>& allPhases,
     output->GetPointData()->AddArray(timeScalars);
     output->GetPointData()->AddArray(magnitudeScalars);
 
-    getLogger()->info("Pathlines: {} lines, {} points from {} seeds",
-                      output->GetNumberOfCells(),
-                      output->GetNumberOfPoints(), numSeeds);
+    LOG_INFO(std::format("Pathlines: {} lines, {} points from {} seeds",
+                         output->GetNumberOfCells(),
+                         output->GetNumberOfPoints(), numSeeds));
     return output;
 }
 
@@ -364,9 +355,9 @@ FlowVisualizer::generateGlyphs(const GlyphParams& params) const {
     auto output = vtkSmartPointer<vtkPolyData>::New();
     output->DeepCopy(glyphFilter->GetOutput());
 
-    getLogger()->info("Glyphs: {} cells from {} sampled points",
-                      output->GetNumberOfCells(),
-                      sampledPoints->GetNumberOfPoints());
+    LOG_INFO(std::format("Glyphs: {} cells from {} sampled points",
+                         output->GetNumberOfCells(),
+                         sampledPoints->GetNumberOfPoints()));
     return output;
 }
 

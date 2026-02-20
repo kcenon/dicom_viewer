@@ -1,6 +1,8 @@
 #include "services/segmentation/level_set_segmenter.hpp"
 #include "services/segmentation/threshold_segmenter.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
+
+#include <format>
 
 #include <itkGeodesicActiveContourLevelSetImageFilter.h>
 #include <itkThresholdSegmentationLevelSetImageFilter.h>
@@ -15,13 +17,6 @@
 #include <cmath>
 
 namespace dicom_viewer::services {
-
-namespace {
-auto& getLogger() {
-    static auto logger = logging::LoggerFactory::create("LevelSetSegmenter");
-    return logger;
-}
-}
 
 namespace {
 
@@ -66,11 +61,11 @@ LevelSetSegmenter::geodesicActiveContour(
     ImageType::Pointer input,
     const LevelSetParameters& params
 ) const {
-    getLogger()->info("Geodesic Active Contour: {} seeds, radius={:.1f}, maxIter={}",
-        params.seedPoints.size(), params.seedRadius, params.maxIterations);
+    LOG_INFO(std::format("Geodesic Active Contour: {} seeds, radius={:.1f}, maxIter={}",
+        params.seedPoints.size(), params.seedRadius, params.maxIterations));
 
     if (!input) {
-        getLogger()->error("Input image is null");
+        LOG_ERROR("Input image is null");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidInput,
             "Input image is null"
@@ -78,7 +73,7 @@ LevelSetSegmenter::geodesicActiveContour(
     }
 
     if (!params.isValid()) {
-        getLogger()->error("Invalid parameters");
+        LOG_ERROR("Invalid parameters");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidParameters,
             "Invalid parameters: check seeds, radius, iterations, and thresholds"
@@ -130,14 +125,14 @@ LevelSetSegmenter::geodesicActiveContour(
             gacFilter->AddObserver(itk::ProgressEvent(), observer);
         }
 
-        getLogger()->debug("Starting level set evolution...");
+        LOG_DEBUG("Starting level set evolution...");
         gacFilter->Update();
 
         auto elapsedIterations = static_cast<int>(gacFilter->GetElapsedIterations());
         auto finalRMS = gacFilter->GetRMSChange();
 
-        getLogger()->info("Level set converged: {} iterations, RMS={:.6f}",
-            elapsedIterations, finalRMS);
+        LOG_INFO(std::format("Level set converged: {} iterations, RMS={:.6f}",
+            elapsedIterations, finalRMS));
 
         // Convert level set to binary mask
         auto mask = levelSetToMask(gacFilter->GetOutput());
@@ -150,14 +145,14 @@ LevelSetSegmenter::geodesicActiveContour(
         return result;
     }
     catch (const itk::ExceptionObject& e) {
-        getLogger()->error("ITK exception: {}", e.GetDescription());
+        LOG_ERROR(std::format("ITK exception: {}", e.GetDescription()));
         return std::unexpected(SegmentationError{
             SegmentationError::Code::ProcessingFailed,
             std::string("ITK exception: ") + e.GetDescription()
         });
     }
     catch (const std::exception& e) {
-        getLogger()->error("Standard exception: {}", e.what());
+        LOG_ERROR(std::format("Standard exception: {}", e.what()));
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InternalError,
             std::string("Standard exception: ") + e.what()
@@ -170,12 +165,12 @@ LevelSetSegmenter::thresholdLevelSet(
     ImageType::Pointer input,
     const ThresholdLevelSetParameters& params
 ) const {
-    getLogger()->info("Threshold Level Set: {} seeds, range=[{:.1f}, {:.1f}], maxIter={}",
+    LOG_INFO(std::format("Threshold Level Set: {} seeds, range=[{:.1f}, {:.1f}], maxIter={}",
         params.seedPoints.size(), params.lowerThreshold, params.upperThreshold,
-        params.maxIterations);
+        params.maxIterations));
 
     if (!input) {
-        getLogger()->error("Input image is null");
+        LOG_ERROR("Input image is null");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidInput,
             "Input image is null"
@@ -183,7 +178,7 @@ LevelSetSegmenter::thresholdLevelSet(
     }
 
     if (!params.isValid()) {
-        getLogger()->error("Invalid parameters");
+        LOG_ERROR("Invalid parameters");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidParameters,
             "Invalid parameters: check seeds, radius, thresholds, and iterations"
@@ -234,14 +229,14 @@ LevelSetSegmenter::thresholdLevelSet(
             thresholdFilter->AddObserver(itk::ProgressEvent(), observer);
         }
 
-        getLogger()->debug("Starting threshold level set evolution...");
+        LOG_DEBUG("Starting threshold level set evolution...");
         thresholdFilter->Update();
 
         auto elapsedIterations = static_cast<int>(thresholdFilter->GetElapsedIterations());
         auto finalRMS = thresholdFilter->GetRMSChange();
 
-        getLogger()->info("Threshold level set converged: {} iterations, RMS={:.6f}",
-            elapsedIterations, finalRMS);
+        LOG_INFO(std::format("Threshold level set converged: {} iterations, RMS={:.6f}",
+            elapsedIterations, finalRMS));
 
         // Convert level set to binary mask
         auto mask = levelSetToMask(thresholdFilter->GetOutput());
@@ -254,14 +249,14 @@ LevelSetSegmenter::thresholdLevelSet(
         return result;
     }
     catch (const itk::ExceptionObject& e) {
-        getLogger()->error("ITK exception: {}", e.GetDescription());
+        LOG_ERROR(std::format("ITK exception: {}", e.GetDescription()));
         return std::unexpected(SegmentationError{
             SegmentationError::Code::ProcessingFailed,
             std::string("ITK exception: ") + e.GetDescription()
         });
     }
     catch (const std::exception& e) {
-        getLogger()->error("Standard exception: {}", e.what());
+        LOG_ERROR(std::format("Standard exception: {}", e.what()));
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InternalError,
             std::string("Standard exception: ") + e.what()
@@ -334,7 +329,7 @@ LevelSetSegmenter::createFeatureImage(
         return sigmoidFilter->GetOutput();
     }
     catch (const itk::ExceptionObject& e) {
-        getLogger()->error("Failed to create feature image: {}", e.GetDescription());
+        LOG_ERROR(std::format("Failed to create feature image: {}", e.GetDescription()));
         return nullptr;
     }
 }
@@ -419,7 +414,7 @@ LevelSetSegmenter::createInitialLevelSet(
         return output;
     }
     catch (const itk::ExceptionObject& e) {
-        getLogger()->error("Failed to create initial level set: {}", e.GetDescription());
+        LOG_ERROR(std::format("Failed to create initial level set: {}", e.GetDescription()));
         return nullptr;
     }
 }

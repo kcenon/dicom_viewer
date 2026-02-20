@@ -1,8 +1,9 @@
 #include "services/enhanced_dicom/frame_extractor.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 
 #include <algorithm>
 #include <cstring>
+#include <format>
 #include <numeric>
 
 #include <gdcmImageReader.h>
@@ -16,9 +17,6 @@ namespace dicom_viewer::services {
 
 class FrameExtractor::Impl {
 public:
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("FrameExtractor")) {}
 };
 
 FrameExtractor::FrameExtractor() : impl_(std::make_unique<Impl>()) {}
@@ -33,7 +31,7 @@ FrameExtractor::extractFrame(const std::string& filePath,
                              int frameIndex,
                              const EnhancedSeriesInfo& info)
 {
-    impl_->logger->debug("Extracting frame {} from {}", frameIndex, filePath);
+    LOG_DEBUG(std::format("Extracting frame {} from {}", frameIndex, filePath));
 
     if (frameIndex < 0 || frameIndex >= info.numberOfFrames) {
         return std::unexpected(EnhancedDicomError{
@@ -134,7 +132,7 @@ FrameExtractor::assembleVolumeFromFrames(
     const EnhancedSeriesInfo& info,
     const std::vector<int>& frameIndices)
 {
-    impl_->logger->info("Assembling volume from {} frames", frameIndices.size());
+    LOG_INFO(std::format("Assembling volume from {} frames", frameIndices.size()));
 
     if (frameIndices.empty()) {
         return std::unexpected(EnhancedDicomError{
@@ -300,8 +298,8 @@ FrameExtractor::assembleVolumeFromFrames(
 
         auto output = importFilter->GetOutput();
         auto size = output->GetLargestPossibleRegion().GetSize();
-        impl_->logger->info("Volume assembled: {}x{}x{}", size[0], size[1],
-                           size[2]);
+        LOG_INFO(std::format("Volume assembled: {}x{}x{}", size[0], size[1],
+                           size[2]));
 
         return output;
 
