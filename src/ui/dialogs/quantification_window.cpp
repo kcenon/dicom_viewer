@@ -26,6 +26,16 @@
 #include <QTextStream>
 #include <QVBoxLayout>
 
+#include <QVTKOpenGLNativeWidget.h>
+#include <vtkActor.h>
+#include <vtkGenericOpenGLRenderWindow.h>
+#include <vtkImageData.h>
+#include <vtkPointSource.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkRenderer.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkStreamTracer.h>
+
 namespace dicom_viewer::ui {
 
 namespace {
@@ -135,6 +145,10 @@ public:
     // 3D Volume tab
     QWidget* volumePanel = nullptr;
     QTableWidget* volumeTable = nullptr;
+    QVTKOpenGLNativeWidget* volumeVtkWidget = nullptr;
+    vtkSmartPointer<vtkGenericOpenGLRenderWindow> volumeRenderWindow;
+    vtkSmartPointer<vtkRenderer> volumeRenderer;
+    vtkSmartPointer<vtkActor> streamlineActor;
 
     // Contour editing toolbar
     QWidget* editToolbar = nullptr;
@@ -378,13 +392,18 @@ void QuantificationWindow::setupUI()
     impl_->volumeTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     impl_->volumeTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     impl_->volumeTable->verticalHeader()->setVisible(false);
-    volumeLayout->addWidget(impl_->volumeTable, 1);
+    volumeLayout->addWidget(impl_->volumeTable);
 
-    auto* volumePlaceholder = new QLabel(tr("3D visualization area"), impl_->volumePanel);
-    volumePlaceholder->setAlignment(Qt::AlignCenter);
-    volumePlaceholder->setStyleSheet(
-        "border: 1px dashed gray; color: gray; min-height: 200px;");
-    volumeLayout->addWidget(volumePlaceholder, 1);
+    // 3D visualization widget (replaces placeholder)
+    impl_->volumeRenderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
+    impl_->volumeRenderer = vtkSmartPointer<vtkRenderer>::New();
+    impl_->volumeRenderer->SetBackground(0.1, 0.1, 0.15);
+    impl_->volumeRenderWindow->AddRenderer(impl_->volumeRenderer);
+
+    impl_->volumeVtkWidget = new QVTKOpenGLNativeWidget(impl_->volumePanel);
+    impl_->volumeVtkWidget->setRenderWindow(impl_->volumeRenderWindow);
+    impl_->volumeVtkWidget->setMinimumHeight(200);
+    volumeLayout->addWidget(impl_->volumeVtkWidget, 1);
 
     impl_->tabWidget->addTab(impl_->volumePanel, tr("3D Volume"));
 }
@@ -908,6 +927,60 @@ int QuantificationWindow::brushSize() const
 bool QuantificationWindow::isBrushActive() const
 {
     return impl_->brushBtn->isChecked();
+}
+
+void QuantificationWindow::setVolumeVelocityField(vtkSmartPointer<vtkImageData> velocityField)
+{
+    if (!velocityField || !impl_->volumeRenderer) return;
+
+    // Remove previous streamline actor
+    if (impl_->streamlineActor) {
+        impl_->volumeRenderer->RemoveActor(impl_->streamlineActor);
+        impl_->streamlineActor = nullptr;
+    }
+
+    // Generate seed points within the data bounds
+    double bounds[6];
+    velocityField->GetBounds(bounds);
+
+    auto seeds = vtkSmartPointer<vtkPointSource>::New();
+    seeds->SetCenter(
+        (bounds[0] + bounds[1]) * 0.5,
+        (bounds[2] + bounds[3]) * 0.5,
+        (bounds[4] + bounds[5]) * 0.5);
+    double radius = std::max({
+        bounds[1] - bounds[0],
+        bounds[3] - bounds[2],
+        bounds[5] - bounds[4]}) * 0.3;
+    seeds->SetRadius(radius);
+    seeds->SetNumberOfPoints(200);
+
+    // Stream tracer
+    auto tracer = vtkSmartPointer<vtkStreamTracer>::New();
+    tracer->SetInputData(velocityField);
+    tracer->SetSourceConnection(seeds->GetOutputPort());
+    tracer->SetIntegrationDirectionToBoth();
+    tracer->SetMaximumPropagation(radius * 3.0);
+    tracer->SetInitialIntegrationStep(0.5);
+    tracer->SetIntegratorTypeToRungeKutta4();
+
+    auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper->SetInputConnection(tracer->GetOutputPort());
+    mapper->ScalarVisibilityOn();
+
+    impl_->streamlineActor = vtkSmartPointer<vtkActor>::New();
+    impl_->streamlineActor->SetMapper(mapper);
+    impl_->volumeRenderer->AddActor(impl_->streamlineActor);
+
+    resetVolumeCamera();
+    impl_->volumeRenderWindow->Render();
+}
+
+void QuantificationWindow::resetVolumeCamera()
+{
+    if (impl_->volumeRenderer) {
+        impl_->volumeRenderer->ResetCamera();
+    }
 }
 
 } // namespace dicom_viewer::ui
