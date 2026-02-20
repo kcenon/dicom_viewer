@@ -1,6 +1,5 @@
 #include "services/export/mesh_exporter.hpp"
 #include "services/export/data_exporter.hpp"
-#include "core/logging.hpp"
 
 #include <QString>
 #include <QFileInfo>
@@ -28,8 +27,11 @@
 #include <vtkTriangleFilter.h>
 
 #include <algorithm>
-#include <set>
 #include <cmath>
+#include <format>
+#include <set>
+
+#include <kcenon/common/logging/log_macros.h>
 
 namespace dicom_viewer::services {
 
@@ -261,17 +263,12 @@ MeshStatistics getMeshStatistics(vtkSmartPointer<vtkPolyData> polyData)
 class MeshExporter::Impl {
 public:
     ProgressCallback progressCallback;
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("MeshExporter")) {}
 
     void reportProgress(double progress, const QString& status) const {
         if (progressCallback) {
             progressCallback(progress, status);
         }
-        if (logger) {
-            logger->debug("{}: {:.1f}%", status.toStdString(), progress * 100.0);
-        }
+        LOG_DEBUG(std::format("{}: {:.1f}%", status.toStdString(), progress * 100.0));
     }
 
     std::expected<void, ExportError> writeSTL(
@@ -411,10 +408,8 @@ public:
         result.volumeMm3 = stats.volumeMm3;
         result.outputPath = outputPath;
 
-        if (logger) {
-            logger->info("Exported mesh: {} vertices, {} triangles, {:.2f} mm² surface area",
-                         result.vertexCount, result.triangleCount, result.surfaceAreaMm2);
-        }
+        LOG_INFO(std::format("Exported mesh: {} vertices, {} triangles, {:.2f} mm² surface area",
+                         result.vertexCount, result.triangleCount, result.surfaceAreaMm2));
 
         return result;
     }
@@ -521,10 +516,8 @@ std::expected<std::vector<MeshExportResult>, ExportError> MeshExporter::exportAl
             results.push_back(*result);
         } else {
             // Log warning but continue with other labels
-            if (impl_->logger) {
-                impl_->logger->warn("Failed to export label {}: {}",
-                                    labelId, result.error().toString());
-            }
+            LOG_WARNING(std::format("Failed to export label {}: {}",
+                                    labelId, result.error().toString()));
         }
     }
 

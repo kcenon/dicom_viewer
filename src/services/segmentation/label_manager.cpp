@@ -1,8 +1,9 @@
 #include "services/segmentation/label_manager.hpp"
 #include "services/segmentation/threshold_segmenter.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 
 #include <algorithm>
+#include <format>
 #include <fstream>
 #include <map>
 #include <mutex>
@@ -23,10 +24,6 @@ namespace dicom_viewer::services {
 
 class LabelManager::Impl {
 public:
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("LabelManager")) {}
-
     // Label storage
     std::map<uint8_t, SegmentationLabel> labels_;
 
@@ -186,7 +183,7 @@ LabelManager::addLabel(const std::string& name, std::optional<LabelColor> color)
 
     auto nextId = pImpl_->getNextLabelId();
     if (!nextId) {
-        pImpl_->logger->error("Maximum label count reached");
+        LOG_ERROR("Maximum label count reached");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidParameters,
             "Maximum number of labels (255) reached"
@@ -201,7 +198,7 @@ LabelManager::addLabel(const std::string& name, std::optional<LabelColor> color)
         SegmentationLabel{id, name, labelColor}
     );
 
-    pImpl_->logger->info("Added label: id={}, name='{}'", id, name);
+    LOG_INFO(std::format("Added label: id={}, name='{}'", id, name));
     pImpl_->notifyLabelChange();
 
     return std::ref(it->second);

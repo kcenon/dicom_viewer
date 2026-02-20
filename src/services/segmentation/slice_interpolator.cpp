@@ -1,6 +1,8 @@
 #include "services/segmentation/slice_interpolator.hpp"
 #include "services/segmentation/threshold_segmenter.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
+
+#include <format>
 
 #include <itkSignedMaurerDistanceMapImageFilter.h>
 #include <itkBinaryThresholdImageFilter.h>
@@ -16,13 +18,6 @@
 #include <cmath>
 
 namespace dicom_viewer::services {
-
-namespace {
-auto& getLogger() {
-    static auto logger = logging::LoggerFactory::create("SliceInterpolator");
-    return logger;
-}
-}  // anonymous namespace
 
 namespace {
 
@@ -69,7 +64,7 @@ std::vector<int> SliceInterpolator::detectAnnotatedSlices(
     std::vector<int> annotatedSlices;
 
     if (!labelMap) {
-        getLogger()->warn("Input label map is null");
+        LOG_WARNING("Input label map is null");
         return annotatedSlices;
     }
 
@@ -77,7 +72,7 @@ std::vector<int> SliceInterpolator::detectAnnotatedSlices(
     auto size = region.GetSize();
     int numSlices = static_cast<int>(size[2]);
 
-    getLogger()->debug("Scanning {} slices for label {}", numSlices, labelId);
+    LOG_DEBUG(std::format("Scanning {} slices for label {}", numSlices, labelId));
 
     for (int z = 0; z < numSlices; ++z) {
         // Extract slice region
@@ -103,8 +98,8 @@ std::vector<int> SliceInterpolator::detectAnnotatedSlices(
         }
     }
 
-    getLogger()->info("Found {} annotated slices for label {}",
-        annotatedSlices.size(), labelId);
+    LOG_INFO(std::format("Found {} annotated slices for label {}",
+        annotatedSlices.size(), labelId));
 
     return annotatedSlices;
 }
@@ -115,7 +110,7 @@ std::vector<uint8_t> SliceInterpolator::detectLabels(
     std::set<uint8_t> labelSet;
 
     if (!labelMap) {
-        getLogger()->warn("Input label map is null");
+        LOG_WARNING("Input label map is null");
         return {};
     }
 
@@ -130,7 +125,7 @@ std::vector<uint8_t> SliceInterpolator::detectLabels(
     }
 
     std::vector<uint8_t> labels(labelSet.begin(), labelSet.end());
-    getLogger()->info("Detected {} unique labels", labels.size());
+    LOG_INFO(std::format("Detected {} unique labels", labels.size()));
 
     return labels;
 }
@@ -140,11 +135,11 @@ SliceInterpolator::interpolate(
     LabelMapType::Pointer labelMap,
     const InterpolationParameters& params
 ) const {
-    getLogger()->info("Starting interpolation with method={}",
-        static_cast<int>(params.method));
+    LOG_INFO(std::format("Starting interpolation with method={}",
+        static_cast<int>(params.method)));
 
     if (!labelMap) {
-        getLogger()->error("Input label map is null");
+        LOG_ERROR("Input label map is null");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidInput,
             "Input label map is null"
@@ -152,7 +147,7 @@ SliceInterpolator::interpolate(
     }
 
     if (!params.isValid()) {
-        getLogger()->error("Invalid interpolation parameters");
+        LOG_ERROR("Invalid interpolation parameters");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidParameters,
             "Invalid interpolation parameters"
@@ -161,17 +156,17 @@ SliceInterpolator::interpolate(
 
     // Determine which labels to process
     std::vector<uint8_t> labelsToProcess = params.labelIds;
-    getLogger()->info("Initial labelsToProcess size: {}", labelsToProcess.size());
+    LOG_INFO(std::format("Initial labelsToProcess size: {}", labelsToProcess.size()));
 
     if (labelsToProcess.empty()) {
-        getLogger()->info("labelsToProcess is empty, detecting labels");
+        LOG_INFO("labelsToProcess is empty, detecting labels");
         labelsToProcess = detectLabels(labelMap);
     }
 
-    getLogger()->info("Final labelsToProcess size: {}", labelsToProcess.size());
+    LOG_INFO(std::format("Final labelsToProcess size: {}", labelsToProcess.size()));
 
     if (labelsToProcess.empty()) {
-        getLogger()->warn("No labels found to interpolate");
+        LOG_WARNING("No labels found to interpolate");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidInput,
             "No labels found in the label map"
@@ -189,11 +184,11 @@ SliceInterpolator::interpolate(
         output.interpolatedMask = duplicator->GetOutput();
         output.interpolatedMask->DisconnectPipeline();
 
-        getLogger()->debug("Processing {} labels", labelsToProcess.size());
+        LOG_DEBUG(std::format("Processing {} labels", labelsToProcess.size()));
 
         // Process each label
         for (uint8_t labelId : labelsToProcess) {
-            getLogger()->debug("Processing label {}", static_cast<int>(labelId));
+            LOG_DEBUG(std::format("Processing label {}", static_cast<int>(labelId)));
 
             // Detect source slices before interpolation
             auto sourceSlices = detectAnnotatedSlices(labelMap, labelId);
@@ -206,8 +201,8 @@ SliceInterpolator::interpolate(
             }
 
             if (sourceSlices.size() < 2) {
-                getLogger()->debug("Label {} has fewer than 2 annotated slices, skipping",
-                    labelId);
+                LOG_DEBUG(std::format("Label {} has fewer than 2 annotated slices, skipping",
+                    labelId));
                 continue;
             }
 
@@ -216,15 +211,15 @@ SliceInterpolator::interpolate(
             try {
                 binaryMask = extractLabel(labelMap, labelId);
             } catch (const std::exception& e) {
-                getLogger()->error("Exception in extractLabel: {}", e.what());
+                LOG_ERROR(std::format("Exception in extractLabel: {}", e.what()));
                 continue;
             } catch (...) {
-                getLogger()->error("Unknown exception in extractLabel");
+                LOG_ERROR("Unknown exception in extractLabel");
                 continue;
             }
 
             if (!binaryMask) {
-                getLogger()->warn("Binary mask extraction failed, skipping label");
+                LOG_WARNING("Binary mask extraction failed, skipping label");
                 continue;
             }
 
@@ -244,7 +239,7 @@ SliceInterpolator::interpolate(
             }
 
             if (!interpolated) {
-                getLogger()->warn("Interpolation failed for label {}", labelId);
+                LOG_WARNING(std::format("Interpolation failed for label {}", labelId));
                 continue;
             }
 
@@ -252,7 +247,7 @@ SliceInterpolator::interpolate(
             auto mergedResult = mergeLabel(output.interpolatedMask, interpolated, labelId);
 
             if (!mergedResult) {
-                getLogger()->error("Merge failed, skipping label");
+                LOG_ERROR("Merge failed, skipping label");
                 continue;
             }
 
@@ -279,12 +274,12 @@ SliceInterpolator::interpolate(
         std::sort(output.sourceSlices.begin(), output.sourceSlices.end());
         std::sort(output.interpolatedSlices.begin(), output.interpolatedSlices.end());
 
-        getLogger()->info("Interpolation complete: {} source slices, {} interpolated slices",
-            output.sourceSlices.size(), output.interpolatedSlices.size());
+        LOG_INFO(std::format("Interpolation complete: {} source slices, {} interpolated slices",
+            output.sourceSlices.size(), output.interpolatedSlices.size()));
 
         return output;
     } catch (const itk::ExceptionObject& e) {
-        getLogger()->error("ITK exception during interpolation: {}", e.what());
+        LOG_ERROR(std::format("ITK exception during interpolation: {}", e.what()));
         return std::unexpected(SegmentationError{
             SegmentationError::Code::ProcessingFailed,
             std::string("ITK exception: ") + e.what()
@@ -371,7 +366,7 @@ SliceInterpolator::morphologicalInterpolation(
     // ITK MorphologicalContourInterpolator requires a remote module that is
     // not part of the standard ITK distribution. Fall back to shape-based
     // interpolation which provides similar results for most use cases.
-    getLogger()->debug("Morphological method uses shape-based interpolation");
+    LOG_DEBUG("Morphological method uses shape-based interpolation");
     return shapeBasedInterpolation(input, labelId);
 }
 
@@ -380,10 +375,10 @@ SliceInterpolator::shapeBasedInterpolation(
     LabelMapType::Pointer input,
     uint8_t labelId
 ) const {
-    getLogger()->debug("Shape-based interpolation for label {}", static_cast<int>(labelId));
+    LOG_DEBUG(std::format("Shape-based interpolation for label {}", static_cast<int>(labelId)));
 
     if (!input) {
-        getLogger()->error("shapeBasedInterpolation: input is null");
+        LOG_ERROR("shapeBasedInterpolation: input is null");
         return nullptr;
     }
 
@@ -392,11 +387,11 @@ SliceInterpolator::shapeBasedInterpolation(
     // Detect annotated slices
     auto annotatedSlices = detectAnnotatedSlices(input, labelId);
     if (annotatedSlices.size() < 2) {
-        getLogger()->debug("Need at least 2 annotated slices for interpolation");
+        LOG_DEBUG("Need at least 2 annotated slices for interpolation");
         return input;  // Return input unchanged
     }
 
-    getLogger()->debug("Interpolating {} annotated slices", annotatedSlices.size());
+    LOG_DEBUG(std::format("Interpolating {} annotated slices", annotatedSlices.size()));
 
     // Create output image initialized to zero
     auto output = LabelMapType::New();
@@ -439,8 +434,8 @@ SliceInterpolator::shapeBasedInterpolation(
             int gapSize = nextSlice - currentSlice - 1;
 
             if (gapSize > 0) {
-                getLogger()->debug("shapeBasedInterpolation: Interpolating slices {} to {}",
-                    currentSlice + 1, nextSlice - 1);
+                LOG_DEBUG(std::format("shapeBasedInterpolation: Interpolating slices {} to {}",
+                    currentSlice + 1, nextSlice - 1));
 
                 // Compute distance maps for current and next slice regions
                 // For simplicity, use linear blending of the two slices' shapes
@@ -510,7 +505,7 @@ SliceInterpolator::linearInterpolation(
     LabelMapType::Pointer input,
     uint8_t labelId
 ) const {
-    getLogger()->debug("Linear interpolation for label {}", static_cast<int>(labelId));
+    LOG_DEBUG(std::format("Linear interpolation for label {}", static_cast<int>(labelId)));
 
     // Linear interpolation fills gaps smoothly between annotated slices
     // using linear blending based on position
@@ -518,7 +513,7 @@ SliceInterpolator::linearInterpolation(
     // Detect annotated slices for this label
     auto annotatedSlices = detectAnnotatedSlices(input, labelId);
     if (annotatedSlices.size() < 2) {
-        getLogger()->warn("Need at least 2 annotated slices for linear interpolation");
+        LOG_WARNING("Need at least 2 annotated slices for linear interpolation");
         return input;  // Return input unchanged
     }
 
@@ -614,7 +609,7 @@ SliceInterpolator::extractLabel(
     uint8_t labelId
 ) const {
     if (!labelMap) {
-        getLogger()->error("extractLabel: labelMap is null");
+        LOG_ERROR("extractLabel: labelMap is null");
         return nullptr;
     }
 
@@ -633,7 +628,7 @@ SliceInterpolator::extractLabel(
         filterOutput->DisconnectPipeline();
         return filterOutput;
     } catch (const itk::ExceptionObject& e) {
-        getLogger()->error("Label extraction failed: {}", e.what());
+        LOG_ERROR(std::format("Label extraction failed: {}", e.what()));
         return nullptr;
     }
 }
@@ -649,7 +644,7 @@ SliceInterpolator::mergeLabel(
     auto interpRegion = interpolated->GetLargestPossibleRegion();
 
     if (labelRegion.GetSize() != interpRegion.GetSize()) {
-        getLogger()->error("Region size mismatch in mergeLabel");
+        LOG_ERROR("Region size mismatch in mergeLabel");
         return nullptr;
     }
 
@@ -710,7 +705,7 @@ SliceInterpolator::extractSlice(
         extractor->Update();
         return extractor->GetOutput();
     } catch (const itk::ExceptionObject& e) {
-        getLogger()->error("Slice extraction failed: {}", e.what());
+        LOG_ERROR(std::format("Slice extraction failed: {}", e.what()));
         return nullptr;
     }
 }

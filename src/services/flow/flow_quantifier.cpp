@@ -3,18 +3,13 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <numeric>
 
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 
 namespace {
-
-auto& getLogger() {
-    static auto logger =
-        dicom_viewer::logging::LoggerFactory::create("FlowQuantifier");
-    return logger;
-}
 
 /// Generate orthogonal basis vectors for a plane given its normal
 void computePlaneBasis(const std::array<double, 3>& normal,
@@ -192,13 +187,13 @@ FlowQuantifier::measureFlow(const VelocityPhase& phase) const {
         result.minVelocity = 0.0;
     }
 
-    getLogger()->debug("Phase {}: flow={:.2f} mL/s, mean_v={:.2f} cm/s, "
-                       "max_v={:.2f} cm/s, min_v={:.2f} cm/s, "
-                       "std_v={:.2f} cm/s, roi={:.1f} mm², samples={}",
-                       result.phaseIndex, result.flowRate,
-                       result.meanVelocity, result.maxVelocity,
-                       result.minVelocity, result.stdVelocity,
-                       result.roiAreaMm2, result.sampleCount);
+    LOG_DEBUG(std::format("Phase {}: flow={:.2f} mL/s, mean_v={:.2f} cm/s, "
+                          "max_v={:.2f} cm/s, min_v={:.2f} cm/s, "
+                          "std_v={:.2f} cm/s, roi={:.1f} mm2, samples={}",
+                          result.phaseIndex, result.flowRate,
+                          result.meanVelocity, result.maxVelocity,
+                          result.minVelocity, result.stdVelocity,
+                          result.roiAreaMm2, result.sampleCount));
 
     return result;
 }
@@ -283,10 +278,10 @@ FlowQuantifier::computeTimeVelocityCurve(
         tvc.regurgitantFraction = (backwardFlow / forwardFlow) * 100.0;
     }
 
-    getLogger()->info("TVC: {} phases, SV={:.1f} mL, RV={:.1f} mL, "
-                      "RF={:.1f}%",
-                      phases.size(), tvc.strokeVolume,
-                      tvc.regurgitantVolume, tvc.regurgitantFraction);
+    LOG_INFO(std::format("TVC: {} phases, SV={:.1f} mL, RV={:.1f} mL, "
+                         "RF={:.1f}%",
+                         phases.size(), tvc.strokeVolume,
+                         tvc.regurgitantVolume, tvc.regurgitantFraction));
 
     return tvc;
 }
@@ -399,8 +394,8 @@ FlowQuantifier::extractHeartRate(const std::vector<VelocityPhase>& phases,
 
     double heartRate = 60000.0 / rrIntervalMs;  // BPM
 
-    getLogger()->info("Heart rate: {:.1f} BPM (RR={:.1f} ms, phases={})",
-                      heartRate, rrIntervalMs, phases.size());
+    LOG_INFO(std::format("Heart rate: {:.1f} BPM (RR={:.1f} ms, phases={})",
+                         heartRate, rrIntervalMs, phases.size()));
 
     return heartRate;
 }

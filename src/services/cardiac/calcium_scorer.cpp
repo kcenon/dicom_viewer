@@ -1,9 +1,11 @@
 #include "services/cardiac/calcium_scorer.hpp"
-#include "core/logging.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <numeric>
+
+#include <kcenon/common/logging/log_macros.h>
 
 #include <itkBinaryThresholdImageFilter.h>
 #include <itkConnectedComponentImageFilter.h>
@@ -18,9 +20,6 @@ using MaskImageType = itk::Image<uint8_t, 3>;
 
 class CalciumScorer::Impl {
 public:
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("CalciumScorer")) {}
 };
 
 CalciumScorer::CalciumScorer()
@@ -67,7 +66,7 @@ CalciumScorer::computeAgatston(ImageType::Pointer image,
         });
     }
 
-    impl_->logger->info("Computing Agatston calcium score...");
+    LOG_INFO("Computing Agatston calcium score...");
 
     auto spacing = image->GetSpacing();
     double pixelAreaMM2 = spacing[0] * spacing[1];
@@ -95,8 +94,8 @@ CalciumScorer::computeAgatston(ImageType::Pointer image,
     auto labelImage = connected->GetOutput();
     unsigned int numComponents = connected->GetObjectCount();
 
-    impl_->logger->debug("Found {} connected components above 130 HU",
-                         numComponents);
+    LOG_DEBUG(std::format("Found {} connected components above 130 HU",
+                         numComponents));
 
     if (numComponents == 0) {
         CalciumScoreResult result;
@@ -105,7 +104,7 @@ CalciumScorer::computeAgatston(ImageType::Pointer image,
         result.massScore = 0.0;
         result.riskCategory = classifyRisk(0.0);
         result.lesionCount = 0;
-        impl_->logger->info("No calcification detected");
+        LOG_INFO("No calcification detected");
         return result;
     }
 
@@ -202,10 +201,10 @@ CalciumScorer::computeAgatston(ImageType::Pointer image,
     result.lesionCount = static_cast<int>(result.lesions.size());
     result.riskCategory = classifyRisk(result.totalAgatston);
 
-    impl_->logger->info("Calcium scoring complete: Agatston={:.1f}, "
+    LOG_INFO(std::format("Calcium scoring complete: Agatston={:.1f}, "
                         "{} lesions, risk={}",
                         result.totalAgatston, result.lesionCount,
-                        result.riskCategory);
+                        result.riskCategory));
 
     return result;
 }
@@ -232,7 +231,7 @@ CalciumScorer::computeVolumeScore(ImageType::Pointer image) const
         }
     }
 
-    impl_->logger->debug("Volume score: {:.2f} mm³", totalVolume);
+    LOG_DEBUG(std::format("Volume score: {:.2f} mm³", totalVolume));
     return totalVolume;
 }
 
@@ -270,7 +269,7 @@ CalciumScorer::computeMassScore(ImageType::Pointer image,
         }
     }
 
-    impl_->logger->debug("Mass score: {:.2f} mg", totalMass);
+    LOG_DEBUG(std::format("Mass score: {:.2f} mg", totalMass));
     return totalMass;
 }
 

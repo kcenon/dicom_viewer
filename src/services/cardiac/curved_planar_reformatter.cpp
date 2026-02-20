@@ -1,8 +1,10 @@
 #include "services/cardiac/curved_planar_reformatter.hpp"
-#include "core/logging.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <format>
+
+#include <kcenon/common/logging/log_macros.h>
 
 #include <itkImageRegionConstIterator.h>
 #include <itkLinearInterpolateImageFunction.h>
@@ -15,10 +17,6 @@ using InterpolatorType = itk::LinearInterpolateImageFunction<ImageType, double>;
 
 class CurvedPlanarReformatter::Impl {
 public:
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("CurvedPlanarReformatter")) {}
-
     // Interpolate point along centerline at given arc length fraction
     static CenterlinePoint interpolateAlongCenterline(
         const std::vector<CenterlinePoint>& points,
@@ -131,8 +129,8 @@ CurvedPlanarReformatter::generateStraightenedCPR(
         });
     }
 
-    impl_->logger->info("Generating straightened CPR: width={:.1f}mm, res={:.2f}mm",
-                         samplingWidth, samplingResolution);
+    LOG_INFO(std::format("Generating straightened CPR: width={:.1f}mm, res={:.2f}mm",
+                         samplingWidth, samplingResolution));
 
     const auto& points = centerline.points;
     int n = static_cast<int>(points.size());
@@ -189,8 +187,8 @@ CurvedPlanarReformatter::generateStraightenedCPR(
         }
     }
 
-    impl_->logger->info("Straightened CPR generated: {}x{} pixels",
-                         widthPixels, heightPixels);
+    LOG_INFO(std::format("Straightened CPR generated: {}x{} pixels",
+                         widthPixels, heightPixels));
     return cprImage;
 }
 
@@ -236,8 +234,8 @@ CurvedPlanarReformatter::generateCrossSectionalCPR(
     int numSections = static_cast<int>(totalLength / interval) + 1;
     int sectionPixels = static_cast<int>(2.0 * crossSectionSize / samplingResolution) + 1;
 
-    impl_->logger->info("Generating {} cross-sections (interval={:.1f}mm, size={}x{} pixels)",
-                         numSections, interval, sectionPixels, sectionPixels);
+    LOG_INFO(std::format("Generating {} cross-sections (interval={:.1f}mm, size={}x{} pixels)",
+                         numSections, interval, sectionPixels, sectionPixels));
 
     auto interp = InterpolatorType::New();
     interp->SetInputImage(volume);
@@ -285,7 +283,7 @@ CurvedPlanarReformatter::generateCrossSectionalCPR(
         sections.push_back(section);
     }
 
-    impl_->logger->info("Generated {} cross-sectional CPR views", sections.size());
+    LOG_INFO(std::format("Generated {} cross-sectional CPR views", sections.size()));
     return sections;
 }
 
@@ -314,8 +312,8 @@ CurvedPlanarReformatter::generateStretchedCPR(
         });
     }
 
-    impl_->logger->info("Generating stretched CPR: width={:.1f}mm, res={:.2f}mm",
-                         samplingWidth, samplingResolution);
+    LOG_INFO(std::format("Generating stretched CPR: width={:.1f}mm, res={:.2f}mm",
+                         samplingWidth, samplingResolution));
 
     const auto& points = centerline.points;
     int n = static_cast<int>(points.size());
@@ -383,7 +381,7 @@ CurvedPlanarReformatter::generateStretchedCPR(
         }
     }
 
-    impl_->logger->info("Stretched CPR generated: {}x{} pixels", widthPixels, heightPixels);
+    LOG_INFO(std::format("Stretched CPR generated: {}x{} pixels", widthPixels, heightPixels));
     return cprImage;
 }
 

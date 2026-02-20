@@ -1,10 +1,12 @@
 #include "services/cardiac/coronary_centerline_extractor.hpp"
-#include "core/logging.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <numeric>
 #include <queue>
+
+#include <kcenon/common/logging/log_macros.h>
 
 #include <itkCastImageFilter.h>
 #include <itkFastMarchingImageFilter.h>
@@ -24,10 +26,6 @@ using HessianImageType = itk::Image<HessianType, 3>;
 
 class CoronaryCenterlineExtractor::Impl {
 public:
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("CoronaryCenterlineExtractor")) {}
-
     // Compute Frangi vesselness for a single scale
     FloatImageType::Pointer computeVesselnessAtScale(
         ImageType::Pointer image, double sigma,
@@ -192,8 +190,8 @@ CoronaryCenterlineExtractor::computeVesselness(
         });
     }
 
-    impl_->logger->info("Computing multi-scale vesselness (sigma {:.1f}-{:.1f}, {} steps)",
-                         params.sigmaMin, params.sigmaMax, params.sigmaSteps);
+    LOG_INFO(std::format("Computing multi-scale vesselness (sigma {:.1f}-{:.1f}, {} steps)",
+                         params.sigmaMin, params.sigmaMax, params.sigmaSteps));
 
     auto region = image->GetLargestPossibleRegion();
 
@@ -215,7 +213,7 @@ CoronaryCenterlineExtractor::computeVesselness(
             sigma = params.sigmaMin * std::pow(params.sigmaMax / params.sigmaMin, t);
         }
 
-        impl_->logger->debug("  Scale sigma={:.2f} mm", sigma);
+        LOG_DEBUG(std::format("  Scale sigma={:.2f} mm", sigma));
 
         auto scaleVesselness = impl_->computeVesselnessAtScale(
             image, sigma, params.alpha, params.beta, params.gamma);
@@ -231,7 +229,7 @@ CoronaryCenterlineExtractor::computeVesselness(
         }
     }
 
-    impl_->logger->info("Vesselness computation complete");
+    LOG_INFO("Vesselness computation complete");
     return maxVesselness;
 }
 
@@ -347,9 +345,9 @@ CoronaryCenterlineExtractor::extractCenterline(
         });
     }
 
-    impl_->logger->info("Extracting centerline from ({:.1f},{:.1f},{:.1f}) to ({:.1f},{:.1f},{:.1f})",
+    LOG_INFO(std::format("Extracting centerline from ({:.1f},{:.1f},{:.1f}) to ({:.1f},{:.1f},{:.1f})",
                          seedPoint[0], seedPoint[1], seedPoint[2],
-                         endPoint[0], endPoint[1], endPoint[2]);
+                         endPoint[0], endPoint[1], endPoint[2]));
 
     // Convert vesselness to speed image: speed = epsilon + vesselness
     auto region = vesselness->GetLargestPossibleRegion();
@@ -435,8 +433,8 @@ CoronaryCenterlineExtractor::extractCenterline(
     Impl::computeFrenetFrame(result.points);
     result.totalLength = computeLength(result.points);
 
-    impl_->logger->info("Centerline extracted: {} points, {:.1f} mm length",
-                         result.points.size(), result.totalLength);
+    LOG_INFO(std::format("Centerline extracted: {} points, {:.1f} mm length",
+                         result.points.size(), result.totalLength));
 
     return result;
 }
@@ -481,8 +479,8 @@ CoronaryCenterlineExtractor::smoothCenterline(
     int numCtrl = std::min(controlPointCount, n);
     if (numCtrl < 4) numCtrl = 4;
 
-    impl_->logger->debug("Smoothing centerline: {} points → {} control points",
-                          n, numCtrl);
+    LOG_DEBUG(std::format("Smoothing centerline: {} points → {} control points",
+                          n, numCtrl));
 
     // Compute arc-length parameterization
     std::vector<double> arcLen(n, 0.0);
@@ -771,9 +769,9 @@ void CoronaryCenterlineExtractor::measureStenosis(
         result.stenosisPercent = std::clamp(result.stenosisPercent, 0.0, 100.0);
     }
 
-    impl_->logger->info("Stenosis: min={:.2f}mm, ref={:.2f}mm, {}%",
+    LOG_INFO(std::format("Stenosis: min={:.2f}mm, ref={:.2f}mm, {}%",
                          result.minLumenDiameter, result.referenceDiameter,
-                         result.stenosisPercent);
+                         result.stenosisPercent));
 }
 
 // =============================================================================

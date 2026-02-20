@@ -365,7 +365,6 @@ find_library(FFTW3_THREADS_LIBRARY fftw3_threads HINTS /opt/homebrew/lib)
 find_package(ZLIB REQUIRED)
 
 add_library(dicom_viewer_core STATIC
-    src/core/logging/logging.cpp
     src/core/dicom/dicom_loader.cpp
     src/core/dicom/series_builder.cpp
     src/core/dicom/transfer_syntax_decoder.cpp
@@ -394,8 +393,6 @@ target_link_libraries(dicom_viewer_core PUBLIC
     ${FFTW3_THREADS_LIBRARY}
     ZLIB::ZLIB
     nlohmann_json::nlohmann_json
-    spdlog::spdlog
-    fmt::fmt
 )
 
 # Coordinate transformation service (unified MPR coordinate system)

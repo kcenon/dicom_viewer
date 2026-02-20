@@ -1,5 +1,5 @@
 #include "services/mpr_renderer.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 #include "services/coordinate/mpr_coordinate_transformer.hpp"
 #include "services/segmentation/mpr_segmentation_renderer.hpp"
 
@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 
 namespace dicom_viewer::services {
 
@@ -84,10 +85,7 @@ public:
     std::unique_ptr<coordinate::MPRCoordinateTransformer> coordinateTransformer;
     std::unique_ptr<MPRSegmentationRenderer> segmentationRenderer;
 
-    // Logger
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("MPRRenderer")) {
+    Impl() {
         coordinateTransformer = std::make_unique<coordinate::MPRCoordinateTransformer>();
         segmentationRenderer = std::make_unique<MPRSegmentationRenderer>();
         lookupTable = vtkSmartPointer<vtkLookupTable>::New();
@@ -389,9 +387,9 @@ void MPRRenderer::setInputData(vtkSmartPointer<vtkImageData> imageData) {
         imageData->GetSpacing(impl_->spacing.data());
 
         int* dims = imageData->GetDimensions();
-        impl_->logger->info("MPR input data: {}x{}x{}, spacing: [{:.2f}, {:.2f}, {:.2f}]",
+        LOG_INFO(std::format("MPR input data: {}x{}x{}, spacing: [{:.2f}, {:.2f}, {:.2f}]",
             dims[0], dims[1], dims[2],
-            impl_->spacing[0], impl_->spacing[1], impl_->spacing[2]);
+            impl_->spacing[0], impl_->spacing[1], impl_->spacing[2]));
 
         for (int i = 0; i < 3; ++i) {
             impl_->reslicers[i]->SetInputData(imageData);

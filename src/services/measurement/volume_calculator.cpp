@@ -1,13 +1,15 @@
 #include "services/measurement/volume_calculator.hpp"
-#include "core/logging.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <fstream>
 #include <iomanip>
 #include <numeric>
 #include <set>
 #include <sstream>
+
+#include <kcenon/common/logging/log_macros.h>
 
 #include <itkImageRegionConstIterator.h>
 #include <itkLabelStatisticsImageFilter.h>
@@ -169,9 +171,6 @@ VolumeComparisonTable::exportToCsv(const std::filesystem::path& filePath) const 
 class VolumeCalculator::Impl {
 public:
     ProgressCallback progressCallback;
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("VolumeCalculator")) {}
 
     // Find all unique label IDs in the label map
     std::set<uint8_t> findAllLabels(LabelMapType::Pointer labelMap) {
@@ -332,10 +331,10 @@ VolumeCalculator::calculate(LabelMapType::Pointer labelMap,
                              uint8_t labelId,
                              const SpacingType& spacing,
                              bool computeSurfaceArea) {
-    impl_->logger->debug("Calculating volume for label {}", labelId);
+    LOG_DEBUG(std::format("Calculating volume for label {}", labelId));
 
     if (!labelMap) {
-        impl_->logger->error("Label map is null");
+        LOG_ERROR("Label map is null");
         return std::unexpected(VolumeError{
             VolumeError::Code::InvalidLabelMap,
             "Label map is null"
@@ -343,7 +342,7 @@ VolumeCalculator::calculate(LabelMapType::Pointer labelMap,
     }
 
     if (labelId == 0) {
-        impl_->logger->error("Label ID 0 is reserved");
+        LOG_ERROR("Label ID 0 is reserved");
         return std::unexpected(VolumeError{
             VolumeError::Code::LabelNotFound,
             "Label ID 0 is reserved for background"
@@ -351,7 +350,7 @@ VolumeCalculator::calculate(LabelMapType::Pointer labelMap,
     }
 
     if (spacing[0] <= 0 || spacing[1] <= 0 || spacing[2] <= 0) {
-        impl_->logger->error("Invalid spacing values");
+        LOG_ERROR("Invalid spacing values");
         return std::unexpected(VolumeError{
             VolumeError::Code::InvalidSpacing,
             "Spacing values must be positive"

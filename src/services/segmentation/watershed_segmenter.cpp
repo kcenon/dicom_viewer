@@ -1,6 +1,8 @@
 #include "services/segmentation/watershed_segmenter.hpp"
 #include "services/segmentation/threshold_segmenter.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
+
+#include <format>
 
 #include <itkWatershedImageFilter.h>
 #include <itkMorphologicalWatershedImageFilter.h>
@@ -18,10 +20,6 @@
 namespace dicom_viewer::services {
 
 namespace {
-auto& getLogger() {
-    static auto logger = logging::LoggerFactory::create("WatershedSegmenter");
-    return logger;
-}
 
 /**
  * @brief ITK progress observer for callback integration
@@ -64,11 +62,11 @@ WatershedSegmenter::segment(
     ImageType::Pointer input,
     const WatershedParameters& params
 ) const {
-    getLogger()->info("Watershed segmentation: level={:.3f}, threshold={:.3f}, sigma={:.2f}",
-                      params.level, params.threshold, params.gradientSigma);
+    LOG_INFO(std::format("Watershed segmentation: level={:.3f}, threshold={:.3f}, sigma={:.2f}",
+                      params.level, params.threshold, params.gradientSigma));
 
     if (!input) {
-        getLogger()->error("Input image is null");
+        LOG_ERROR("Input image is null");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidInput,
             "Input image is null"
@@ -76,7 +74,7 @@ WatershedSegmenter::segment(
     }
 
     if (!params.isValid()) {
-        getLogger()->error("Invalid parameters");
+        LOG_ERROR("Invalid parameters");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidParameters,
             "Invalid watershed parameters"
@@ -103,18 +101,18 @@ WatershedSegmenter::segment(
         result.regionCount = regions.size();
         result.regions = std::move(regions);
 
-        getLogger()->info("Watershed complete: {} regions found", result.regionCount);
+        LOG_INFO(std::format("Watershed complete: {} regions found", result.regionCount));
         return result;
     }
     catch (const itk::ExceptionObject& e) {
-        getLogger()->error("ITK exception: {}", e.GetDescription());
+        LOG_ERROR(std::format("ITK exception: {}", e.GetDescription()));
         return std::unexpected(SegmentationError{
             SegmentationError::Code::ProcessingFailed,
             std::string("ITK exception: ") + e.GetDescription()
         });
     }
     catch (const std::exception& e) {
-        getLogger()->error("Standard exception: {}", e.what());
+        LOG_ERROR(std::format("Standard exception: {}", e.what()));
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InternalError,
             std::string("Standard exception: ") + e.what()
@@ -128,11 +126,11 @@ WatershedSegmenter::segmentWithMarkers(
     LabelMapType::Pointer markers,
     const WatershedParameters& params
 ) const {
-    getLogger()->info("Marker-based watershed segmentation: sigma={:.2f}",
-                      params.gradientSigma);
+    LOG_INFO(std::format("Marker-based watershed segmentation: sigma={:.2f}",
+                      params.gradientSigma));
 
     if (!input) {
-        getLogger()->error("Input image is null");
+        LOG_ERROR("Input image is null");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidInput,
             "Input image is null"
@@ -140,7 +138,7 @@ WatershedSegmenter::segmentWithMarkers(
     }
 
     if (!markers) {
-        getLogger()->error("Marker image is null");
+        LOG_ERROR("Marker image is null");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidInput,
             "Marker image is null"
@@ -151,7 +149,7 @@ WatershedSegmenter::segmentWithMarkers(
     auto inputSize = input->GetLargestPossibleRegion().GetSize();
     auto markerSize = markers->GetLargestPossibleRegion().GetSize();
     if (inputSize != markerSize) {
-        getLogger()->error("Input and marker dimensions do not match");
+        LOG_ERROR("Input and marker dimensions do not match");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidInput,
             "Input and marker image dimensions must match"
@@ -159,7 +157,7 @@ WatershedSegmenter::segmentWithMarkers(
     }
 
     if (!params.isValid()) {
-        getLogger()->error("Invalid parameters");
+        LOG_ERROR("Invalid parameters");
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InvalidParameters,
             "Invalid watershed parameters"
@@ -186,18 +184,18 @@ WatershedSegmenter::segmentWithMarkers(
         result.regionCount = regions.size();
         result.regions = std::move(regions);
 
-        getLogger()->info("Marker watershed complete: {} regions found", result.regionCount);
+        LOG_INFO(std::format("Marker watershed complete: {} regions found", result.regionCount));
         return result;
     }
     catch (const itk::ExceptionObject& e) {
-        getLogger()->error("ITK exception: {}", e.GetDescription());
+        LOG_ERROR(std::format("ITK exception: {}", e.GetDescription()));
         return std::unexpected(SegmentationError{
             SegmentationError::Code::ProcessingFailed,
             std::string("ITK exception: ") + e.GetDescription()
         });
     }
     catch (const std::exception& e) {
-        getLogger()->error("Standard exception: {}", e.what());
+        LOG_ERROR(std::format("Standard exception: {}", e.what()));
         return std::unexpected(SegmentationError{
             SegmentationError::Code::InternalError,
             std::string("Standard exception: ") + e.what()

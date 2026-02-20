@@ -1,7 +1,8 @@
 #include "services/enhanced_dicom/functional_group_parser.hpp"
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 
 #include <algorithm>
+#include <format>
 #include <sstream>
 #include <string>
 
@@ -112,9 +113,6 @@ std::vector<int> parseDimensionIndexValues(const gdcm::DataSet& ds) {
 
 class FunctionalGroupParser::Impl {
 public:
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("FunctionalGroupParser")) {}
 };
 
 FunctionalGroupParser::FunctionalGroupParser()
@@ -130,13 +128,13 @@ FunctionalGroupParser& FunctionalGroupParser::operator=(
 void FunctionalGroupParser::parseSharedGroups(const std::string& filePath,
                                               EnhancedSeriesInfo& info)
 {
-    impl_->logger->debug("Parsing shared functional groups from: {}", filePath);
+    LOG_DEBUG(std::format("Parsing shared functional groups from: {}", filePath));
 
     gdcm::Reader reader;
     reader.SetFileName(filePath.c_str());
     if (!reader.Read()) {
-        impl_->logger->warn("Failed to read DICOM file for shared groups: {}",
-                            filePath);
+        LOG_WARNING(std::format("Failed to read DICOM file for shared groups: {}",
+                            filePath));
         return;
     }
 
@@ -145,7 +143,7 @@ void FunctionalGroupParser::parseSharedGroups(const std::string& filePath,
     // Get SharedFunctionalGroupsSequence (5200,9229)
     const auto* sharedItem = getFirstSequenceItem(ds, kSharedFunctionalGroups);
     if (sharedItem == nullptr) {
-        impl_->logger->debug("No SharedFunctionalGroupsSequence found");
+        LOG_DEBUG("No SharedFunctionalGroupsSequence found");
         return;
     }
 
@@ -172,8 +170,8 @@ void FunctionalGroupParser::parseSharedGroups(const std::string& filePath,
             } catch (...) {}
         }
 
-        impl_->logger->debug("Shared pixel spacing: {}x{}", info.pixelSpacingX,
-                             info.pixelSpacingY);
+        LOG_DEBUG(std::format("Shared pixel spacing: {}x{}", info.pixelSpacingX,
+                             info.pixelSpacingY));
     }
 
     // Parse PixelValueTransformationSequence → rescale slope/intercept
@@ -216,7 +214,7 @@ void FunctionalGroupParser::parseSharedGroups(const std::string& filePath,
         }
     }
 
-    impl_->logger->debug("Shared functional groups parsed successfully");
+    LOG_DEBUG("Shared functional groups parsed successfully");
 }
 
 std::vector<EnhancedFrameInfo> FunctionalGroupParser::parsePerFrameGroups(
@@ -224,8 +222,8 @@ std::vector<EnhancedFrameInfo> FunctionalGroupParser::parsePerFrameGroups(
     int numberOfFrames,
     const EnhancedSeriesInfo& sharedInfo)
 {
-    impl_->logger->debug("Parsing per-frame functional groups ({} frames)",
-                         numberOfFrames);
+    LOG_DEBUG(std::format("Parsing per-frame functional groups ({} frames)",
+                         numberOfFrames));
 
     std::vector<EnhancedFrameInfo> frames(numberOfFrames);
 
@@ -239,8 +237,8 @@ std::vector<EnhancedFrameInfo> FunctionalGroupParser::parsePerFrameGroups(
     gdcm::Reader reader;
     reader.SetFileName(filePath.c_str());
     if (!reader.Read()) {
-        impl_->logger->error(
-            "Failed to read DICOM file for per-frame groups: {}", filePath);
+        LOG_ERROR(std::format(
+            "Failed to read DICOM file for per-frame groups: {}", filePath));
         return frames;
     }
 
@@ -248,14 +246,14 @@ std::vector<EnhancedFrameInfo> FunctionalGroupParser::parsePerFrameGroups(
 
     // Get PerFrameFunctionalGroupsSequence (5200,9230)
     if (!ds.FindDataElement(kPerFrameFunctionalGroups)) {
-        impl_->logger->warn("No PerFrameFunctionalGroupsSequence found");
+        LOG_WARNING("No PerFrameFunctionalGroupsSequence found");
         return frames;
     }
 
     const auto& de = ds.GetDataElement(kPerFrameFunctionalGroups);
     auto sq = de.GetValueAsSQ();
     if (!sq) {
-        impl_->logger->warn(
+        LOG_WARNING(
             "PerFrameFunctionalGroupsSequence is not a valid sequence");
         return frames;
     }
@@ -357,7 +355,7 @@ std::vector<EnhancedFrameInfo> FunctionalGroupParser::parsePerFrameGroups(
         }
     }
 
-    impl_->logger->debug("Parsed per-frame groups for {} frames", itemCount);
+    LOG_DEBUG(std::format("Parsed per-frame groups for {} frames", itemCount));
     return frames;
 }
 

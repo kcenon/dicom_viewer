@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <numeric>
 
 #include <vtkCellArray.h>
@@ -12,17 +13,7 @@
 #include <vtkPolyData.h>
 #include <vtkPolyDataNormals.h>
 
-#include "core/logging.hpp"
-
-namespace {
-
-auto& getLogger() {
-    static auto logger =
-        dicom_viewer::logging::LoggerFactory::create("VesselAnalyzer");
-    return logger;
-}
-
-}  // anonymous namespace
+#include <kcenon/common/logging/log_macros.h>
 
 namespace dicom_viewer::services {
 
@@ -253,8 +244,8 @@ VesselAnalyzer::computeWSS(const VelocityPhase& phase,
     result.lowWSSArea = lowWSSArea;
     result.wallVertexCount = validCount;
 
-    getLogger()->debug("WSS: mean={:.4f} Pa, max={:.4f} Pa, lowArea={:.2f} cm², vertices={}",
-                       result.meanWSS, result.maxWSS, result.lowWSSArea, validCount);
+    LOG_DEBUG(std::format("WSS: mean={:.4f} Pa, max={:.4f} Pa, lowArea={:.2f} cm², vertices={}",
+                         result.meanWSS, result.maxWSS, result.lowWSSArea, validCount));
 
     return result;
 }
@@ -320,8 +311,8 @@ VesselAnalyzer::computeTAWSS(const std::vector<VelocityPhase>& phases,
     result.maxWSS = maxTAWSS;
     result.wallVertexCount = numVertices;
 
-    getLogger()->info("TAWSS: mean={:.4f} Pa, max={:.4f} Pa, phases={}",
-                      result.meanWSS, result.maxWSS, numPhases);
+    LOG_INFO(std::format("TAWSS: mean={:.4f} Pa, max={:.4f} Pa, phases={}",
+                        result.meanWSS, result.maxWSS, numPhases));
 
     return result;
 }
@@ -419,8 +410,8 @@ VesselAnalyzer::computeOSI(const std::vector<VelocityPhase>& phases,
     result.meanWSS = (numVertices > 0) ? sumTAWSS / numVertices : 0.0;
     result.maxWSS = maxTAWSS;
 
-    getLogger()->info("OSI: mean={:.4f}, TAWSS mean={:.4f} Pa, phases={}",
-                      result.meanOSI, result.meanWSS, numPhases);
+    LOG_INFO(std::format("OSI: mean={:.4f}, TAWSS mean={:.4f} Pa, phases={}",
+                        result.meanOSI, result.meanWSS, numPhases));
 
     return result;
 }
@@ -566,8 +557,8 @@ VesselAnalyzer::computeVorticity(const VelocityPhase& phase) const {
     result.rightHelicity = rightHel;
     result.leftHelicity = leftHel;
 
-    getLogger()->debug("Vorticity: computed for {}x{}x{} volume",
-                       nx, ny, nz);
+    LOG_DEBUG(std::format("Vorticity: computed for {}x{}x{} volume",
+                         nx, ny, nz));
 
     return result;
 }
@@ -658,8 +649,8 @@ VesselAnalyzer::computeTKE(const std::vector<VelocityPhase>& phases) const {
         tkeBuf[i] = static_cast<float>(0.5 * rho * variance_si);  // J/m^3
     }
 
-    getLogger()->info("TKE: computed from {} phases, density={} kg/m^3",
-                      numPhases, rho);
+    LOG_INFO(std::format("TKE: computed from {} phases, density={} kg/m^3",
+                        numPhases, rho));
 
     return tke;
 }
@@ -748,8 +739,8 @@ VesselAnalyzer::computeKineticEnergy(const VelocityPhase& phase,
     result.meanKE = (voxelCount > 0) ? sumKEDensity / voxelCount : 0.0;
     result.voxelCount = voxelCount;
 
-    getLogger()->info("KE: total={:.6f} J, mean={:.2f} J/m^3, voxels={}",
-                      result.totalKE, result.meanKE, voxelCount);
+    LOG_INFO(std::format("KE: total={:.6f} J, mean={:.2f} J/m^3, voxels={}",
+                        result.totalKE, result.meanKE, voxelCount));
 
     return result;
 }
@@ -878,8 +869,8 @@ VesselAnalyzer::computeEnergyLoss(const VelocityPhase& phase,
     result.meanDissipation = (voxelCount > 0) ? sumDissipation / voxelCount : 0.0;
     result.voxelCount = voxelCount;
 
-    getLogger()->info("EnergyLoss: total={:.6e} W, mean={:.2f} W/m³, voxels={}",
-                      result.totalEnergyLoss, result.meanDissipation, voxelCount);
+    LOG_INFO(std::format("EnergyLoss: total={:.6e} W, mean={:.2f} W/m³, voxels={}",
+                        result.totalEnergyLoss, result.meanDissipation, voxelCount));
 
     return result;
 }
@@ -929,7 +920,7 @@ VesselAnalyzer::computeRRT(vtkSmartPointer<vtkPolyData> surface) const {
     outputSurface->DeepCopy(surface);
     outputSurface->GetPointData()->AddArray(rrtArray);
 
-    getLogger()->info("RRT: computed for {} surface points", numPoints);
+    LOG_INFO(std::format("RRT: computed for {} surface points", numPoints));
 
     return outputSurface;
 }

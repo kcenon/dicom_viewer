@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <numeric>
 
 #include <itkBinaryErodeImageFilter.h>
@@ -11,15 +12,9 @@
 #include <itkImageRegionIteratorWithIndex.h>
 #include <itkOtsuThresholdImageFilter.h>
 
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 
 namespace {
-
-auto& getLogger() {
-    static auto logger =
-        dicom_viewer::logging::LoggerFactory::create("PhaseCorrector");
-    return logger;
-}
 
 using FloatImage3D = dicom_viewer::services::FloatImage3D;
 using VectorImage3D = dicom_viewer::services::VectorImage3D;
@@ -82,8 +77,6 @@ std::expected<VelocityPhase, FlowError>
 PhaseCorrector::correctPhase(
     const VelocityPhase& phase, double venc,
     const PhaseCorrectionConfig& config) const {
-    auto logger = getLogger();
-
     if (!config.isValid()) {
         return std::unexpected(FlowError{
             FlowError::Code::InvalidInput,
@@ -117,8 +110,8 @@ PhaseCorrector::correctPhase(
 
         // Step 1: Aliasing unwrap
         if (config.enableAliasingUnwrap) {
-            logger->debug("Unwrapping velocity aliasing for phase {}",
-                          phase.phaseIndex);
+            LOG_DEBUG(std::format("Unwrapping velocity aliasing for phase {}",
+                                  phase.phaseIndex));
             unwrapAliasing(corrected.velocityField, venc,
                            config.aliasingThreshold);
         }
@@ -127,8 +120,8 @@ PhaseCorrector::correctPhase(
 
         // Step 2: Eddy current correction
         if (config.enableEddyCurrentCorrection && corrected.magnitudeImage) {
-            logger->debug("Correcting eddy currents for phase {}",
-                          phase.phaseIndex);
+            LOG_DEBUG(std::format("Correcting eddy currents for phase {}",
+                                  phase.phaseIndex));
             correctEddyCurrent(corrected.velocityField,
                                corrected.magnitudeImage,
                                config.polynomialOrder);
@@ -142,7 +135,7 @@ PhaseCorrector::correctPhase(
 
         impl_->reportProgress(1.0);
 
-        logger->debug("Phase {} correction complete", phase.phaseIndex);
+        LOG_DEBUG(std::format("Phase {} correction complete", phase.phaseIndex));
         return corrected;
 
     } catch (const itk::ExceptionObject& e) {
@@ -389,12 +382,10 @@ void PhaseCorrector::correctEddyCurrent(
     int polynomialOrder) {
     if (!velocity || !magnitude) return;
 
-    auto logger = getLogger();
-
     // Create stationary tissue mask
     auto mask = createStationaryMask(magnitude);
     if (!mask) {
-        logger->warn("Failed to create stationary tissue mask");
+        LOG_WARNING("Failed to create stationary tissue mask");
         return;
     }
 
@@ -444,8 +435,8 @@ void PhaseCorrector::correctEddyCurrent(
             velocity->SetPixel(idx, pixel);
         }
 
-        logger->debug("Eddy current correction: component {} fitted with {} terms",
-                      comp, coeffs.size());
+        LOG_DEBUG(std::format("Eddy current correction: component {} fitted with {} terms",
+                              comp, coeffs.size()));
     }
 }
 

@@ -6,12 +6,13 @@
 #include <atomic>
 #include <chrono>
 #include <ctime>
+#include <format>
 #include <iomanip>
 #include <mutex>
 #include <random>
 #include <sstream>
 
-#include <spdlog/spdlog.h>
+#include <kcenon/common/logging/log_macros.h>
 
 // pacs_system headers
 #include <pacs/core/dicom_dataset.hpp>
@@ -125,7 +126,7 @@ public:
         if (progressCallback) {
             progressCallback(progress, status);
         }
-        spdlog::debug("SR Writer: {} ({:.1f}%)", status.toStdString(), progress * 100.0);
+        LOG_DEBUG(std::format("SR Writer: {} ({:.1f}%)", status.toStdString(), progress * 100.0));
     }
 
     std::expected<SRCreationResult, SRError> createSR(
@@ -148,8 +149,8 @@ public:
 
         reportProgress(1.0, "SR document created successfully");
 
-        spdlog::info("Created DICOM SR with {} measurements, SOP Instance UID: {}",
-                     totalMeasurements, srSopUid);
+        LOG_INFO(std::format("Created DICOM SR with {} measurements, SOP Instance UID: {}",
+                     totalMeasurements, srSopUid));
 
         return SRCreationResult{
             .sopInstanceUid = srSopUid,
@@ -205,7 +206,7 @@ public:
 
         reportProgress(1.0, "SR file saved successfully");
 
-        spdlog::info("Saved DICOM SR to: {}", outputPath.string());
+        LOG_INFO(std::format("Saved DICOM SR to: {}", outputPath.string()));
 
         return SRCreationResult{
             .sopInstanceUid = srSopUid,
@@ -317,8 +318,8 @@ public:
 
         reportProgress(1.0, "SR stored to PACS successfully");
 
-        spdlog::info("Stored DICOM SR to PACS: {} (SOP Instance UID: {})",
-                     pacsConfig.calledAeTitle, srSopUid);
+        LOG_INFO(std::format("Stored DICOM SR to PACS: {} (SOP Instance UID: {})",
+                     pacsConfig.calledAeTitle, srSopUid));
 
         return SRCreationResult{
             .sopInstanceUid = srSopUid,

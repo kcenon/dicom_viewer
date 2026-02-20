@@ -1,6 +1,7 @@
 #include "services/flow/velocity_field_assembler.hpp"
 
 #include <cmath>
+#include <format>
 
 #include <itkCastImageFilter.h>
 #include <itkComposeImageFilter.h>
@@ -10,15 +11,9 @@
 #include <itkMultiplyImageFilter.h>
 #include <itkSubtractImageFilter.h>
 
-#include "core/logging.hpp"
+#include <kcenon/common/logging/log_macros.h>
 
 namespace {
-
-auto& getLogger() {
-    static auto logger = dicom_viewer::logging::LoggerFactory::create(
-        "VelocityFieldAssembler");
-    return logger;
-}
 
 using FloatImage3D = dicom_viewer::services::FloatImage3D;
 using VectorImage3D = dicom_viewer::services::VectorImage3D;
@@ -122,8 +117,6 @@ void VelocityFieldAssembler::setProgressCallback(ProgressCallback callback) {
 
 std::expected<std::vector<VelocityPhase>, FlowError>
 VelocityFieldAssembler::assembleAllPhases(const FlowSeriesInfo& seriesInfo) const {
-    auto logger = getLogger();
-
     if (seriesInfo.frameMatrix.empty()) {
         return std::unexpected(FlowError{
             FlowError::Code::InvalidInput,
@@ -138,8 +131,8 @@ VelocityFieldAssembler::assembleAllPhases(const FlowSeriesInfo& seriesInfo) cons
     for (int i = 0; i < seriesInfo.phaseCount; ++i) {
         auto result = assemblePhase(seriesInfo, i);
         if (!result) {
-            logger->warn("Failed to assemble phase {}: {}",
-                         i, result.error().toString());
+            LOG_WARNING(std::format("Failed to assemble phase {}: {}",
+                                    i, result.error().toString()));
             continue;
         }
         phases.push_back(std::move(result.value()));
@@ -154,7 +147,7 @@ VelocityFieldAssembler::assembleAllPhases(const FlowSeriesInfo& seriesInfo) cons
             "No phases could be assembled"});
     }
 
-    logger->info("Assembled {} of {} phases", phases.size(), seriesInfo.phaseCount);
+    LOG_INFO(std::format("Assembled {} of {} phases", phases.size(), seriesInfo.phaseCount));
 
     impl_->reportProgress(1.0);
     return phases;
@@ -163,8 +156,6 @@ VelocityFieldAssembler::assembleAllPhases(const FlowSeriesInfo& seriesInfo) cons
 std::expected<VelocityPhase, FlowError>
 VelocityFieldAssembler::assemblePhase(
     const FlowSeriesInfo& seriesInfo, int phaseIndex) const {
-    auto logger = getLogger();
-
     if (phaseIndex < 0 ||
         phaseIndex >= static_cast<int>(seriesInfo.frameMatrix.size())) {
         return std::unexpected(FlowError{
@@ -192,7 +183,7 @@ VelocityFieldAssembler::assemblePhase(
 
     try {
         // Read velocity component volumes
-        logger->debug("Reading velocity components for phase {}", phaseIndex);
+        LOG_DEBUG(std::format("Reading velocity components for phase {}", phaseIndex));
 
         auto vxImage = readScalarVolume(phaseFrames.at(VelocityComponent::Vx));
         auto vyImage = readScalarVolume(phaseFrames.at(VelocityComponent::Vy));
@@ -224,9 +215,9 @@ VelocityFieldAssembler::assemblePhase(
         phase.triggerTime = seriesInfo.temporalResolution * phaseIndex;
 
         auto size = vectorField->GetLargestPossibleRegion().GetSize();
-        logger->debug("Phase {} assembled: {}x{}x{}, VENC=[{:.1f},{:.1f},{:.1f}]",
-                      phaseIndex, size[0], size[1], size[2],
-                      vencX, vencY, vencZ);
+        LOG_DEBUG(std::format("Phase {} assembled: {}x{}x{}, VENC=[{:.1f},{:.1f},{:.1f}]",
+                              phaseIndex, size[0], size[1], size[2],
+                              vencX, vencY, vencZ));
 
         return phase;
 

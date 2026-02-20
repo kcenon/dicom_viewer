@@ -1,13 +1,15 @@
 #include "services/measurement/shape_analyzer.hpp"
-#include "core/logging.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <fstream>
 #include <iomanip>
 #include <numeric>
 #include <set>
 #include <sstream>
+
+#include <kcenon/common/logging/log_macros.h>
 
 #include <itkImageRegionConstIterator.h>
 #include <itkLabelStatisticsImageFilter.h>
@@ -162,9 +164,6 @@ std::vector<std::string> ShapeAnalysisResult::getCsvRow() const {
 class ShapeAnalyzer::Impl {
 public:
     ProgressCallback progressCallback;
-    std::shared_ptr<spdlog::logger> logger;
-
-    Impl() : logger(logging::LoggerFactory::create("ShapeAnalyzer")) {}
 
     // Find all unique label IDs in the label map
     std::set<uint8_t> findAllLabels(LabelMapType::Pointer labelMap) {
@@ -520,10 +519,10 @@ ShapeAnalyzer::analyze(LabelMapType::Pointer labelMap,
                         uint8_t labelId,
                         const SpacingType& spacing,
                         const ShapeAnalysisOptions& options) {
-    impl_->logger->debug("Analyzing shape for label {}", labelId);
+    LOG_DEBUG(std::format("Analyzing shape for label {}", labelId));
 
     if (!labelMap) {
-        impl_->logger->error("Label map is null");
+        LOG_ERROR("Label map is null");
         return std::unexpected(ShapeAnalysisError{
             ShapeAnalysisError::Code::InvalidLabelMap,
             "Label map is null"
@@ -531,7 +530,7 @@ ShapeAnalyzer::analyze(LabelMapType::Pointer labelMap,
     }
 
     if (labelId == 0) {
-        impl_->logger->error("Label ID 0 is reserved");
+        LOG_ERROR("Label ID 0 is reserved");
         return std::unexpected(ShapeAnalysisError{
             ShapeAnalysisError::Code::LabelNotFound,
             "Label ID 0 is reserved for background"
@@ -539,7 +538,7 @@ ShapeAnalyzer::analyze(LabelMapType::Pointer labelMap,
     }
 
     if (spacing[0] <= 0 || spacing[1] <= 0 || spacing[2] <= 0) {
-        impl_->logger->error("Invalid spacing values");
+        LOG_ERROR("Invalid spacing values");
         return std::unexpected(ShapeAnalysisError{
             ShapeAnalysisError::Code::InvalidSpacing,
             "Spacing values must be positive"
@@ -582,7 +581,7 @@ ShapeAnalyzer::analyze(LabelMapType::Pointer labelMap,
         bool pcaSuccess = impl_->performPCA(coords, axes.centroid,
                                             axes.eigenvalues, axes.eigenvectors);
         if (!pcaSuccess) {
-            impl_->logger->warn("PCA failed for label {}", labelId);
+            LOG_WARNING(std::format("PCA failed for label {}", labelId));
         } else {
             axes.axesLengths = impl_->calculateAxesLengths(axes.eigenvalues);
 
