@@ -14,6 +14,8 @@
 #include <QColorDialog>
 #include <QScrollArea>
 #include <QFrame>
+#include <QDoubleSpinBox>
+#include <QCheckBox>
 
 namespace dicom_viewer::ui {
 
@@ -28,6 +30,16 @@ public:
     QToolButton* polygonButton = nullptr;
     QToolButton* smartScissorsButton = nullptr;
     QToolButton* levelTracingButton = nullptr;
+
+    // Centerline tracing tool
+    QToolButton* centerlineButton = nullptr;
+
+    // Centerline options
+    QWidget* centerlineOptionsWidget = nullptr;
+    QDoubleSpinBox* centerlineRadiusSpinBox = nullptr;
+    QCheckBox* centerlineAutoRadiusCheck = nullptr;
+    QPushButton* centerlineConfirmButton = nullptr;
+    QPushButton* centerlineCancelButton = nullptr;
 
     // Post-processing buttons
     QPushButton* hollowButton = nullptr;
@@ -154,6 +166,13 @@ void SegmentationPanel::setupUI()
     impl_->levelTracingButton->setToolTip(tr("Trace contour at intensity boundary"));
     impl_->toolGroup->addButton(impl_->levelTracingButton, static_cast<int>(services::SegmentationTool::LevelTracing));
 
+    impl_->centerlineButton = new QToolButton();
+    impl_->centerlineButton->setText(tr("Centerline"));
+    impl_->centerlineButton->setCheckable(true);
+    impl_->centerlineButton->setMinimumSize(60, 40);
+    impl_->centerlineButton->setToolTip(tr("Trace vessel centerline between two points"));
+    impl_->toolGroup->addButton(impl_->centerlineButton, static_cast<int>(services::SegmentationTool::CenterlineTracing));
+
     toolsLayout->addWidget(impl_->brushButton, 0, 0);
     toolsLayout->addWidget(impl_->eraserButton, 0, 1);
     toolsLayout->addWidget(impl_->fillButton, 0, 2);
@@ -161,6 +180,7 @@ void SegmentationPanel::setupUI()
     toolsLayout->addWidget(impl_->polygonButton, 1, 1);
     toolsLayout->addWidget(impl_->smartScissorsButton, 1, 2);
     toolsLayout->addWidget(impl_->levelTracingButton, 2, 0);
+    toolsLayout->addWidget(impl_->centerlineButton, 2, 1);
     mainLayout->addWidget(toolsGroup);
 
     // Brush options group
@@ -233,6 +253,36 @@ void SegmentationPanel::setupUI()
     actionsLayout->addWidget(impl_->undoButton);
     actionsLayout->addWidget(impl_->completeButton);
     mainLayout->addWidget(impl_->polygonActionsWidget);
+
+    // Centerline options
+    impl_->centerlineOptionsWidget = new QGroupBox(tr("Centerline Options"));
+    auto centerlineLayout = new QVBoxLayout(static_cast<QGroupBox*>(impl_->centerlineOptionsWidget));
+
+    auto radiusLayout = new QHBoxLayout();
+    radiusLayout->addWidget(new QLabel(tr("Radius (mm):")));
+    impl_->centerlineRadiusSpinBox = new QDoubleSpinBox();
+    impl_->centerlineRadiusSpinBox->setRange(0.5, 30.0);
+    impl_->centerlineRadiusSpinBox->setValue(5.0);
+    impl_->centerlineRadiusSpinBox->setSingleStep(0.5);
+    impl_->centerlineRadiusSpinBox->setDecimals(1);
+    radiusLayout->addWidget(impl_->centerlineRadiusSpinBox);
+    centerlineLayout->addLayout(radiusLayout);
+
+    impl_->centerlineAutoRadiusCheck = new QCheckBox(tr("Auto radius from image"));
+    impl_->centerlineAutoRadiusCheck->setChecked(true);
+    impl_->centerlineAutoRadiusCheck->setToolTip(tr("Estimate vessel radius from image gradients"));
+    centerlineLayout->addWidget(impl_->centerlineAutoRadiusCheck);
+
+    auto confirmLayout = new QHBoxLayout();
+    impl_->centerlineConfirmButton = new QPushButton(tr("Confirm"));
+    impl_->centerlineConfirmButton->setToolTip(tr("Apply centerline mask to segmentation"));
+    impl_->centerlineCancelButton = new QPushButton(tr("Cancel"));
+    impl_->centerlineCancelButton->setToolTip(tr("Discard current centerline"));
+    confirmLayout->addWidget(impl_->centerlineConfirmButton);
+    confirmLayout->addWidget(impl_->centerlineCancelButton);
+    centerlineLayout->addLayout(confirmLayout);
+
+    mainLayout->addWidget(impl_->centerlineOptionsWidget);
 
     // Post-processing actions
     auto postProcGroup = new QGroupBox(tr("Post-Processing"));
@@ -316,6 +366,23 @@ void SegmentationPanel::setupConnections()
     connect(impl_->redoCommandButton, &QPushButton::clicked,
             this, &SegmentationPanel::redoCommandRequested);
 
+    // Centerline options
+    connect(impl_->centerlineRadiusSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [this](double value) {
+                if (!impl_->centerlineAutoRadiusCheck->isChecked()) {
+                    emit centerlineRadiusChanged(value);
+                }
+            });
+    connect(impl_->centerlineAutoRadiusCheck, &QCheckBox::toggled,
+            this, [this](bool autoRadius) {
+                impl_->centerlineRadiusSpinBox->setEnabled(!autoRadius);
+                emit centerlineRadiusChanged(autoRadius ? -1.0 : impl_->centerlineRadiusSpinBox->value());
+            });
+    connect(impl_->centerlineConfirmButton, &QPushButton::clicked,
+            this, &SegmentationPanel::centerlineConfirmRequested);
+    connect(impl_->centerlineCancelButton, &QPushButton::clicked,
+            this, &SegmentationPanel::centerlineCancelRequested);
+
     // Post-processing
     connect(impl_->hollowButton, &QPushButton::clicked,
             this, &SegmentationPanel::hollowRequested);
@@ -334,9 +401,11 @@ void SegmentationPanel::updateToolOptions()
                         impl_->currentTool == services::SegmentationTool::Eraser);
     bool isPolygonTool = (impl_->currentTool == services::SegmentationTool::Polygon ||
                           impl_->currentTool == services::SegmentationTool::SmartScissors);
+    bool isCenterlineTool = (impl_->currentTool == services::SegmentationTool::CenterlineTracing);
 
     impl_->brushOptionsWidget->setVisible(isBrushTool);
     impl_->polygonActionsWidget->setVisible(isPolygonTool);
+    impl_->centerlineOptionsWidget->setVisible(isCenterlineTool);
 }
 
 services::SegmentationTool SegmentationPanel::currentTool() const

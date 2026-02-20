@@ -141,6 +141,22 @@ signals:
      */
     void smoothRequested();
 
+    /**
+     * @brief Emitted when centerline radius override changes
+     * @param radiusMm Radius in mm (-1 for auto)
+     */
+    void centerlineRadiusChanged(double radiusMm);
+
+    /**
+     * @brief Emitted when centerline confirm is requested
+     */
+    void centerlineConfirmRequested();
+
+    /**
+     * @brief Emitted when centerline cancel is requested
+     */
+    void centerlineCancelRequested();
+
 private slots:
     void onToolButtonClicked(int toolId);
     void onBrushSizeChanged(int size);
