@@ -1969,3 +1969,20 @@ target_include_directories(mask_wizard_controller_test PRIVATE
 )
 
 gtest_discover_tests(mask_wizard_controller_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for AppLogLevel conversion functions
+add_executable(app_log_level_test
+    unit/app_log_level_test.cpp
+)
+
+target_link_libraries(app_log_level_test PRIVATE
+    dicom_viewer_core
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(app_log_level_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(app_log_level_test DISCOVERY_TIMEOUT 60)
