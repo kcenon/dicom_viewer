@@ -77,12 +77,25 @@ if [[ "${CLEAN}" == true ]]; then
     rm -rf "${BUILD_DIR}"
 fi
 
+# Platform-specific prefix path for dependency discovery
+CMAKE_PREFIX_PATH_ARG=""
+if [[ -z "${CMAKE_PREFIX_PATH:-}" ]]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        if [[ "$(uname -m)" == "arm64" ]]; then
+            CMAKE_PREFIX_PATH_ARG="-DCMAKE_PREFIX_PATH=/opt/homebrew"
+        else
+            CMAKE_PREFIX_PATH_ARG="-DCMAKE_PREFIX_PATH=/usr/local"
+        fi
+    fi
+fi
+
 # Configure
 if [[ ! -f "${BUILD_DIR}/CMakeCache.txt" ]]; then
     echo "--- Configuring (CMake) ---"
     cmake -S "${PROJECT_DIR}" -B "${BUILD_DIR}" \
         -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
-        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+        ${CMAKE_PREFIX_PATH_ARG}
     echo ""
 fi
 
