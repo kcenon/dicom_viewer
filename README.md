@@ -206,23 +206,109 @@ DICOM Viewer adopts a **3-Layer Architecture** to maximize separation of concern
 
 ## Getting Started
 
-### Install Dependencies
+### Quick Start
+
+```bash
+git clone https://github.com/kcenon/dicom_viewer.git
+cd dicom_viewer
+./setup.sh        # Install dependencies + clone ecosystem + build pacs_system
+./build.sh --test # Build and run tests
+```
+
+### Prerequisites
+
+| Requirement | Minimum Version |
+|-------------|----------------|
+| CMake | 3.20+ |
+| C++ Compiler | C++23 support (AppleClang 15+, GCC 13+, MSVC 2022+) |
+| Xcode CLI Tools (macOS) | Latest |
+
+### System Dependencies
 
 ```bash
 # macOS (Homebrew)
-brew install itk vtk qt@6 fftw spdlog fmt nlohmann-json
-
-# Using vcpkg
-vcpkg install itk[vtk] vtk[qt] qt6 fftw3 spdlog fmt nlohmann-json
+brew install qt@6 vtk itk gdcm fftw spdlog fmt nlohmann-json googletest expat
 ```
 
-### Build
+> **Note**: `./setup.sh` installs these automatically.
+
+### Ecosystem Dependencies
+
+DICOM Viewer depends on the [kcenon](https://github.com/kcenon) ecosystem libraries. These must be cloned as sibling directories:
+
+```
+parent_directory/
+├── common_system/        # Shared utilities
+├── container_system/     # Thread-safe containers
+├── thread_system/        # Thread pool and task scheduling
+├── logger_system/        # Logging infrastructure
+├── network_system/       # Network abstractions
+├── pacs_system/          # DICOM network operations (must be built)
+└── dicom_viewer/         # This project
+```
+
+| Repository | URL |
+|------------|-----|
+| common_system | https://github.com/kcenon/common_system |
+| container_system | https://github.com/kcenon/container_system |
+| thread_system | https://github.com/kcenon/thread_system |
+| logger_system | https://github.com/kcenon/logger_system |
+| network_system | https://github.com/kcenon/network_system |
+| pacs_system | https://github.com/kcenon/pacs_system |
+
+> **Note**: `./setup.sh` clones all repositories and builds pacs_system automatically.
+
+### Manual Setup
+
+If you prefer step-by-step setup instead of `./setup.sh`:
 
 ```bash
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --parallel
+# 1. Install system dependencies (macOS)
+brew install qt@6 vtk itk gdcm fftw spdlog fmt nlohmann-json googletest expat
+
+# 2. Clone ecosystem repositories (from parent directory)
+cd ..
+git clone --depth 1 https://github.com/kcenon/common_system.git
+git clone --depth 1 https://github.com/kcenon/container_system.git
+git clone --depth 1 https://github.com/kcenon/thread_system.git
+git clone --depth 1 https://github.com/kcenon/logger_system.git
+git clone --depth 1 https://github.com/kcenon/network_system.git
+git clone --depth 1 https://github.com/kcenon/pacs_system.git
+
+# 3. Build pacs_system
+cmake -S pacs_system -B pacs_system/build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DPACS_BUILD_TESTS=OFF \
+    -DPACS_BUILD_EXAMPLES=OFF \
+    -DPACS_BUILD_BENCHMARKS=OFF \
+    -DPACS_BUILD_SAMPLES=OFF \
+    -DPACS_WARNINGS_AS_ERRORS=OFF
+cmake --build pacs_system/build --config Release --parallel
+
+# 4. Build dicom_viewer
+cd dicom_viewer
+./build.sh --test
 ```
+
+Custom pacs_system location:
+
+```bash
+cmake -B build \
+  -DPACS_SYSTEM_ROOT=/path/to/pacs_system \
+  -DPACS_SYSTEM_BUILD_DIR=/path/to/pacs_system/build
+```
+
+### Build Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `./setup.sh` | One-command environment setup (dependencies + ecosystem + pacs_system build) |
+| `./build.sh` | Configure and build dicom_viewer |
+| `./build.sh --test` | Build and run all tests |
+| `./build.sh --clean` | Clean rebuild from scratch |
+| `./build.sh --debug` | Debug build |
+
+Run `./setup.sh --help` or `./build.sh --help` for all available options.
 
 ### Build Options
 
@@ -231,42 +317,30 @@ cmake --build . --parallel
 | `BUILD_TESTS` | ON | Build unit tests |
 | `BUILD_DOCS` | OFF | Build documentation |
 
-### pacs_system Integration (Required)
-
-The project requires [pacs_system](https://github.com/kcenon/pacs_system) library for DICOM network operations. This is a pure C++20 implementation from the kcenon ecosystem.
-
-```bash
-# Build pacs_system first (sibling directory)
-cd ../pacs_system
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --parallel
-
-# Build dicom_viewer
-cd ../../dicom_viewer
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --parallel
-```
-
-Custom pacs_system location:
-
-```bash
-cmake .. \
-  -DPACS_SYSTEM_ROOT=/path/to/pacs_system \
-  -DPACS_SYSTEM_BUILD_DIR=/path/to/pacs_system/build
-```
-
 ### Run
 
 ```bash
-./dicom_viewer
+./build/dicom_viewer
 ```
+
+### Troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `pacs_system not found` | Ecosystem repos not cloned or pacs_system not built | Run `./setup.sh` |
+| `Could not find Qt6` | Qt6 not installed | `brew install qt@6` |
+| `CMake configuration failed` | Missing dependencies or stale cache | Run `./setup.sh` then `./build.sh --clean` |
+| `Preflight checks failed` | Prerequisites missing | Follow the error message hints, or run `./setup.sh` |
+| C++ header conflicts | SDK version mismatch | `./build.sh --clean` (reconfigures with correct SDK) |
+
+For other issues, check the [CI workflow](.github/workflows/ci.yml) for the reference build configuration.
 
 ## Project Structure
 
 ```
 dicom_viewer/
+├── setup.sh                        # One-command environment setup
+├── build.sh                        # Build script with preflight checks
 ├── docs/                           # Documentation
 │   ├── PRD.md / PRD.kr.md         # Product Requirements Document
 │   ├── SRS.md / SRS.kr.md         # Software Requirements Specification
@@ -359,7 +433,7 @@ Foundation     Features          Enhancement      Advanced
 
 ## Related Projects
 
-- [pacs_system](https://github.com) - DICOM Processing and PACS Functionality (kcenon ecosystem)
+- [pacs_system](https://github.com/kcenon/pacs_system) - DICOM Processing and PACS Functionality (kcenon ecosystem)
 - [3D Slicer](https://www.slicer.org/) - Medical Image Analysis Platform
 - [MITK](https://www.mitk.org/) - ITK+VTK Integration Framework
 
