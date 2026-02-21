@@ -94,9 +94,7 @@ find_package(ITK REQUIRED COMPONENTS
 )
 
 # GDCM library for low-level DICOM parsing (Enhanced DICOM, raw tag access)
-find_package(GDCM REQUIRED
-    PATHS /opt/homebrew/lib/gdcm-3.2
-)
+find_package(GDCM REQUIRED)
 include(${GDCM_USE_FILE})
 
 # pacs_system for DICOM network operations (required)
@@ -310,8 +308,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find FFTW for ITK's FFT operations (required by N4 bias correction and other filters)
-find_library(FFTW3_LIBRARY fftw3 HINTS /opt/homebrew/lib)
-find_library(FFTW3_THREADS_LIBRARY fftw3_threads HINTS /opt/homebrew/lib)
+find_library(FFTW3_LIBRARY fftw3)
+find_library(FFTW3_THREADS_LIBRARY fftw3_threads)
 
 # Core library
 find_package(ZLIB REQUIRED)
@@ -332,10 +330,6 @@ target_include_directories(dicom_viewer_core PUBLIC
     ${COMMON_SYSTEM_INCLUDE_DIR}
     ${LOGGER_SYSTEM_INCLUDE_DIR}
     ${THREAD_SYSTEM_INCLUDE_DIR}
-)
-
-target_link_directories(dicom_viewer_core PUBLIC
-    /opt/homebrew/lib
 )
 
 target_link_libraries(dicom_viewer_core PUBLIC
@@ -447,10 +441,6 @@ target_include_directories(pacs_service PUBLIC
     ${PACS_SYSTEM_INCLUDE_DIR}
 )
 
-target_link_directories(pacs_service PUBLIC
-    /opt/homebrew/lib
-)
-
 target_link_libraries(pacs_service PUBLIC
     pacs::core
     pacs::network
@@ -503,10 +493,6 @@ add_library(export_service STATIC
 target_include_directories(export_service PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${PACS_SYSTEM_INCLUDE_DIR}
-)
-
-target_link_directories(export_service PUBLIC
-    /opt/homebrew/lib
 )
 
 target_link_libraries(export_service PUBLIC
