@@ -1484,6 +1484,7 @@ struct AnalysisReport {
 
 **Traces to**: SRS-DR-021 ~ SRS-DR-025
 
+{% raw %}
 ```cpp
 // Transfer Function Structures (include/core/transfer_function.hpp)
 namespace dicom_viewer {
@@ -1538,6 +1539,7 @@ const std::vector<TransferFunctionPreset> CT_PRESETS = {
 
 } // namespace dicom_viewer
 ```
+{% endraw %}
 
 ---
 
