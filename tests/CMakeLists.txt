@@ -356,10 +356,6 @@ add_executable(volume_calculator_test
     unit/volume_calculator_test.cpp
 )
 
-target_link_directories(volume_calculator_test PRIVATE
-    /opt/homebrew/lib
-)
-
 target_link_libraries(volume_calculator_test PRIVATE
     measurement_service
     GTest::gtest
@@ -380,10 +376,6 @@ gtest_discover_tests(volume_calculator_test DISCOVERY_TIMEOUT 60)
 # Unit tests for Shape Analyzer
 add_executable(shape_analyzer_test
     unit/shape_analyzer_test.cpp
-)
-
-target_link_directories(shape_analyzer_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(shape_analyzer_test PRIVATE
@@ -442,10 +434,6 @@ add_executable(n4_bias_corrector_test
     unit/n4_bias_corrector_test.cpp
 )
 
-target_link_directories(n4_bias_corrector_test PRIVATE
-    /opt/homebrew/lib
-)
-
 target_link_libraries(n4_bias_corrector_test PRIVATE
     preprocessing_service
     GTest::gtest
@@ -461,10 +449,6 @@ gtest_discover_tests(n4_bias_corrector_test DISCOVERY_TIMEOUT 120)
 # Unit tests for Isotropic Resampler
 add_executable(isotropic_resampler_test
     unit/isotropic_resampler_test.cpp
-)
-
-target_link_directories(isotropic_resampler_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(isotropic_resampler_test PRIVATE
@@ -484,10 +468,6 @@ add_executable(ellipse_roi_test
     unit/ellipse_roi_test.cpp
 )
 
-target_link_directories(ellipse_roi_test PRIVATE
-    /opt/homebrew/lib
-)
-
 target_link_libraries(ellipse_roi_test PRIVATE
     measurement_service
     GTest::gtest
@@ -503,10 +483,6 @@ gtest_discover_tests(ellipse_roi_test DISCOVERY_TIMEOUT 60)
 # Unit tests for Area Measurement Tool
 add_executable(area_measurement_tool_test
     unit/area_measurement_tool_test.cpp
-)
-
-target_link_directories(area_measurement_tool_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(area_measurement_tool_test PRIVATE
@@ -529,10 +505,6 @@ gtest_discover_tests(area_measurement_tool_test DISCOVERY_TIMEOUT 60)
 # Unit tests for MPR Coordinate Transformer
 add_executable(mpr_coordinate_transformer_test
     unit/mpr_coordinate_transformer_test.cpp
-)
-
-target_link_directories(mpr_coordinate_transformer_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(mpr_coordinate_transformer_test PRIVATE
@@ -558,10 +530,6 @@ add_executable(report_generator_test
     unit/report_generator_test.cpp
 )
 
-target_link_directories(report_generator_test PRIVATE
-    /opt/homebrew/lib
-)
-
 target_link_libraries(report_generator_test PRIVATE
     export_service
     Qt6::Core
@@ -583,10 +551,6 @@ add_executable(data_exporter_test
     unit/data_exporter_test.cpp
 )
 
-target_link_directories(data_exporter_test PRIVATE
-    /opt/homebrew/lib
-)
-
 target_link_libraries(data_exporter_test PRIVATE
     export_service
     Qt6::Core
@@ -605,10 +569,6 @@ gtest_discover_tests(data_exporter_test DISCOVERY_TIMEOUT 60)
 # Unit tests for Measurement Serializer
 add_executable(measurement_serializer_test
     unit/measurement_serializer_test.cpp
-)
-
-target_link_directories(measurement_serializer_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(measurement_serializer_test PRIVATE
@@ -632,10 +592,6 @@ add_executable(oblique_reslice_renderer_test
     unit/oblique_reslice_renderer_test.cpp
 )
 
-target_link_directories(oblique_reslice_renderer_test PRIVATE
-    /opt/homebrew/lib
-)
-
 target_link_libraries(oblique_reslice_renderer_test PRIVATE
     render_service
     GTest::gtest
@@ -656,10 +612,6 @@ gtest_discover_tests(oblique_reslice_renderer_test DISCOVERY_TIMEOUT 60)
 # Unit tests for Mesh Exporter
 add_executable(mesh_exporter_test
     unit/mesh_exporter_test.cpp
-)
-
-target_link_directories(mesh_exporter_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(mesh_exporter_test PRIVATE
@@ -685,10 +637,6 @@ gtest_discover_tests(mesh_exporter_test DISCOVERY_TIMEOUT 60)
 # Unit tests for DICOM SR Writer
 add_executable(dicom_sr_writer_test
     unit/dicom_sr_writer_test.cpp
-)
-
-target_link_directories(dicom_sr_writer_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(dicom_sr_writer_test PRIVATE
@@ -778,10 +726,6 @@ gtest_discover_tests(histogram_equalizer_test DISCOVERY_TIMEOUT 60)
 # Unit tests for DR Viewer
 add_executable(dr_viewer_test
     unit/dr_viewer_test.cpp
-)
-
-target_link_directories(dr_viewer_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(dr_viewer_test PRIVATE
@@ -1117,10 +1061,6 @@ add_executable(linear_measurement_tool_test
     unit/linear_measurement_tool_test.cpp
 )
 
-target_link_directories(linear_measurement_tool_test PRIVATE
-    /opt/homebrew/lib
-)
-
 target_link_libraries(linear_measurement_tool_test PRIVATE
     measurement_service
     GTest::gtest
@@ -1280,10 +1220,6 @@ add_executable(performance_benchmark_test
     unit/performance_benchmark_test.cpp
 )
 
-target_link_directories(performance_benchmark_test PRIVATE
-    /opt/homebrew/lib
-)
-
 target_link_libraries(performance_benchmark_test PRIVATE
     dicom_viewer_core
     preprocessing_service
@@ -1303,10 +1239,6 @@ gtest_discover_tests(performance_benchmark_test DISCOVERY_TIMEOUT 120)
 # Rendering and VTK-dependent benchmark tests
 add_executable(rendering_benchmark_test
     unit/rendering_benchmark_test.cpp
-)
-
-target_link_directories(rendering_benchmark_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(rendering_benchmark_test PRIVATE
@@ -1333,10 +1265,6 @@ gtest_discover_tests(rendering_benchmark_test DISCOVERY_TIMEOUT 120)
 # Concurrency and thread-safety tests
 add_executable(concurrency_test
     unit/concurrency_test.cpp
-)
-
-target_link_directories(concurrency_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(concurrency_test PRIVATE
@@ -1483,10 +1411,6 @@ add_executable(hemodynamic_overlay_renderer_test
     unit/hemodynamic_overlay_renderer_test.cpp
 )
 
-target_link_directories(hemodynamic_overlay_renderer_test PRIVATE
-    /opt/homebrew/lib
-)
-
 target_link_libraries(hemodynamic_overlay_renderer_test PRIVATE
     render_service
     ${VTK_LIBRARIES}
@@ -1508,10 +1432,6 @@ gtest_discover_tests(hemodynamic_overlay_renderer_test DISCOVERY_TIMEOUT 60)
 # Unit tests for Streamline Overlay Renderer
 add_executable(streamline_overlay_renderer_test
     unit/streamline_overlay_renderer_test.cpp
-)
-
-target_link_directories(streamline_overlay_renderer_test PRIVATE
-    /opt/homebrew/lib
 )
 
 target_link_libraries(streamline_overlay_renderer_test PRIVATE
