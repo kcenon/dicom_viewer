@@ -11,60 +11,14 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# macOS SDK configuration - avoid math.h macro conflicts with C++ standard library
+# macOS platform configuration
 if(APPLE)
-    # Try to find a compatible SDK in order of preference
-    # Prefer newer stable SDKs from Command Line Tools
-    set(SDK_SEARCH_PATHS
-        "/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk"
-        "/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk"
-        "/Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk"
-        "/Library/Developer/CommandLineTools/SDKs/MacOSX14.sdk"
-    )
-
-    set(FOUND_SDK_PATH "")
-    foreach(SDK_PATH ${SDK_SEARCH_PATHS})
-        if(EXISTS "${SDK_PATH}")
-            set(FOUND_SDK_PATH "${SDK_PATH}")
-            break()
-        endif()
-    endforeach()
-
-    if(FOUND_SDK_PATH)
-        set(CMAKE_OSX_SYSROOT "${FOUND_SDK_PATH}" CACHE PATH "macOS SDK path" FORCE)
-        message(STATUS "Using Command Line Tools SDK: ${CMAKE_OSX_SYSROOT}")
-
-        # Force the compiler to use this SDK for ALL headers including system headers
-        # This prevents mixing of different SDK versions
-        add_compile_options(
-            -isysroot "${FOUND_SDK_PATH}"
-            -I"${FOUND_SDK_PATH}/usr/include"
-        )
-        add_link_options(
-            -isysroot "${FOUND_SDK_PATH}"
-            -L"${FOUND_SDK_PATH}/usr/lib"
-        )
-    else()
-        execute_process(
-            COMMAND xcrun --sdk macosx --show-sdk-path
-            OUTPUT_VARIABLE CMAKE_OSX_SYSROOT
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        message(STATUS "Using Xcode SDK: ${CMAKE_OSX_SYSROOT}")
-    endif()
-
-    # Set deployment target for compatibility
     if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "Minimum macOS version" FORCE)
     endif()
 
-    add_compile_definitions(
-        _USE_MATH_DEFINES
-    )
-
-    add_compile_options(
-        -Wno-deprecated-declarations
-    )
+    add_compile_definitions(_USE_MATH_DEFINES)
+    add_compile_options(-Wno-deprecated-declarations)
 endif()
 
 # Export compile commands for IDE support
@@ -345,11 +299,9 @@ find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-# Include directories
+# Include directories (VTK/ITK headers propagated via imported targets in target_link_libraries)
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
-    ${VTK_INCLUDE_DIRS}
-    ${ITK_INCLUDE_DIRS}
 )
 
 # Qt automatic processing
