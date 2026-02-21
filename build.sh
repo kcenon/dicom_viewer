@@ -7,6 +7,7 @@
 #   ./build.sh --debug      # Configure + build (Debug)
 #   ./build.sh --clean      # Clean build directory and rebuild
 #   ./build.sh --test       # Build and run tests
+#   ./build.sh --skip-checks # Skip preflight dependency validation
 #   ./build.sh --help       # Show usage
 #
 
@@ -17,6 +18,7 @@ BUILD_DIR="${PROJECT_DIR}/build"
 BUILD_TYPE="Release"
 CLEAN=false
 RUN_TESTS=false
+SKIP_CHECKS=false
 JOBS=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 
 usage() {
@@ -26,6 +28,7 @@ usage() {
     echo "  --debug       Build in Debug mode (default: Release)"
     echo "  --clean       Remove build directory and rebuild from scratch"
     echo "  --test        Run tests after building"
+    echo "  --skip-checks Skip preflight dependency validation"
     echo "  --jobs N      Set parallel build jobs (default: ${JOBS})"
     echo "  --help        Show this help message"
     echo ""
@@ -49,6 +52,10 @@ while [[ $# -gt 0 ]]; do
             RUN_TESTS=true
             shift
             ;;
+        --skip-checks)
+            SKIP_CHECKS=true
+            shift
+            ;;
         --jobs)
             JOBS="$2"
             shift 2
@@ -70,6 +77,76 @@ echo "  Build type: ${BUILD_TYPE}"
 echo "  Build dir:  ${BUILD_DIR}"
 echo "  Jobs:       ${JOBS}"
 echo ""
+
+# --- Preflight dependency validation ---
+
+preflight_check() {
+    local errors=0
+
+    echo "--- Preflight checks ---"
+
+    # 1. CMake version >= 3.20
+    if command -v cmake &>/dev/null; then
+        local cmake_ver
+        cmake_ver=$(cmake --version | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+        local cmake_major="${cmake_ver%%.*}"
+        local cmake_minor="${cmake_ver#*.}"
+        if [[ "${cmake_major}" -lt 3 ]] || { [[ "${cmake_major}" -eq 3 ]] && [[ "${cmake_minor}" -lt 20 ]]; }; then
+            echo "  [FAIL] CMake ${cmake_ver} found, but 3.20+ required"
+            echo "         Upgrade: https://cmake.org/download/"
+            errors=$((errors + 1))
+        else
+            echo "  [ok]   CMake ${cmake_ver}"
+        fi
+    else
+        echo "  [FAIL] CMake not found"
+        echo "         Install: https://cmake.org/download/"
+        errors=$((errors + 1))
+    fi
+
+    # 2. pacs_system build
+    local pacs_build="${PROJECT_DIR}/../pacs_system/build"
+    if [[ -f "${pacs_build}/lib/libpacs_core.a" ]]; then
+        echo "  [ok]   pacs_system libraries"
+    else
+        echo "  [FAIL] pacs_system not built at ${pacs_build}"
+        echo "         Run: ./setup.sh"
+        errors=$((errors + 1))
+    fi
+
+    # 3. macOS: Xcode Command Line Tools
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        if xcode-select -p &>/dev/null; then
+            echo "  [ok]   Xcode Command Line Tools"
+        else
+            echo "  [FAIL] Xcode Command Line Tools not installed"
+            echo "         Run: xcode-select --install"
+            errors=$((errors + 1))
+        fi
+    fi
+
+    # 4. Optional package warnings (non-blocking)
+    if [[ "$(uname -s)" == "Darwin" ]] && command -v brew &>/dev/null; then
+        for pkg in qt@6 vtk itk; do
+            if ! brew list "${pkg}" &>/dev/null; then
+                echo "  [warn] ${pkg} not found via Homebrew"
+                echo "         Install: brew install ${pkg}"
+            fi
+        done
+    fi
+
+    echo ""
+
+    if [[ ${errors} -gt 0 ]]; then
+        echo "Error: Preflight checks failed (${errors} error(s))."
+        echo "  Run ./setup.sh to install dependencies, or use --skip-checks to bypass."
+        exit 1
+    fi
+}
+
+if [[ "${SKIP_CHECKS}" == false ]]; then
+    preflight_check
+fi
 
 # Clean if requested
 if [[ "${CLEAN}" == true ]]; then
@@ -95,7 +172,14 @@ if [[ ! -f "${BUILD_DIR}/CMakeCache.txt" ]]; then
     cmake -S "${PROJECT_DIR}" -B "${BUILD_DIR}" \
         -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-        ${CMAKE_PREFIX_PATH_ARG}
+        ${CMAKE_PREFIX_PATH_ARG} || {
+        echo ""
+        echo "CMake configuration failed. Common causes:"
+        echo "  - Missing dependencies: run ./setup.sh"
+        echo "  - Stale cache: run ./build.sh --clean"
+        echo "  - See README.md for prerequisites"
+        exit 1
+    }
     echo ""
 fi
 
