@@ -27,6 +27,21 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file mask_wizard.hpp
+ * @brief 4-step wizard dialog for segmentation mask creation
+ * @details Sequentially guides through Crop (3D bounding box), Threshold
+ *          (intensity range), Separate (connected component selection),
+ *          and Track (phase propagation). Aggregates results in
+ *          MaskWizardResult struct.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWizard-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

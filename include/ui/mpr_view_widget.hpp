@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file mpr_view_widget.hpp
+ * @brief Composite widget displaying synchronized MPR views with segmentation
+ * @details Provides 2x2 layout of MPR views (Axial, Coronal, Sagittal, 3D)
+ *          with synchronized crosshair navigation, segmentation tools,
+ *          label map overlay, and coordinate transformation.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/mpr_renderer.hpp"

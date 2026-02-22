@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file tools_panel.hpp
+ * @brief Tools panel providing context-sensitive tool options
+ * @details Displays tool settings based on selected tool category (Navigation,
+ *          Measurement, Annotation, Visualization). Provides quick
+ *          access to window/level presets and visualization modes.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

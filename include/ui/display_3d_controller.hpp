@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file display_3d_controller.hpp
+ * @brief Routes Display 3D checkbox toggles to rendering backends
+ * @details Maps Display3DItem toggles (Volume, Surface, Streamline, etc.)
+ *          to renderer visibility calls. Does not derive from QObject;
+ *          caller wires FlowToolPanel::display3DToggled to handleToggle()
+ *          via lambda.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

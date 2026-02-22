@@ -27,6 +27,21 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file main_window.hpp
+ * @brief Main application window with dockable panels and VTK viewports
+ * @details Qt6-based main window coordinating DICOM loading, PACS access,
+ *          settings management, and viewport layout. Integrates
+ *          dockable tool panels, toolbar, and status bar with VTK
+ *          rendering widgets.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QMainWindow-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

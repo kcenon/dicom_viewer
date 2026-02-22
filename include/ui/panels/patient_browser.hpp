@@ -27,6 +27,21 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file patient_browser.hpp
+ * @brief Patient browser panel for navigating DICOM studies
+ * @details Displays hierarchical tree view of Patients, Studies, and Series.
+ *          Supports loading from directory, PACS query results,
+ *          or manual entry. Classifies series as 4D Flow or other
+ *          modality.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

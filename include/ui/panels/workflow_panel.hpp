@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file workflow_panel.hpp
+ * @brief Container panel that organizes tools by workflow stage
+ * @details Combines WorkflowTabBar with QStackedWidget to present
+ *          stage-appropriate tools: Preprocessing, Segmentation,
+ *          Analysis, and Report.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "ui/widgets/workflow_tab_bar.hpp"

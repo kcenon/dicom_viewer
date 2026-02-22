@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file mask_wizard_controller.hpp
+ * @brief Coordinates MaskWizard UI with segmentation service layer
+ * @details Wires 4-step wizard (Crop, Threshold, Separate, Track) to
+ *          ThresholdSegmenter, ConnectedComponentImageFilter,
+ *          PhaseTracker, and LabelManager. Long-running operations
+ *          run asynchronously via QtConcurrent.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QObject-derived)
+ * - Long-running segmentation tasks dispatched via QtConcurrent
+ * - Results delivered back to UI thread via signals
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "ui/dialogs/mask_wizard.hpp"

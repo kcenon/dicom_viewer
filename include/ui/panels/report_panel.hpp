@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file report_panel.hpp
+ * @brief Report and export panel for the workflow Report stage
+ * @details Quick-access buttons for all export operations: Screenshot, Movie,
+ *          MATLAB, Ensight, DICOM, and Report generation. Embedded
+ *          in WorkflowPanel as Report tab content.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file flow_graph_widget.hpp
+ * @brief Custom QPainter-based time-series graph widget
+ * @details Renders flow rate curves over cardiac phases with multi-plane
+ *          display, auto/manual Y-axis scaling, and phase marker.
+ *          Uses QPainter directly to avoid Qt Charts dependency.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

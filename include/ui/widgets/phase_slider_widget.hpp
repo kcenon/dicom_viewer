@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file phase_slider_widget.hpp
+ * @brief Widget for cardiac phase navigation with cine playback
+ * @details Provides slider, spinbox, and play/stop controls for navigating
+ *          through cardiac phases in 4D Flow MRI data. Layout:
+ *          Phase [Play/Stop] slider [current/total].
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

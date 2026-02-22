@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file viewport_widget.hpp
+ * @brief VTK viewport widget for medical image visualization
+ * @details Wraps QVTKOpenGLNativeWidget for volume rendering, MPR views,
+ *          surface rendering, and segmentation. Supports multiple
+ *          rendering modes (VolumeRendering, SurfaceRendering,
+ *          MPR, SingleSlice).
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ * - VTK rendering calls must be synchronized with Qt paint events
+ * - Background data loading should use signals to update the viewport
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

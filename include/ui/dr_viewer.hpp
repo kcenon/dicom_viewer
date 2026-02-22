@@ -27,6 +27,21 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file dr_viewer.hpp
+ * @brief DR/CR window for radiograph comparison and annotation
+ * @details Provides comparison layout modes (SideBySide, TopBottom, Overlay)
+ *          for prior studies. Supports DR presets (window/level),
+ *          annotation types (Text, Arrow, Marker), and comparison
+ *          navigation.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

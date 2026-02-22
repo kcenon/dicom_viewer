@@ -27,6 +27,21 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file flow_tool_panel.hpp
+ * @brief Panel for controlling 4D Flow display and analysis
+ * @details Provides Display 2D (Mask, Velocity, Streamline, EnergyLoss,
+ *          Vorticity, VelocityTexture) and Display 3D (MaskVolume,
+ *          Surface, Cine, Magnitude, Velocity, ASC, Streamline,
+ *          EnergyLoss, WSS, OSI, AFI, RRT) toggles.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <cstdint>
