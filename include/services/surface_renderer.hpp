@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file surface_renderer.hpp
+ * @brief Marching Cubes isosurface extraction and rendering
+ * @details Generates and renders isosurfaces from volumetric data using the
+ *          Marching Cubes algorithm. Supports tissue-type specific
+ *          coloring with vtkLookupTable, multi-surface rendering,
+ *          and mesh export to STL/PLY formats.
+ *
+ * ## Thread Safety
+ * - All rendering operations must be called from the main (UI) thread
+ * - Isosurface computation may block; consider offloading to background
+ * - VTK actor state must not be accessed concurrently
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

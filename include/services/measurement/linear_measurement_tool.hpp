@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file linear_measurement_tool.hpp
+ * @brief Linear distance and angle measurement with VTK widget integration
+ * @details Provides interactive distance and angle measurements using
+ *          vtkDistanceWidget and vtkAngleWidget. Handles placement,
+ *          display formatting, and physical unit conversion for
+ *          DICOM-calibrated image coordinates.
+ *
+ * ## Thread Safety
+ * - Widget interactions must occur on the main (UI) thread
+ * - Measurement results are value types safe for cross-thread access
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "measurement_types.hpp"

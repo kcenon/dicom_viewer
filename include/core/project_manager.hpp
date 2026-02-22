@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file project_manager.hpp
+ * @brief Project file persistence in .flo format
+ * @details Manages reading and writing of .flo project files, which are ZIP-based
+ *          containers holding volumetric image data, segmentation masks,
+ *          measurements, and analysis results. Uses std::expected for
+ *          explicit error handling.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <cstdint>

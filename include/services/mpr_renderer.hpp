@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file mpr_renderer.hpp
+ * @brief Multi-Planar Reconstruction rendering with crosshair synchronization
+ * @details Manages simultaneous Axial, Coronal, and Sagittal slice rendering
+ *          with synchronized crosshair navigation. Integrates with
+ *          MPRSegmentationRenderer for label overlay and LabelManager
+ *          for segmentation visualization on MPR views.
+ *
+ * ## Thread Safety
+ * - All rendering and slice navigation must occur on the main (UI) thread
+ * - Crosshair position updates trigger synchronized view refreshes
+ * - Window/level adjustments affect all three planes simultaneously
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

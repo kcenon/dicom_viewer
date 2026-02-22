@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file transfer_syntax_decoder.hpp
+ * @brief DICOM transfer syntax identification and decoding support
+ * @details Identifies and categorizes DICOM transfer syntaxes including
+ *          Implicit/Explicit VR, JPEG Baseline, JPEG Lossless, JPEG 2000,
+ *          JPEG-LS, and RLE Lossless. Provides compression type detection
+ *          and validation for supported syntaxes.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

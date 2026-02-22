@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file hemodynamic_surface_manager.hpp
+ * @brief Hemodynamic parameter visualization on vessel surface meshes
+ * @details Maps hemodynamic parameters (Wall Shear Stress, Oscillatory Shear
+ *          Index, Aneurysm Formation Index, Relative Residence Time)
+ *          onto 3D vessel surface meshes for visualization. Coordinates
+ *          color mapping and scalar range management.
+ *
+ * ## Thread Safety
+ * - Surface mesh updates must be called from the main (UI) thread
+ * - Parameter data may be computed on background threads before visualization
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <memory>

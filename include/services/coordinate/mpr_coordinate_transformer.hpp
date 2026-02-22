@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file mpr_coordinate_transformer.hpp
+ * @brief Unified MPR coordinate transformations with crosshair synchronization
+ * @details Provides conversions between screen, world, and voxel coordinate
+ *          systems for MPR views. Synchronizes crosshair positions
+ *          across Axial, Coronal, and Sagittal viewports through
+ *          coordinate mapping with vtkImageData geometry.
+ *
+ * ## Thread Safety
+ * - Coordinate transformations must be called from the main (UI) thread
+ * - The underlying vtkImageData must not change during transformation
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "coordinate_types.hpp"

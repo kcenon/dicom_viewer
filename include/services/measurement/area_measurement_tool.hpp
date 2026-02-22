@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file area_measurement_tool.hpp
+ * @brief Region-of-interest area measurement with VTK widget integration
+ * @details Provides interactive area measurements using circular, elliptical,
+ *          and freehand ROI shapes. Integrates with VTK renderer
+ *          and interactor for mouse-driven placement and displays
+ *          area values with proper physical unit scaling.
+ *
+ * ## Thread Safety
+ * - Widget interactions must occur on the main (UI) thread
+ * - Measurement results are value types safe for cross-thread access
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "measurement_types.hpp"

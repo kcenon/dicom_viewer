@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file dicom_loader.hpp
+ * @brief DICOM file loading and metadata extraction
+ * @details Provides the DicomLoader class for parsing DICOM files and scanning
+ *          directories to extract patient, study, and series metadata.
+ *          Supports both single-file loading and batch directory scanning
+ *          with progress reporting via callbacks.
+ *
+ * ## Thread Safety
+ * - Directory scanning may be called from background threads
+ * - DicomMetadata structs are safe to read from any thread after construction
+ * - Individual file loading operations are not thread-safe
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

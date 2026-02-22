@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file series_builder.hpp
+ * @brief DICOM series assembly into 3D volumetric images
+ * @details Assembles ordered DICOM slices into coherent 3D ITK volumes. Validates
+ *          series consistency (slice spacing, orientation), sorts slices by
+ *          spatial position, and reports progress through callbacks.
+ *          Returns std::future for asynchronous volume construction.
+ *
+ * ## Thread Safety
+ * - Volume building returns std::future and may execute on a background thread
+ * - Progress callbacks are invoked from the building thread
+ * - The returned SeriesInfo is safe to access after the future resolves
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "dicom_loader.hpp"

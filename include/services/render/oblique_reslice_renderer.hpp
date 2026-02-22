@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file oblique_reslice_renderer.hpp
+ * @brief Arbitrary-angle oblique reslicing for 3D volume data
+ * @details Generates resliced 2D images from 3D volumes at arbitrary
+ *          orientations defined by a point and normal vector.
+ *          Integrates with the 3D overlay view for interactive
+ *          oblique plane positioning.
+ *
+ * ## Thread Safety
+ * - All VTK operations must be called from the main (UI) thread
+ * - Reslice computation may be expensive for large volumes
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

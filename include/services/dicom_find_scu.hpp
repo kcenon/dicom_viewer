@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file dicom_find_scu.hpp
+ * @brief DICOM C-FIND Service Class User for patient/study/series queries
+ * @details Implements DICOM C-FIND SCU queries at patient, study, series,
+ *          and image levels. Supports hierarchical query/retrieve
+ *          workflows with configurable query roots and attribute
+ *          matching via the kcenon pacs_system library.
+ *
+ * ## Thread Safety
+ * - Find operations perform network I/O and should not block the UI thread
+ * - Query results are returned as value types safe for cross-thread transfer
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "pacs_config.hpp"

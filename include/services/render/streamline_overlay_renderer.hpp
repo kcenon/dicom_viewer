@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file streamline_overlay_renderer.hpp
+ * @brief 2D streamline overlay rendering for flow visualization on MPR views
+ * @details Generates and renders 2D streamlines from 3D velocity field data
+ *          projected onto MPR slice planes. Supports configurable
+ *          streamline density, length, and color mapping for
+ *          flow visualization.
+ *
+ * ## Thread Safety
+ * - All rendering operations must be called from the main (UI) thread
+ * - Streamline computation may be offloaded to background threads
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

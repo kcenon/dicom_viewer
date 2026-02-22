@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file isotropic_resampler.hpp
+ * @brief Voxel spacing normalization to isotropic resolution
+ * @details Resamples anisotropic volumetric images (e.g., 0.5x0.5x2.5 mm)
+ *          to isotropic voxel spacing (e.g., 1.0x1.0x1.0 mm) using
+ *          ITK resampling filters with configurable interpolation
+ *          methods.
+ *
+ * ## Thread Safety
+ * - Resampling large volumes is computationally expensive; use background threads
+ * - Input ITK image must not be modified during resampling
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

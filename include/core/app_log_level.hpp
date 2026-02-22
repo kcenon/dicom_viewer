@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file app_log_level.hpp
+ * @brief Application-level log level abstraction
+ * @details Defines the AppLogLevel enum that maps application log levels
+ *          to the ecosystem logger system. Provides conversion utilities
+ *          between application levels, ecosystem levels, and string
+ *          representations for QSettings persistence.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <kcenon/common/interfaces/logger_interface.h>

@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file pacs_config.hpp
+ * @brief PACS server connection configuration data structure
+ * @details Defines the PacsServerConfig struct containing DICOM network
+ *          parameters: hostname, port, AE titles (local and remote),
+ *          and a unique identifier for configuration management.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <chrono>

@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file measurement_types.hpp
+ * @brief Error types and codes for measurement operations
+ * @details Defines the MeasurementError struct with error codes covering
+ *          common measurement failure modes such as invalid input,
+ *          missing image data, and computation failures.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

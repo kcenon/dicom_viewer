@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file zip_archive.hpp
+ * @brief ZIP archive compression and decompression operations
+ * @details Provides file-level ZIP operations for reading and writing compressed
+ *          archives. Used by ProjectManager to package .flo project files
+ *          containing NRRD image data and metadata.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <cstdint>

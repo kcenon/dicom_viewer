@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file volume_renderer.hpp
+ * @brief GPU-accelerated volume rendering with transfer function support
+ * @details Provides the VolumeRenderer class for ray-casting volume visualization
+ *          using VTK. Supports GPU rendering with CPU fallback, multiple
+ *          blend modes (composite, MIP, MinIP, average), interactive LOD,
+ *          and clipping planes. Includes built-in CT/MRI presets.
+ *
+ * ## Thread Safety
+ * - All rendering operations must be called from the main (UI) thread
+ * - Transfer function and window/level updates are not thread-safe
+ * - Input data (vtkImageData) should not be modified during rendering
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <memory>
