@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file shape_analyzer.hpp
+ * @brief Shape morphology analysis for segmented regions
+ * @details Analyzes geometric properties of segmented label map regions
+ *          including surface area, volume, sphericity, elongation,
+ *          and center of mass. Operates on ITK binary label maps
+ *          with proper physical spacing consideration.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

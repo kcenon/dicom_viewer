@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file hounsfield_converter.hpp
+ * @brief CT pixel value to Hounsfield Unit conversion and tissue classification
+ * @details Provides utilities for converting stored pixel values to Hounsfield
+ *          Units using rescale slope and intercept parameters. Includes
+ *          tissue type classification, reference HU values for common
+ *          tissues, and parameter validation.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <cmath>

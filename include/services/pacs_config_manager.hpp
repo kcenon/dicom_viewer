@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file pacs_config_manager.hpp
+ * @brief PACS server configuration persistence and management
+ * @details Manages CRUD operations for PACS server configurations using
+ *          Qt QSettings for persistence. Inherits QObject for
+ *          signal/slot integration with the UI layer. Each
+ *          configuration is identified by a unique QUuid.
+ *
+ * ## Thread Safety
+ * - QSettings operations must be called from the main (UI) thread
+ * - Configuration reads are safe after initial load
+ * - Signal emissions follow Qt thread affinity rules
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "pacs_config.hpp"

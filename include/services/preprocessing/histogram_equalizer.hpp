@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file histogram_equalizer.hpp
+ * @brief Histogram equalization for image contrast enhancement
+ * @details Enhances image contrast by redistributing intensity values
+ *          through histogram equalization. Supports both standard
+ *          and adaptive (CLAHE) equalization methods using ITK
+ *          histogram filters.
+ *
+ * ## Thread Safety
+ * - Equalization on large volumes should be run on background threads
+ * - Input ITK image must not be modified during processing
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file n4_bias_corrector.hpp
+ * @brief MRI B1 bias field correction using the N4ITK algorithm
+ * @details Corrects MRI intensity inhomogeneity caused by B1 field
+ *          non-uniformity using the N4 bias field correction algorithm.
+ *          Requires FFTW3 for frequency-domain operations. This is
+ *          typically the slowest preprocessing operation.
+ *
+ * ## Thread Safety
+ * - N4 correction is computationally intensive; must run on background threads
+ * - Progress reporting via callbacks from the processing thread
+ * - Input ITK image must not be modified during correction
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <expected>

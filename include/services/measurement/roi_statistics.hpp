@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file roi_statistics.hpp
+ * @brief Region-of-interest statistical analysis on volumetric data
+ * @details Computes statistical measures (mean, standard deviation, min/max,
+ *          histogram) for regions of interest within ITK image
+ *          volumes. Supports both 2D slice ROIs and 3D volumetric
+ *          region analysis with functional callback integration.
+ *
+ * ## Thread Safety
+ * - Statistics computation on large ROIs may be slow; consider background execution
+ * - ITK image data must not be modified during computation
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "measurement_types.hpp"

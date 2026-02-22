@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file asc_view_controller.hpp
+ * @brief Axial/Sagittal/Coronal 3D overlay cutting plane controller
+ * @details Controls three orthogonal cutting planes overlaid on the 3D
+ *          volume rendering view. Uses vtkImageSliceMapper to display
+ *          MPR slices as textured planes within the 3D scene,
+ *          synchronized with the MPR viewport positions.
+ *
+ * ## Thread Safety
+ * - All VTK operations must be called from the main (UI) thread
+ * - Slice position updates trigger VTK pipeline re-execution
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

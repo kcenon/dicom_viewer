@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file hemodynamic_overlay_renderer.hpp
+ * @brief Hemodynamic parameter overlay rendering on MPR views
+ * @details Renders color-mapped hemodynamic data (WSS, velocity, pressure)
+ *          as overlays on 2D MPR slice views. Supports configurable
+ *          color lookup tables and scalar range mapping for each
+ *          hemodynamic parameter type.
+ *
+ * ## Thread Safety
+ * - All rendering operations must be called from the main (UI) thread
+ * - Overlay data may be prepared on background threads before display
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

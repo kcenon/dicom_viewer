@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file dicom_echo_scu.hpp
+ * @brief DICOM C-ECHO Service Class User for connection verification
+ * @details Implements the DICOM C-ECHO SCU operation to verify connectivity
+ *          and association negotiation with remote PACS servers.
+ *          Uses the kcenon pacs_system library for network operations
+ *          with configurable timeout and error reporting.
+ *
+ * ## Thread Safety
+ * - Echo operations perform network I/O and should not block the UI thread
+ * - Each operation creates its own network association
+ * - PacsError results are safe to inspect from any thread
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "pacs_config.hpp"

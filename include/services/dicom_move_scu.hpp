@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file dicom_move_scu.hpp
+ * @brief DICOM C-MOVE Service Class User for image retrieval
+ * @details Implements DICOM C-MOVE SCU operations to retrieve images from
+ *          remote PACS servers. Retrieved images are stored to the
+ *          local filesystem. Uses the kcenon pacs_system library for
+ *          network and storage operations.
+ *
+ * ## Thread Safety
+ * - Move operations perform network and file I/O; run on background threads
+ * - Progress reporting via callbacks from the network thread
+ * - File write operations use exclusive access
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "pacs_config.hpp"

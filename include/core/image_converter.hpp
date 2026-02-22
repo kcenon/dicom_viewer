@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file image_converter.hpp
+ * @brief Conversion between ITK and VTK image representations
+ * @details Bridges the ITK and VTK image processing ecosystems by converting
+ *          itk::Image to vtkImageData and vice versa. Handles pixel type
+ *          mapping and coordinate system alignment between ITK LPS and
+ *          VTK coordinate conventions.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <memory>

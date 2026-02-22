@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file volume_calculator.hpp
+ * @brief Segmented region volume calculation from label maps
+ * @details Calculates the physical volume of segmented regions in ITK label
+ *          maps. Reports volumes in cubic millimeters, cubic centimeters,
+ *          and milliliters with voxel spacing correction.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <cstdint>

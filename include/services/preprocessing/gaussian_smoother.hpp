@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file gaussian_smoother.hpp
+ * @brief Gaussian blur smoothing for volumetric image noise reduction
+ * @details Applies isotropic or anisotropic Gaussian smoothing to volumetric
+ *          images using ITK discrete Gaussian filters. Defines the
+ *          PreprocessingError struct with error codes for the
+ *          preprocessing service module.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <expected>

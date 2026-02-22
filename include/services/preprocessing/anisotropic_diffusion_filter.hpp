@@ -27,6 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file anisotropic_diffusion_filter.hpp
+ * @brief Edge-preserving noise reduction using anisotropic diffusion
+ * @details Applies gradient-magnitude or curvature-based anisotropic diffusion
+ *          filtering to volumetric images. Reduces noise while preserving
+ *          edge structures, controlled by conductance and iteration
+ *          parameters. Wraps ITK anisotropic diffusion filters.
+ *
+ * ## Thread Safety
+ * - Filter execution may be slow on large volumes; run on background threads
+ * - Input ITK image must not be modified during filtering
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <expected>

@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file coordinate_types.hpp
+ * @brief Coordinate type definitions for the MPR coordinate system
+ * @details Defines the ScreenCoordinate struct representing 2D viewport
+ *          coordinates with x, y integer positions and equality
+ *          comparison support.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <array>

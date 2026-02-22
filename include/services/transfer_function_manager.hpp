@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file transfer_function_manager.hpp
+ * @brief Transfer function preset management with file I/O
+ * @details Manages built-in and custom transfer function presets for volume
+ *          rendering. Provides CRUD operations for custom presets,
+ *          file-based persistence (save/load/export/import), and
+ *          a library of built-in CT/MRI presets.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include <expected>

@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file data_serializer.hpp
+ * @brief Serialization of image data and analysis results into project files
+ * @details Handles reading and writing of volumetric image data, segmentation
+ *          masks, and analysis results within .flo project containers.
+ *          Uses NRRD format for image serialization and ZIP-based
+ *          archiving through ProjectManager.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "core/project_manager.hpp"

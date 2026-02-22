@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/**
+ * @file dicom_store_scp.hpp
+ * @brief DICOM C-STORE Service Class Provider for image reception
+ * @details Implements a DICOM C-STORE SCP server that accepts incoming
+ *          image storage requests from remote DICOM nodes. Uses
+ *          std::atomic for server state management and the kcenon
+ *          pacs_system library for DICOM network handling.
+ *
+ * ## Thread Safety
+ * - Server runs on its own network thread via pacs_system
+ * - Start/stop operations use atomic state transitions
+ * - Received images are written with exclusive file access
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
+
 #pragma once
 
 #include "dicom_echo_scu.hpp"
