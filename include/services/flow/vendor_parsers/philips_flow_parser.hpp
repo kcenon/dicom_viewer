@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file philips_flow_parser.hpp
+ * @brief Philips-specific 4D Flow DICOM parser implementing IVendorFlowParser
+ * @details Parses Philips Classic MR IOD format with scale slope in DICOM tag
+ *          (2005,1071) and phase index in (2001,100a). Implements vendor-
+ *          specific VENC, component classification, phase indexing, and
+ *          trigger time extraction.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/flow/vendor_parsers/i_vendor_flow_parser.hpp"

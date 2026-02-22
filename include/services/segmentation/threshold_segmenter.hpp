@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file threshold_segmenter.hpp
+ * @brief Error types and result structures for segmentation operations
+ * @details Defines error codes (Success, InvalidInput, InvalidParameters,
+ *          ProcessingFailed, InternalError) with human-readable messages.
+ *          Includes OtsuThresholdResult for automatic threshold calculation.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

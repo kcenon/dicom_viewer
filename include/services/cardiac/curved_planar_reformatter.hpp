@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file curved_planar_reformatter.hpp
+ * @brief Curved Planar Reformation (CPR) view generator from vessel centerlines
+ * @details Generates straightened CPR, cross-sectional CPR, and stretched CPR
+ *          views from vessel centerline and CT volume. Essential for
+ *          coronary CTA visualization allowing complete vessel inspection
+ *          in single 2D image despite tortuous 3D path.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

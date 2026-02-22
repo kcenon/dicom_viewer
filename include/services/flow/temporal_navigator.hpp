@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file temporal_navigator.hpp
+ * @brief LRU sliding window cache for velocity phase data management
+ * @details Manages memory by keeping configurable number of phases loaded,
+ *          evicting least-recently-used phases when window size exceeded.
+ *          Supports cine playback modes with FPS, speed multipliers,
+ *          and CacheStatus monitoring.
+ *
+ * ## Thread Safety
+ * - Uses std::mutex internally for thread-safe cache access
+ * - LRU eviction requires synchronization during phase lookup and updates
+ * - Playback state changes are protected against race conditions
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

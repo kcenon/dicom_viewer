@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file enhanced_dicom_parser.hpp
+ * @brief Enhanced DICOM multi-frame IOD parser for modern scanner formats
+ * @details Detects and parses Enhanced DICOM IODs containing multiple image
+ *          frames with shared and per-frame metadata. Supports Enhanced CT,
+ *          Enhanced MR, Enhanced XA with progress callbacks for long
+ *          operations.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

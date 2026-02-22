@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file mask_boolean_operations.hpp
+ * @brief Boolean operations between segmentation label maps
+ * @details Provides voxel-wise set operations: union, difference, and
+ *          intersection. All operations produce new maps preserving originals;
+ *          input maps must have identical dimensions, spacing, and origin.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

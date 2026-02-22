@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file ensight_exporter.hpp
+ * @brief Ensight Gold format exporter for multi-phase visualization data
+ * @details Produces complete Ensight Gold file sets (.case/.geo/.variable)
+ *          from ITK image data compatible with Ansys Ensight and Paraview.
+ *          Supports per-phase scalar and vector variables with proper
+ *          binary formatting.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/export/data_exporter.hpp"

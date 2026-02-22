@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file enhanced_dicom_types.hpp
+ * @brief Data structures and error codes for Enhanced DICOM operations
+ * @details Defines EnhancedDicomError with error code enum (Success,
+ *          InvalidInput, NotEnhancedIOD, ParseFailed) and detailed
+ *          error messages. Core types supporting Enhanced DICOM
+ *          processing pipeline.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <array>

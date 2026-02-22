@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file report_generator.hpp
+ * @brief Clinical report PDF generation with measurement and image embedding
+ * @details Generates multi-page PDF reports embedding measurement tables,
+ *          ROI statistics, volume calculations, and captured images.
+ *          Supports customizable page layouts and Qt-based rendering
+ *          for high-quality output.
+ *
+ * ## Thread Safety
+ * - PDF rendering uses Qt and must be called from the UI thread
+ * - Image capture requires synchronized access to render windows
+ * - Report generation is a blocking operation; use background threads for UI
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/measurement/measurement_types.hpp"

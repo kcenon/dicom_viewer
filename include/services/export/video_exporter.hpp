@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file video_exporter.hpp
+ * @brief Video exporter for cine playback and 3D rotation animations
+ * @details Captures render window frames at cardiac phases and encodes as
+ *          OGG Theora video. Supports 2D cine phase animation and 3D
+ *          rotation capture with progress callbacks for long encoding
+ *          operations.
+ *
+ * ## Thread Safety
+ * - Render window frame capture must be synchronized with rendering
+ * - Video encoding is a long-running operation; use background threads
+ * - Progress callbacks are invoked from the encoding thread
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/export/data_exporter.hpp"

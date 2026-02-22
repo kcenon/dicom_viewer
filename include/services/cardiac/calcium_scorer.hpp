@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file calcium_scorer.hpp
+ * @brief Agatston coronary artery calcium scorer
+ * @details Computes Agatston, volume, and mass calcium scores from non-contrast
+ *          cardiac CT acquisitions. Implements the standard Agatston
+ *          algorithm with threshold at 130 HU, connected component analysis,
+ *          and density-weighted per-slice area scoring.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

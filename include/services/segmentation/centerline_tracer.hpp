@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file centerline_tracer.hpp
+ * @brief Vessel centerline tracing using Dijkstra path finding
+ * @details Computes optimal path between two points through 3D volume using
+ *          Dijkstra shortest path on 26-connectivity voxel grid, followed by
+ *          Catmull-Rom spline smoothing and local radius estimation via
+ *          radial gradient sampling.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "threshold_segmenter.hpp"

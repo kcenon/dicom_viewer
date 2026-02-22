@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file morphological_processor.hpp
+ * @brief Morphological post-processing for segmentation refinement
+ * @details Provides morphological operations (opening, closing, dilation,
+ *          erosion, fill holes, island removal) to refine binary
+ *          segmentation masks using ITK filters for noise removal
+ *          and boundary smoothing.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "threshold_segmenter.hpp"

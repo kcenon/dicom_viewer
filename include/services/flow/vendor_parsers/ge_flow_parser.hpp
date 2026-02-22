@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file ge_flow_parser.hpp
+ * @brief GE-specific 4D Flow DICOM parser implementing IVendorFlowParser
+ * @details Parses GE Classic MR IOD format with velocity/VENC in DICOM tag
+ *          (0019,10cc) and instance number-based phase ordering. Extracts
+ *          VENC, classifies velocity components, and determines phase
+ *          indices and trigger times.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/flow/vendor_parsers/i_vendor_flow_parser.hpp"

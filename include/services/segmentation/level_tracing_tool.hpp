@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file level_tracing_tool.hpp
+ * @brief Edge-following contour tool using flood-fill and Moore boundary tracing
+ * @details Automatically traces intensity boundaries on 2D slices using
+ *          flood-fill within tolerance band and Moore neighborhood contour
+ *          extraction. Optionally fills enclosed regions to produce binary masks.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "threshold_segmenter.hpp"

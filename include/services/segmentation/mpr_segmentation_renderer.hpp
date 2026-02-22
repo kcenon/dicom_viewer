@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file mpr_segmentation_renderer.hpp
+ * @brief Renders segmentation overlays on MPR views
+ * @details Creates and manages VTK actors for displaying segmentation labels
+ *          as semi-transparent colored overlays on MPR planes. Extracts 2D
+ *          slices from 3D label map for each plane with customizable colors
+ *          and opacity.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <array>

@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file cardiac_phase_detector.hpp
+ * @brief ECG-gated cardiac phase detection and separation
+ * @details Detects ECG-gated cardiac CT/MR series and separates multi-phase
+ *          data into individual cardiac phase volumes. Supports Enhanced
+ *          and Classic DICOM IODs with automatic best diastolic/systolic
+ *          phase selection and ejection fraction estimation.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

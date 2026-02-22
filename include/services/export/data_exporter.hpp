@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file data_exporter.hpp
+ * @brief Base framework for data export operations with error handling
+ * @details Defines ExportError structure with error codes (Success,
+ *          FileAccessDenied, InvalidData, EncodingFailed,
+ *          UnsupportedFormat, InternalError) and status checking
+ *          methods for multi-format export pipeline.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/export/report_generator.hpp"

@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file flow_quantifier.hpp
+ * @brief Flow measurement quantification at discrete cardiac phases
+ * @details Provides flow measurement results and time-velocity curves for
+ *          flow quantification analysis. Defines MeasurementPlane for
+ *          specifying sampling geometry with center, normal, radius,
+ *          and spacing parameters.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <array>

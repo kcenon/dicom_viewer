@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file mask_smoother.hpp
+ * @brief Volume-preserving Gaussian boundary smoother for binary masks
+ * @details Smooths mask boundaries using Gaussian blur followed by adaptive
+ *          re-thresholding via binary search to preserve original volume
+ *          within tolerance (default 1%).
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "threshold_segmenter.hpp"

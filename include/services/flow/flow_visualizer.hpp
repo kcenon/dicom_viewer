@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file flow_visualizer.hpp
+ * @brief Velocity field rendering with streamlines, pathlines, and vector glyphs
+ * @details Provides visualization types (Streamlines, Pathlines, VectorGlyphs)
+ *          and color modes (VelocityMagnitude, VelocityComponent,
+ *          FlowDirection, TriggerTime). Contains StreamlineParams for
+ *          configuring integration, step length, and tube rendering.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <array>

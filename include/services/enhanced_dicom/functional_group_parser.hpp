@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file functional_group_parser.hpp
+ * @brief Parser for DICOM Functional Group Sequences in Enhanced IODs
+ * @details Extracts metadata from SharedFunctionalGroupsSequence (5200,9229)
+ *          and PerFrameFunctionalGroupsSequence (5200,9230). Per-frame
+ *          values override shared values for metadata that varies by
+ *          frame (pixel spacing, position, orientation).
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

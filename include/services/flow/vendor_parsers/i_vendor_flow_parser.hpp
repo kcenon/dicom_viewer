@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file i_vendor_flow_parser.hpp
+ * @brief Interface for vendor-specific 4D Flow DICOM parsing
+ * @details Strategy pattern interface for vendor-specific parsing logic. Each
+ *          vendor (Siemens, Philips, GE) implements methods for velocity
+ *          tags extraction, VENC retrieval, velocity component classification,
+ *          phase indexing, and trigger time extraction.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <string>

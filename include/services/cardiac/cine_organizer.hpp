@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file cine_organizer.hpp
+ * @brief Cine MRI acquisition orientation classification and organization
+ * @details Classifies cine MRI orientations (ShortAxis, 2CH, 3CH, 4CH) from
+ *          Image Orientation Patient (0020,0037) cosines. Organizes temporal
+ *          multi-frame data for cardiac cine analysis.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file frame_extractor.hpp
+ * @brief Extracts individual frames from Enhanced DICOM multi-frame pixel data
+ * @details Handles native (uncompressed) and encapsulated (compressed) pixel
+ *          data extraction. Uses Basic Offset Table or Extended Offset
+ *          Table to locate frame boundaries within pixel data element.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <cstdint>

@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file snapshot_command.hpp
+ * @brief Snapshot-based undoable command for bulk segmentation operations
+ * @details Stores RLE-compressed before/after snapshots for operations
+ *          modifying large regions (threshold, region growing, morphological).
+ *          Captures 'before' on construction and 'after' after operation
+ *          completion.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/segmentation/segmentation_command.hpp"

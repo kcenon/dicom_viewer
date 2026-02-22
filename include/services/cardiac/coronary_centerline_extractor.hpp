@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file coronary_centerline_extractor.hpp
+ * @brief Coronary artery centerline extraction using Frangi vesselness and minimal path
+ * @details Implements multi-scale Frangi vesselness filter for tubular structure
+ *          enhancement, minimal path centerline extraction via FastMarching
+ *          and gradient descent, B-spline smoothing, and vessel radius/
+ *          stenosis measurement for coronary CTA analysis.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

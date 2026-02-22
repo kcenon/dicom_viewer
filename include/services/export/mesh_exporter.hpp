@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file mesh_exporter.hpp
+ * @brief STL and OBJ mesh file exporter with coordinate system conversion
+ * @details Exports segmentation-derived or iso-surface meshes to STL
+ *          (binary/ASCII) and OBJ formats. Supports RAS/LPS coordinate
+ *          system conversion for compatibility with external analysis tools.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <array>

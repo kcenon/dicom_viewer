@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file phase_corrector.hpp
+ * @brief Systematic error corrections for raw 4D Flow velocity data
+ * @details Corrects three types of systematic errors in phase-contrast MRI:
+ *          velocity aliasing (phase wrapping beyond VENC), eddy current
+ *          background phase offsets, and Maxwell term (concomitant gradient)
+ *          errors. Each correction independently configurable.
+ *
+ * ## Thread Safety
+ * - Processes large 3D image data; corrections may be computationally intensive
+ * - ITK image operations should not be performed concurrently on the same data
+ * - Input images must not be modified during correction
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

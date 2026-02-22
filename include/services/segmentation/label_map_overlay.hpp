@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file label_map_overlay.hpp
+ * @brief Renders segmentation label map as overlay on MPR views
+ * @details Visualizes ITK label maps on VTK renderers with support for
+ *          multiple labels and customizable colors. Non-copyable and movable
+ *          for proper resource management.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/mpr_renderer.hpp"

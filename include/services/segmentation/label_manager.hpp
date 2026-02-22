@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file label_manager.hpp
+ * @brief Manager for multi-label segmentation with undo/redo support
+ * @details Comprehensive management of multiple segmentation labels including
+ *          creation, modification, deletion, visibility control, statistics
+ *          computation, and import/export of segmentation data. Supports up
+ *          to 255 labels with 0 reserved for background.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "segmentation_label.hpp"
