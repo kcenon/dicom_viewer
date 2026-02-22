@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file intro_page.hpp
+ * @brief Landing page shown on application startup
+ * @details Provides quick access to DICOM import, project opening, recent
+ *          project list, and PACS connection before any data is loaded.
+ *          Emits signals for user actions.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

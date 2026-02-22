@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file overlay_control_panel.hpp
+ * @brief UI panel for controlling 2D hemodynamic overlay display
+ * @details Provides checkboxes for each overlay type with per-overlay
+ *          colormap range controls and opacity sliders. Emits
+ *          signals on setting changes.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

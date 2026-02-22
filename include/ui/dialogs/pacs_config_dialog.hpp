@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file pacs_config_dialog.hpp
+ * @brief Dialog for managing PACS server configurations
+ * @details Provides UI for adding, editing, and removing PACS servers with
+ *          connection test via C-ECHO. Returns selected server ID
+ *          on acceptance.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QDialog-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file settings_dialog.hpp
+ * @brief Application settings dialog with log level configuration
+ * @details Configures application settings including log level selection
+ *          (four levels with descriptions). Changes are persisted
+ *          via QSettings.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QDialog-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

@@ -27,6 +27,21 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file workflow_tab_bar.hpp
+ * @brief Tab bar for switching between workflow stages
+ * @details Provides 4 tabs representing sequential analysis workflow:
+ *          Preprocessing, Segmentation, Analysis, and Report.
+ *          Each tab reconfigures the tool panel to show
+ *          stage-relevant tools.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QTabBar-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <QTabBar>

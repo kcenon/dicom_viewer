@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file sp_mode_toggle.hpp
+ * @brief Toggle widget for S/P (Slice/Phase) scroll mode
+ * @details Provides two mutually exclusive buttons [S] [P] that switch
+ *          scroll wheel behavior between slice navigation and
+ *          phase navigation in 4D Flow MRI viewers.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

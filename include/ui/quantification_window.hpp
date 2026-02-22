@@ -27,6 +27,21 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file quantification_window.hpp
+ * @brief Window for displaying hemodynamic measurement parameters
+ * @details Displays quantification rows (FlowRate, PeakVelocity,
+ *          MeanVelocity, KineticEnergy) with mean/stdDev/max/min
+ *          statistics. Also shows volume-level parameters
+ *          (TotalKE, VortexVolume, EnergyLoss).
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QMainWindow-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

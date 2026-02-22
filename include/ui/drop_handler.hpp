@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file drop_handler.hpp
+ * @brief Drag-and-drop handler for DICOM viewers
+ * @details Classifies dropped content (DicomFolder, ProjectFile, MaskFile,
+ *          StlFile). Detects DICOM folders by checking DICM magic
+ *          bytes. Installed as event filter on QWidget targets.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QObject-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <QObject>

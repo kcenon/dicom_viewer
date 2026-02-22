@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file statistics_panel.hpp
+ * @brief Panel for displaying ROI statistics and histogram
+ * @details Displays comprehensive statistics for selected ROIs (mean, stdDev,
+ *          min, max, median) with histogram visualization, multi-ROI
+ *          comparison, and CSV export.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/measurement/roi_statistics.hpp"

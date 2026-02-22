@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file viewport_layout_manager.hpp
+ * @brief Manages viewport layout with 1/2/4-split modes
+ * @details Uses QStackedWidget to switch between layout containers for
+ *          Single, DualSplit (2D|3D), and QuadSplit (2x2 grid).
+ *          Provides access to primary and secondary viewports.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>

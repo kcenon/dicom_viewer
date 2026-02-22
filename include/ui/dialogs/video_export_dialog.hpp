@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file video_export_dialog.hpp
+ * @brief Configuration dialog for video export parameters
+ * @details Allows selection of export mode (2D Cine, 3D Rotation, Combined)
+ *          with resolution, FPS, and mode-specific parameters.
+ *          Generates VideoExporter configuration structs.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QDialog-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/export/video_exporter.hpp"

@@ -27,6 +27,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file segmentation_panel.hpp
+ * @brief UI panel for manual segmentation tools
+ * @details Provides access to segmentation tools (Brush, Eraser, Fill,
+ *          Freehand, Polygon, Smart Scissors) with configurable
+ *          parameters including brush size, shape, and active label.
+ *
+ * ## Thread Safety
+ * - All methods must be called from the Qt UI thread (QWidget-derived)
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <memory>
