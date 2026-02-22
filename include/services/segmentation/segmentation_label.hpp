@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file segmentation_label.hpp
+ * @brief RGBA color representation for segmentation labels
+ * @details Stores normalized floating-point color components [0.0, 1.0]
+ *          compatible with rendering pipelines. Provides constructors for
+ *          float and 8-bit RGBA values with automatic component clamping.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <array>

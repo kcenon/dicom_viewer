@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file manual_segmentation_controller.hpp
+ * @brief Tool enumeration and input types for manual segmentation drawing
+ * @details Enumerates supported drawing tools (brush, eraser, fill, freehand,
+ *          polygon, smart scissors, level tracing, centerline) and brush
+ *          shapes with 2D point structures for mouse interaction.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <cstdint>

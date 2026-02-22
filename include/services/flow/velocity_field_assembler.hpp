@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file velocity_field_assembler.hpp
+ * @brief Assembles 3D velocity vector fields from parsed 4D Flow DICOM frames
+ * @details Constructs temporal sequence of 3D velocity vector fields from frame
+ *          matrix using ITK image types. Pipeline: read scalar volumes,
+ *          apply VENC scaling, compose 3 components into VectorImage3D,
+ *          output VelocityPhase per cardiac phase.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

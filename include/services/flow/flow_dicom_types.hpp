@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file flow_dicom_types.hpp
+ * @brief Error information and type definitions for flow analysis operations
+ * @details Defines FlowError struct with detailed error codes and messages
+ *          for flow analysis operations. Contains FlowVendorType enum
+ *          for scanner vendor identification.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <array>

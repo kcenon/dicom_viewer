@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file phase_tracker.hpp
+ * @brief Temporal mask propagation across cardiac phases
+ * @details Propagates segmentation masks from reference phase to all others
+ *          using deformable registration via ITK Demons. Bidirectional
+ *          propagation from reference with optional morphological closing
+ *          and volume deviation flagging.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/segmentation/threshold_segmenter.hpp"

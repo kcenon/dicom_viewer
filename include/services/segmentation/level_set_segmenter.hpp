@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file level_set_segmenter.hpp
+ * @brief Parameters and seed points for Level Set segmentation algorithms
+ * @details Defines configuration structures for level set-based segmentation
+ *          with propagation scaling, curvature constraint, and advection
+ *          parameters for edge attraction and boundary smoothness control.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file brush_stroke_command.hpp
+ * @brief Diff-based undoable command for brush stroke operations
+ * @details Stores only changed voxels for memory-efficient undo/redo of
+ *          localized brush, eraser, and fill operations. Records individual
+ *          voxel changes with old and new label values for efficient playback.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/segmentation/segmentation_command.hpp"

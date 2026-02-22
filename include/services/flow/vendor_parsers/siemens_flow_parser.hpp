@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file siemens_flow_parser.hpp
+ * @brief Siemens-specific 4D Flow DICOM parser implementing IVendorFlowParser
+ * @details Parses Siemens Enhanced MR IOD format with velocity info in DICOM
+ *          tag (0051,1014) and VENC in (0018,9197). Implements vendor-
+ *          specific extraction methods for VENC, component classification,
+ *          phase indices, and trigger times.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/flow/vendor_parsers/i_vendor_flow_parser.hpp"

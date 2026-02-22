@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file hollow_tool.hpp
+ * @brief Creates hollow shell masks from solid segmentation masks
+ * @details Extracts boundary regions at configurable thickness from binary
+ *          masks. Supports inward, outward, or bidirectional shell extraction
+ *          useful for visualizing thin structures like vessel walls.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "threshold_segmenter.hpp"

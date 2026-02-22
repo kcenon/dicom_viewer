@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file cardiac_types.hpp
+ * @brief Cardiac phase metadata and classification enums
+ * @details Defines PhaseTarget enum (Diastole, Systole, Custom),
+ *          CardiacPhaseInfo struct for single temporal phase metadata,
+ *          and helper methods for diastolic/systolic region classification.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <array>

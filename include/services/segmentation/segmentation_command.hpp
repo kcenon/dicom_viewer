@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file segmentation_command.hpp
+ * @brief Abstract interface for undoable segmentation operations
+ * @details Base interface and command stack for undo/redo of segmentation
+ *          operations. Manages history with configurable depth (default 20)
+ *          and clears redo stack on new commands after undo.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <cstddef>

@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file flow_dicom_parser.hpp
+ * @brief 4D Flow MRI DICOM series parser with vendor-specific strategy
+ * @details Identifies 4D Flow series from DICOM metadata, selects appropriate
+ *          vendor-specific parser (Siemens, Philips, GE), and organizes
+ *          frames into a cardiac_phase x velocity_component matrix.
+ *          Uses Strategy pattern via IVendorFlowParser for vendor abstraction.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file watershed_segmenter.hpp
+ * @brief Watershed segmentation with region analysis and merging
+ * @details Provides flood level and threshold control for output region count.
+ *          Includes Gaussian preprocessing, gradient computation,
+ *          marker-based option, and small region merging for
+ *          oversegmentation reduction.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <array>

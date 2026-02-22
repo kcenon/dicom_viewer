@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file matlab_exporter.hpp
+ * @brief MAT-file Level 5 writer for MATLAB velocity field export
+ * @details Writes MATLAB .mat files in Level 5 binary format without external
+ *          dependencies. Supports float32/float64 numeric arrays up to 4D
+ *          in column-major (Fortran) order.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/export/data_exporter.hpp"

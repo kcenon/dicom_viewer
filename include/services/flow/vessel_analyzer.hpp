@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file vessel_analyzer.hpp
+ * @brief Wall Shear Stress and vortex analysis for flow dynamics
+ * @details Computes Wall Shear Stress (WSS), vorticity magnitude and field,
+ *          helicity density with right/left components, and kinetic energy
+ *          per voxel. Provides WSSResult, VortexResult, and
+ *          KineticEnergyResult structures.
+ *
+ * ## Thread Safety
+ * - Computationally intensive derivative calculations on 3D velocity fields
+ * - Different analysis metrics may be computed in parallel on separate data
+ * - Input velocity data must not be modified during analysis
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

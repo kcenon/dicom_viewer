@@ -27,6 +27,23 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file dicom_sr_writer.hpp
+ * @brief DICOM Structured Report (SR) writer with PACS store capability
+ * @details Writes structured report documents from measurement data and
+ *          clinical annotations. Includes PACS connection and store
+ *          operation support with detailed error handling for encoding,
+ *          validation, and connectivity issues.
+ *
+ * ## Thread Safety
+ * - PACS network operations should not be called from the UI thread
+ * - File I/O requires exclusive access during write operations
+ * - GDCM encoding thread-safety depends on library version
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/dicom_echo_scu.hpp"

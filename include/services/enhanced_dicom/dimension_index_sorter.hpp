@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file dimension_index_sorter.hpp
+ * @brief Sorts Enhanced DICOM frames using DimensionIndexSequence
+ * @details Parses DimensionIndexSequence (0020,9222) to understand multi-
+ *          dimensional frame organization (temporal position, in-stack
+ *          position, echo number). Falls back to spatial position-based
+ *          sorting when sequence absent.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

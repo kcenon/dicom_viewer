@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file measurement_serializer.hpp
+ * @brief JSON serialization for measurements and clinical annotations
+ * @details Serializes measurement data, ROI statistics, and segmentation
+ *          labels to/from JSON format with schema validation. Supports
+ *          study-specific versioning and data integrity checking for
+ *          measurement persistence.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include "services/export/report_generator.hpp"

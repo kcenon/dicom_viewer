@@ -27,6 +27,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file slice_interpolator.hpp
+ * @brief Interpolation method selection and parameters for slice interpolation
+ * @details Supports morphological (recommended), shape-based, and linear
+ *          interpolation methods with heuristic contour alignment and
+ *          multiple pass options. Includes label filtering and slice bounds.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>

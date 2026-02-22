@@ -27,6 +27,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+/**
+ * @file region_growing_segmenter.hpp
+ * @brief Seed point-based region growing segmentation using ITK filters
+ * @details Provides connected threshold and confidence connected region growing
+ *          algorithms for semi-automatic segmentation. Connected threshold
+ *          uses user-defined intensity range; confidence connected
+ *          automatically determines range from seed statistics.
+ *
+ * @author kcenon
+ * @since 1.0.0
+ */
 #pragma once
 
 #include <expected>
