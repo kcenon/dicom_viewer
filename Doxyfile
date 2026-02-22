@@ -1,0 +1,22 @@
+# Doxyfile for dicom_viewer
+
+PROJECT_NAME           = "dicom_viewer"
+PROJECT_NUMBER         = "1.0.0"
+PROJECT_BRIEF          = "DICOM medical image viewer application"
+OUTPUT_DIRECTORY       = documents
+INPUT                  = src/ include/
+FILE_PATTERNS          = *.h *.hpp *.cpp
+RECURSIVE              = YES
+EXTRACT_ALL            = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = html
+WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = YES
+JAVADOC_AUTOBRIEF      = YES
+BUILTIN_STL_SUPPORT    = YES
+GENERATE_TREEVIEW      = YES
+SEARCHENGINE           = YES
+SOURCE_BROWSER         = YES
+PREDEFINED             = BUILD_WITH_DICOM_VIEWER
+EXCLUDE_PATTERNS       = */build/* */test/* */.git/*

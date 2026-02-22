@@ -27,6 +27,9 @@ tests/data/*.zip
 # vcpkg
 vcpkg_installed/
 
+# Doxygen output
+documents/
+
 # macOS
 .DS_Store
 
