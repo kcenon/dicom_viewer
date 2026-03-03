@@ -44,6 +44,7 @@
 #include <pacs/network/dimse/dimse_message.hpp>
 #include <pacs/network/dimse/status_codes.hpp>
 #include <pacs/services/query_scu.hpp>
+#include <pacs/encoding/dataset_charset.hpp>
 #include <pacs/encoding/vr_type.hpp>
 
 namespace dicom_viewer::services {
@@ -96,11 +97,11 @@ inline constexpr pacs::core::dicom_tag body_part_examined{0x0018, 0x0015};
 }
 
 /**
- * @brief Helper to safely get string from pacs_system dataset
+ * @brief Helper to safely get string from pacs_system dataset with charset decoding
  */
 std::string getStringFromDataset(const pacs::core::dicom_dataset& dataset,
                                   pacs::core::dicom_tag tag) {
-    return dataset.get_string(tag, "");
+    return pacs::encoding::get_decoded_string(dataset, tag);
 }
 
 /**
