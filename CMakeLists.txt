@@ -155,6 +155,15 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
     find_library(PACS_ENCODING_LIB pacs_encoding HINTS ${PACS_SYSTEM_LIB_DIR})
     find_library(PACS_INTEGRATION_LIB pacs_integration HINTS ${PACS_SYSTEM_LIB_DIR})
 
+    # Find optional pacs_system extension libraries
+    find_library(PACS_SECURITY_LIB pacs_security HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(PACS_STORAGE_LIB pacs_storage HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(PACS_WEB_LIB pacs_web HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(PACS_CLIENT_LIB pacs_client HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(PACS_WORKFLOW_LIB pacs_workflow HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(PACS_MONITORING_LIB pacs_monitoring HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(PACS_AI_LIB pacs_ai HINTS ${PACS_SYSTEM_LIB_DIR})
+
     # Find dependency libraries from pacs_system
     find_library(CONTAINER_SYSTEM_LIB container_system HINTS ${PACS_SYSTEM_LIB_DIR})
     find_library(NETWORK_SYSTEM_LIB NetworkSystem HINTS ${PACS_SYSTEM_LIB_DIR})
@@ -211,6 +220,76 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                 IMPORTED_LOCATION "${PACS_INTEGRATION_LIB}"
                 INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
             )
+        endif()
+
+        # Create optional extension module targets
+        if(PACS_SECURITY_LIB)
+            # pacs_security depends on OpenSSL for TLS syslog transport
+            find_package(OpenSSL QUIET)
+            add_library(pacs::security STATIC IMPORTED)
+            set_target_properties(pacs::security PROPERTIES
+                IMPORTED_LOCATION "${PACS_SECURITY_LIB}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+            )
+            if(OpenSSL_FOUND)
+                set_property(TARGET pacs::security APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto)
+            endif()
+            message(STATUS "  - pacs_security: ${PACS_SECURITY_LIB}")
+        endif()
+
+        if(PACS_STORAGE_LIB)
+            add_library(pacs::storage STATIC IMPORTED)
+            set_target_properties(pacs::storage PROPERTIES
+                IMPORTED_LOCATION "${PACS_STORAGE_LIB}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+            )
+            message(STATUS "  - pacs_storage: ${PACS_STORAGE_LIB}")
+        endif()
+
+        if(PACS_WEB_LIB)
+            add_library(pacs::web STATIC IMPORTED)
+            set_target_properties(pacs::web PROPERTIES
+                IMPORTED_LOCATION "${PACS_WEB_LIB}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+            )
+            message(STATUS "  - pacs_web: ${PACS_WEB_LIB}")
+        endif()
+
+        if(PACS_CLIENT_LIB)
+            add_library(pacs::client STATIC IMPORTED)
+            set_target_properties(pacs::client PROPERTIES
+                IMPORTED_LOCATION "${PACS_CLIENT_LIB}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+            )
+            message(STATUS "  - pacs_client: ${PACS_CLIENT_LIB}")
+        endif()
+
+        if(PACS_WORKFLOW_LIB)
+            add_library(pacs::workflow STATIC IMPORTED)
+            set_target_properties(pacs::workflow PROPERTIES
+                IMPORTED_LOCATION "${PACS_WORKFLOW_LIB}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+            )
+            message(STATUS "  - pacs_workflow: ${PACS_WORKFLOW_LIB}")
+        endif()
+
+        if(PACS_MONITORING_LIB)
+            add_library(pacs::monitoring STATIC IMPORTED)
+            set_target_properties(pacs::monitoring PROPERTIES
+                IMPORTED_LOCATION "${PACS_MONITORING_LIB}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+            )
+            message(STATUS "  - pacs_monitoring: ${PACS_MONITORING_LIB}")
+        endif()
+
+        if(PACS_AI_LIB)
+            add_library(pacs::ai STATIC IMPORTED)
+            set_target_properties(pacs::ai PROPERTIES
+                IMPORTED_LOCATION "${PACS_AI_LIB}"
+                INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
+            )
+            message(STATUS "  - pacs_ai: ${PACS_AI_LIB}")
         endif()
 
         # Create wrapper targets for dependencies
@@ -272,6 +351,8 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                         INTERFACE_LINK_OPTIONS "-Wl,-undefined,dynamic_lookup")
                 endforeach()
                 foreach(_pacs_tgt pacs::encoding pacs::integration
+                        pacs::security pacs::storage pacs::web
+                        pacs::client pacs::workflow pacs::monitoring pacs::ai
                         pacs::container_system pacs::network_system
                         pacs::logger_system pacs::thread_base pacs::thread_core)
                     if(TARGET ${_pacs_tgt})
@@ -477,6 +558,11 @@ endif()
 
 if(TARGET pacs::thread_core)
     target_link_libraries(pacs_service PUBLIC pacs::thread_core)
+endif()
+
+# pacs_services depends on pacs_security (ATNA audit in storage_scp)
+if(TARGET pacs::security)
+    target_link_libraries(pacs_service PUBLIC pacs::security)
 endif()
 
 add_library(export_service STATIC
