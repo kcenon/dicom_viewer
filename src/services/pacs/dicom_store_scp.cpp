@@ -430,4 +430,15 @@ std::vector<std::string> DicomStoreSCP::getSupportedSopClasses() {
     };
 }
 
+std::vector<std::string> DicomStoreSCP::getSupportedTransferSyntaxes() {
+    return {
+        "1.2.840.10008.1.2",      // Implicit VR Little Endian
+        "1.2.840.10008.1.2.1",    // Explicit VR Little Endian
+        "1.2.840.10008.1.2.2",    // Explicit VR Big Endian
+        HTJ2K_LOSSLESS,           // HTJ2K Lossless
+        HTJ2K_RPCL,              // HTJ2K Lossless RPCL
+        HTJ2K_LOSSY              // HTJ2K Lossy
+    };
+}
+
 } // namespace dicom_viewer::services

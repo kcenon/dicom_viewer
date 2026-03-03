@@ -183,6 +183,20 @@ target_include_directories(storage_commitment_test PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
 
+add_executable(htj2k_transfer_syntax_test
+    unit/htj2k_transfer_syntax_test.cpp
+)
+
+target_link_libraries(htj2k_transfer_syntax_test PRIVATE
+    pacs_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(htj2k_transfer_syntax_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
 # VTK module autoinit for tests
 vtk_module_autoinit(
     TARGETS volume_renderer_test transfer_function_manager_test mpr_renderer_test surface_renderer_test
@@ -225,6 +239,7 @@ gtest_discover_tests(dicom_find_scu_test DISCOVERY_TIMEOUT 60)
 gtest_discover_tests(charset_decoding_test DISCOVERY_TIMEOUT 60)
 gtest_discover_tests(iod_validation_test DISCOVERY_TIMEOUT 60)
 gtest_discover_tests(storage_commitment_test DISCOVERY_TIMEOUT 60)
+gtest_discover_tests(htj2k_transfer_syntax_test DISCOVERY_TIMEOUT 60)
 
 # Unit tests for DICOM Move SCU
 add_executable(dicom_move_scu_test

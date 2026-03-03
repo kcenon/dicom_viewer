@@ -193,6 +193,19 @@ public:
     static constexpr const char* ENHANCED_CT_STORAGE = "1.2.840.10008.5.1.4.1.1.2.1";
     static constexpr const char* ENHANCED_MR_STORAGE = "1.2.840.10008.5.1.4.1.1.4.1";
 
+    // HTJ2K Transfer Syntax UIDs (DICOM Supplement 235)
+    static constexpr const char* HTJ2K_LOSSLESS = "1.2.840.10008.1.2.4.201";
+    static constexpr const char* HTJ2K_RPCL = "1.2.840.10008.1.2.4.202";
+    static constexpr const char* HTJ2K_LOSSY = "1.2.840.10008.1.2.4.203";
+
+    /**
+     * @brief Get list of supported transfer syntax UIDs
+     *
+     * Returns all transfer syntaxes the Store SCP can accept,
+     * including standard uncompressed and HTJ2K compressed syntaxes.
+     */
+    [[nodiscard]] static std::vector<std::string> getSupportedTransferSyntaxes();
+
     DicomStoreSCP();
     ~DicomStoreSCP();
 

@@ -246,9 +246,12 @@ private:
         moveCtx.id = 1;
         moveCtx.abstract_syntax = moveSopClassUid;
         moveCtx.transfer_syntaxes = {
-            "1.2.840.10008.1.2.1",  // Explicit VR Little Endian
-            "1.2.840.10008.1.2.2",  // Explicit VR Big Endian
-            "1.2.840.10008.1.2"     // Implicit VR Little Endian
+            "1.2.840.10008.1.2.1",    // Explicit VR Little Endian
+            "1.2.840.10008.1.2.2",    // Explicit VR Big Endian
+            "1.2.840.10008.1.2",      // Implicit VR Little Endian
+            "1.2.840.10008.1.2.4.201", // HTJ2K Lossless
+            "1.2.840.10008.1.2.4.202", // HTJ2K Lossless RPCL
+            "1.2.840.10008.1.2.4.203"  // HTJ2K Lossy
         };
         assocConfig.proposed_contexts.push_back(moveCtx);
 

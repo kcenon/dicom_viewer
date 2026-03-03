@@ -216,6 +216,49 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                 set_property(TARGET pacs::encoding APPEND PROPERTY
                     INTERFACE_LINK_LIBRARIES iconv)
             endif()
+
+            # pacs_encoding codec dependencies (transitive from pacs_system)
+            find_package(JPEG QUIET)
+            if(JPEG_FOUND)
+                set_property(TARGET pacs::encoding APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES JPEG::JPEG)
+            endif()
+
+            find_package(OpenJPEG QUIET)
+            if(OpenJPEG_FOUND AND TARGET openjp2)
+                set_property(TARGET pacs::encoding APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES openjp2)
+            else()
+                find_library(OPENJP2_LIB openjp2)
+                if(OPENJP2_LIB)
+                    set_property(TARGET pacs::encoding APPEND PROPERTY
+                        INTERFACE_LINK_LIBRARIES "${OPENJP2_LIB}")
+                endif()
+            endif()
+
+            find_package(openjph CONFIG QUIET)
+            if(openjph_FOUND AND TARGET openjph::openjph)
+                set_property(TARGET pacs::encoding APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES openjph::openjph)
+            else()
+                find_library(OPENJPH_LIB openjph)
+                if(OPENJPH_LIB)
+                    set_property(TARGET pacs::encoding APPEND PROPERTY
+                        INTERFACE_LINK_LIBRARIES "${OPENJPH_LIB}")
+                endif()
+            endif()
+
+            find_package(charls CONFIG QUIET)
+            if(charls_FOUND AND TARGET charls::charls)
+                set_property(TARGET pacs::encoding APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES charls::charls)
+            else()
+                find_library(CHARLS_LIB charls)
+                if(CHARLS_LIB)
+                    set_property(TARGET pacs::encoding APPEND PROPERTY
+                        INTERFACE_LINK_LIBRARIES "${CHARLS_LIB}")
+                endif()
+            endif()
         endif()
 
         if(PACS_INTEGRATION_LIB)
