@@ -562,10 +562,12 @@ add_library(pacs_service STATIC
     src/services/pacs/pacs_config_manager.cpp
     src/services/pacs/storage_commitment_service.cpp
     src/services/pacs/audit_service.cpp
+    src/services/pacs/query_cache_manager.cpp
     include/services/pacs_config_manager.hpp
     include/services/dicom_store_scp.hpp
     include/services/storage_commitment_service.hpp
     include/services/audit_service.hpp
+    include/services/query_cache_manager.hpp
 )
 
 target_include_directories(pacs_service PUBLIC
