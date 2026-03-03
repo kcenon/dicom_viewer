@@ -241,6 +241,22 @@ gtest_discover_tests(iod_validation_test DISCOVERY_TIMEOUT 60)
 gtest_discover_tests(storage_commitment_test DISCOVERY_TIMEOUT 60)
 gtest_discover_tests(htj2k_transfer_syntax_test DISCOVERY_TIMEOUT 60)
 
+add_executable(audit_service_test
+    unit/audit_service_test.cpp
+)
+
+target_link_libraries(audit_service_test PRIVATE
+    pacs_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(audit_service_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(audit_service_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for DICOM Move SCU
 add_executable(dicom_move_scu_test
     unit/dicom_move_scu_test.cpp
