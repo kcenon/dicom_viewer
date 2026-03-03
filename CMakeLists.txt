@@ -169,6 +169,9 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
     find_library(NETWORK_SYSTEM_LIB NetworkSystem HINTS ${PACS_SYSTEM_LIB_DIR})
     find_library(LOGGER_SYSTEM_LIB LoggerSystem HINTS ${PACS_SYSTEM_LIB_DIR})
     find_library(THREAD_BASE_LIB thread_base HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(DATABASE_LIB database HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(UTILITIES_LIB utilities HINTS ${PACS_SYSTEM_LIB_DIR})
+    find_library(MONITORING_SYSTEM_LIB monitoring_system HINTS ${PACS_SYSTEM_LIB_DIR})
     find_library(THREAD_CORE_LIB thread_core HINTS ${PACS_SYSTEM_LIB_DIR})
 
     if(PACS_CORE_LIB AND PACS_NETWORK_LIB AND PACS_SERVICES_LIB)
@@ -291,6 +294,31 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                 IMPORTED_LOCATION "${PACS_STORAGE_LIB}"
                 INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
             )
+            # pacs_storage depends on database, integrated_database, sqlite3
+            find_library(INTEGRATED_DB_LIB integrated_database HINTS ${PACS_SYSTEM_LIB_DIR})
+            if(DATABASE_LIB)
+                set_property(TARGET pacs::storage APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES "${DATABASE_LIB}")
+            endif()
+            if(INTEGRATED_DB_LIB)
+                set_property(TARGET pacs::storage APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES "${INTEGRATED_DB_LIB}")
+            endif()
+            find_package(SQLite3 QUIET)
+            if(SQLite3_FOUND)
+                set_property(TARGET pacs::storage APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES SQLite::SQLite3)
+            else()
+                find_library(SQLITE3_LIB sqlite3)
+                if(SQLITE3_LIB)
+                    set_property(TARGET pacs::storage APPEND PROPERTY
+                        INTERFACE_LINK_LIBRARIES "${SQLITE3_LIB}")
+                endif()
+            endif()
+            if(UTILITIES_LIB)
+                set_property(TARGET pacs::storage APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES "${UTILITIES_LIB}")
+            endif()
             message(STATUS "  - pacs_storage: ${PACS_STORAGE_LIB}")
         endif()
 
@@ -300,6 +328,19 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                 IMPORTED_LOCATION "${PACS_WEB_LIB}"
                 INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
             )
+            # pacs_web transitive dependencies (storage, client, monitoring)
+            if(PACS_STORAGE_LIB AND TARGET pacs::storage)
+                set_property(TARGET pacs::web APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES pacs::storage)
+            endif()
+            if(PACS_CLIENT_LIB AND TARGET pacs::client)
+                set_property(TARGET pacs::web APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES pacs::client)
+            endif()
+            if(PACS_MONITORING_LIB AND TARGET pacs::monitoring)
+                set_property(TARGET pacs::web APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES pacs::monitoring)
+            endif()
             message(STATUS "  - pacs_web: ${PACS_WEB_LIB}")
         endif()
 
@@ -327,6 +368,10 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                 IMPORTED_LOCATION "${PACS_MONITORING_LIB}"
                 INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
             )
+            if(MONITORING_SYSTEM_LIB)
+                set_property(TARGET pacs::monitoring APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES "${MONITORING_SYSTEM_LIB}")
+            endif()
             message(STATUS "  - pacs_monitoring: ${PACS_MONITORING_LIB}")
         endif()
 
@@ -563,11 +608,13 @@ add_library(pacs_service STATIC
     src/services/pacs/storage_commitment_service.cpp
     src/services/pacs/audit_service.cpp
     src/services/pacs/query_cache_manager.cpp
+    src/services/pacs/dicomweb_service.cpp
     include/services/pacs_config_manager.hpp
     include/services/dicom_store_scp.hpp
     include/services/storage_commitment_service.hpp
     include/services/audit_service.hpp
     include/services/query_cache_manager.hpp
+    include/services/dicomweb_service.hpp
 )
 
 target_include_directories(pacs_service PUBLIC
@@ -616,6 +663,24 @@ endif()
 # pacs_services depends on pacs_security (ATNA audit in storage_scp)
 if(TARGET pacs::security)
     target_link_libraries(pacs_service PUBLIC pacs::security)
+endif()
+
+# pacs_web provides DICOMweb REST API (WADO-RS, STOW-RS, QIDO-RS)
+if(TARGET pacs::web)
+    target_link_libraries(pacs_service PUBLIC pacs::web)
+endif()
+
+# pacs_web transitive dependencies
+if(TARGET pacs::storage)
+    target_link_libraries(pacs_service PUBLIC pacs::storage)
+endif()
+
+if(TARGET pacs::client)
+    target_link_libraries(pacs_service PUBLIC pacs::client)
+endif()
+
+if(TARGET pacs::monitoring)
+    target_link_libraries(pacs_service PUBLIC pacs::monitoring)
 endif()
 
 add_library(export_service STATIC

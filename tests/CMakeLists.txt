@@ -273,6 +273,22 @@ target_include_directories(query_cache_manager_test PRIVATE
 
 gtest_discover_tests(query_cache_manager_test DISCOVERY_TIMEOUT 60)
 
+add_executable(dicomweb_service_test
+    unit/dicomweb_service_test.cpp
+)
+
+target_link_libraries(dicomweb_service_test PRIVATE
+    pacs_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(dicomweb_service_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(dicomweb_service_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for DICOM Move SCU
 add_executable(dicom_move_scu_test
     unit/dicom_move_scu_test.cpp
