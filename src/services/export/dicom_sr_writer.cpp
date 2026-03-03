@@ -56,6 +56,7 @@
 #include <pacs/network/dimse/dimse_message.hpp>
 #include <pacs/services/sop_classes/sr_storage.hpp>
 #include <pacs/services/storage_scu.hpp>
+#include <pacs/services/validation/sr_iod_validator.hpp>
 
 namespace dicom_viewer::services {
 
@@ -572,6 +573,22 @@ private:
         }
 
         contentSeq.push_back(std::move(rootContainer));
+
+        // Validate SR dataset against IOD before returning
+        {
+            pacs::services::validation::sr_iod_validator validator;
+            auto validationResult = validator.validate(ds);
+            if (!validationResult.is_valid) {
+                LOG_WARNING(std::format("SR IOD validation findings: {}",
+                                     validationResult.summary()));
+                for (const auto& finding : validationResult.findings) {
+                    if (finding.severity == pacs::services::validation::validation_severity::error) {
+                        LOG_WARNING(std::format("SR IOD error [{}]: {}",
+                                             finding.code, finding.message));
+                    }
+                }
+            }
+        }
 
         return ds;
     }

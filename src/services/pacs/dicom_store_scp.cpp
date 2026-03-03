@@ -48,6 +48,8 @@
 #include <pacs/encoding/dataset_charset.hpp>
 #include <pacs/encoding/vr_type.hpp>
 #include <pacs/encoding/transfer_syntax.hpp>
+#include <pacs/services/validation/ct_iod_validator.hpp>
+#include <pacs/services/validation/mr_iod_validator.hpp>
 
 namespace dicom_viewer::services {
 
@@ -258,6 +260,49 @@ private:
     std::string lastCallingAe_;
     std::filesystem::path lastFilePath_;
 
+    void validateReceivedDataset(
+        const pacs::core::dicom_dataset& dataset,
+        const std::string& sopClassUid,
+        const std::string& sopInstanceUid
+    ) {
+        using namespace pacs::services::validation;
+
+        validation_result result;
+
+        if (sopClassUid == CT_IMAGE_STORAGE ||
+            sopClassUid == ENHANCED_CT_STORAGE) {
+            ct_iod_validator validator;
+            result = validator.validate(dataset);
+        } else if (sopClassUid == MR_IMAGE_STORAGE ||
+                   sopClassUid == ENHANCED_MR_STORAGE) {
+            mr_iod_validator validator;
+            result = validator.validate(dataset);
+        } else {
+            return;
+        }
+
+        if (result.is_valid) {
+            spdlog::debug("IOD validation passed for {}", sopInstanceUid);
+        } else {
+            spdlog::warn("IOD validation findings for {}: {}",
+                         sopInstanceUid, result.summary());
+        }
+
+        for (const auto& finding : result.findings) {
+            switch (finding.severity) {
+            case validation_severity::error:
+                spdlog::warn("IOD error [{}]: {}", finding.code, finding.message);
+                break;
+            case validation_severity::warning:
+                spdlog::info("IOD warning [{}]: {}", finding.code, finding.message);
+                break;
+            case validation_severity::info:
+                spdlog::debug("IOD info [{}]: {}", finding.code, finding.message);
+                break;
+            }
+        }
+    }
+
     pacs::services::storage_status handleStoreRequest(
         const pacs::core::dicom_dataset& dataset,
         const std::string& callingAe,
@@ -281,6 +326,9 @@ private:
         }
 
         spdlog::info("Stored image: {}", filePath.string());
+
+        // Validate received dataset against IOD
+        validateReceivedDataset(dataset, sopClassUid, sopInstanceUid);
 
         // Store info for post-store handler
         {
