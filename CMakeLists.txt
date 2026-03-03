@@ -212,6 +212,10 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                 IMPORTED_LOCATION "${PACS_ENCODING_LIB}"
                 INTERFACE_INCLUDE_DIRECTORIES "${PACS_INCLUDE_DIRS}"
             )
+            if(APPLE)
+                set_property(TARGET pacs::encoding APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES iconv)
+            endif()
         endif()
 
         if(PACS_INTEGRATION_LIB)

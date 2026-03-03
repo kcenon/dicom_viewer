@@ -49,6 +49,7 @@
 #include <pacs/core/dicom_tag.hpp>
 #include <pacs/core/dicom_tag_constants.hpp>
 #include <pacs/core/result.hpp>
+#include <pacs/encoding/dataset_charset.hpp>
 #include <pacs/encoding/transfer_syntax.hpp>
 #include <pacs/encoding/vr_type.hpp>
 #include <pacs/network/association.hpp>
@@ -444,6 +445,7 @@ private:
         ds.set_string(tags::sop_class_uid, vr_type::UI,
                       std::string(pacs::services::sop_classes::comprehensive_sr_storage_uid));
         ds.set_string(tags::sop_instance_uid, vr_type::UI, sopUid);
+        ds.set_string(tags::specific_character_set, vr_type::CS, "ISO_IR 192");
 
         // Patient Module
         if (options.includePatientInfo) {

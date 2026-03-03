@@ -45,6 +45,7 @@
 #include <pacs/network/server_config.hpp>
 #include <pacs/services/storage_scp.hpp>
 #include <pacs/services/verification_scp.hpp>
+#include <pacs/encoding/dataset_charset.hpp>
 #include <pacs/encoding/vr_type.hpp>
 #include <pacs/encoding/transfer_syntax.hpp>
 
@@ -314,7 +315,7 @@ private:
         info.filePath = filePath;
         info.sopClassUid = dataset.get_string(tags::sop_class_uid, "");
         info.sopInstanceUid = sopInstanceUid;
-        info.patientId = patientId;
+        info.patientId = pacs::encoding::get_decoded_string(dataset, tags::patient_id);
         info.studyInstanceUid = studyUid;
         info.seriesInstanceUid = seriesUid;
         info.callingAeTitle = callingAe;
