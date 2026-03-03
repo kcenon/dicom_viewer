@@ -125,18 +125,24 @@ TEST_F(PacsConcurrencyTest, ConcurrentStateQueryDuringVerify) {
 
     std::atomic<bool> stopQuerying{false};
     std::atomic<int> queryCount{0};
+    std::latch queryStarted(1);
+
+    std::thread queryThread([&] {
+        [[maybe_unused]] bool verifying = echo.isVerifying();
+        queryCount.fetch_add(1);
+        queryStarted.count_down();
+        while (!stopQuerying.load()) {
+            verifying = echo.isVerifying();
+            queryCount.fetch_add(1);
+            std::this_thread::yield();
+        }
+    });
+
+    queryStarted.wait();
 
     std::thread verifyThread([&] {
         [[maybe_unused]] auto result = echo.verify(config);
         stopQuerying.store(true);
-    });
-
-    std::thread queryThread([&] {
-        while (!stopQuerying.load()) {
-            [[maybe_unused]] bool verifying = echo.isVerifying();
-            queryCount.fetch_add(1);
-            std::this_thread::yield();
-        }
     });
 
     verifyThread.join();
