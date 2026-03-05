@@ -2069,3 +2069,20 @@ target_include_directories(render_session_test PRIVATE
 )
 
 gtest_discover_tests(render_session_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for FrameEncoder
+add_executable(frame_encoder_test
+    unit/frame_encoder_test.cpp
+)
+
+target_link_libraries(frame_encoder_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(frame_encoder_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(frame_encoder_test DISCOVERY_TIMEOUT 60)
