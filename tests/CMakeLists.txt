@@ -2105,6 +2105,23 @@ target_include_directories(frame_encoder_test PRIVATE
 
 gtest_discover_tests(frame_encoder_test DISCOVERY_TIMEOUT 60)
 
+# Unit tests for AdaptiveQualityController
+add_executable(adaptive_quality_controller_test
+    unit/adaptive_quality_controller_test.cpp
+)
+
+target_link_libraries(adaptive_quality_controller_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(adaptive_quality_controller_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(adaptive_quality_controller_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for WebSocketFrameStreamer
 add_executable(websocket_frame_streamer_test
     unit/websocket_frame_streamer_test.cpp

@@ -63,6 +63,7 @@
 
 namespace dicom_viewer::services {
 
+class AdaptiveQualityController;
 class RenderSession;
 
 /**
@@ -149,6 +150,27 @@ public:
      * @brief Reset the idle timer for a session (e.g., on input event)
      */
     void touchSession(const std::string& sessionId);
+
+    /**
+     * @brief Notify that user interaction started on a session
+     * @details Transitions quality controller to low-quality high-FPS mode
+     * @param sessionId Session receiving interaction
+     */
+    void notifyInteractionStart(const std::string& sessionId);
+
+    /**
+     * @brief Notify that user interaction ended on a session
+     * @details Starts debounce timer for high-quality frame emission
+     * @param sessionId Session where interaction ended
+     */
+    void notifyInteractionEnd(const std::string& sessionId);
+
+    /**
+     * @brief Get the quality controller for a session
+     * @return Pointer to controller, or nullptr if session not found
+     */
+    [[nodiscard]] AdaptiveQualityController* getQualityController(
+        const std::string& sessionId);
 
     /**
      * @brief Set callback for rendered frame delivery
