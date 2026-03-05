@@ -224,6 +224,11 @@ private:
             event.buttons = json.value("buttons", 0);
             event.keyCode = json.value("key_code", 0);
             event.timestamp = json.value("ts", uint64_t{0});
+            event.delta = json.value("delta", 0.0);
+            event.shiftKey = json.value("shift", false);
+            event.ctrlKey = json.value("ctrl", false);
+            event.altKey = json.value("alt", false);
+            event.keySym = json.value("key", std::string{});
 
             cb(event);
         } catch (const nlohmann::json::exception&) {

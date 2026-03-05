@@ -98,12 +98,17 @@ struct WebSocketStreamConfig {
  */
 struct InputEvent {
     std::string sessionId;
-    std::string type;       ///< "mouse_move", "mouse_down", "mouse_up", "key_down", etc.
+    std::string type;       ///< "mouse_move", "mouse_down", "mouse_up", "key_down", "key_up", "scroll"
     double x = 0;
     double y = 0;
-    int buttons = 0;        ///< Mouse button bitmask
+    int buttons = 0;        ///< Mouse button bitmask (1=left, 2=right, 4=middle)
     int keyCode = 0;
     uint64_t timestamp = 0;
+    double delta = 0;       ///< Scroll wheel delta (positive=forward, negative=backward)
+    bool shiftKey = false;
+    bool ctrlKey = false;
+    bool altKey = false;
+    std::string keySym;     ///< Key symbol string (e.g., "ArrowUp", "Escape")
 };
 
 /**

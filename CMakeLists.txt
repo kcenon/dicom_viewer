@@ -538,6 +538,7 @@ add_library(render_service STATIC
     src/services/render/render_session.cpp
     src/services/render/frame_encoder.cpp
     src/services/render/websocket_frame_streamer.cpp
+    src/services/render/input_event_dispatcher.cpp
 )
 
 # Crow WebSocket framework (header-only)
