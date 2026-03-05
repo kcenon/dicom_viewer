@@ -2139,3 +2139,22 @@ target_include_directories(input_event_dispatcher_test PRIVATE
 )
 
 gtest_discover_tests(input_event_dispatcher_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for RemoteViewportWidget
+add_executable(remote_viewport_widget_test
+    unit/remote_viewport_widget_test.cpp
+)
+
+target_link_libraries(remote_viewport_widget_test PRIVATE
+    dicom_viewer_ui
+    GTest::gtest
+    GTest::gtest_main
+    Qt6::Widgets
+    Qt6::WebSockets
+)
+
+target_include_directories(remote_viewport_widget_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(remote_viewport_widget_test DISCOVERY_TIMEOUT 60)

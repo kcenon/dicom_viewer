@@ -48,6 +48,7 @@ find_package(Qt6 REQUIRED COMPONENTS
     OpenGLWidgets
     PrintSupport
     Test
+    WebSockets
 )
 
 find_package(VTK REQUIRED COMPONENTS
@@ -839,6 +840,7 @@ add_library(dicom_viewer_ui STATIC
     src/ui/panels/workflow_panel.cpp
     src/ui/panels/report_panel.cpp
     src/ui/intro_page.cpp
+    src/ui/widgets/remote_viewport_widget.cpp
     # Headers with Q_OBJECT for AUTOMOC
     include/ui/main_window.hpp
     include/ui/intro_page.hpp
@@ -865,6 +867,7 @@ add_library(dicom_viewer_ui STATIC
     include/ui/widgets/workflow_tab_bar.hpp
     include/ui/panels/workflow_panel.hpp
     include/ui/panels/report_panel.hpp
+    include/ui/widgets/remote_viewport_widget.hpp
 )
 
 target_link_libraries(dicom_viewer_ui PUBLIC
@@ -880,6 +883,7 @@ target_link_libraries(dicom_viewer_ui PUBLIC
     Qt6::Gui
     Qt6::OpenGL
     Qt6::OpenGLWidgets
+    Qt6::WebSockets
     VTK::GUISupportQt
 )
 
