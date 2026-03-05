@@ -29,10 +29,13 @@
 
 #include "ui/widgets/remote_viewport_widget.hpp"
 
+#include <QAction>
+#include <QContextMenuEvent>
 #include <QImage>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QKeyEvent>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPaintEvent>
@@ -43,6 +46,7 @@
 
 #include <chrono>
 #include <cstring>
+#include <deque>
 
 namespace dicom_viewer::ui {
 
@@ -93,6 +97,22 @@ public:
     }
 
     QImage currentFrame_;
+    bool showStatistics_ = false;
+    std::deque<std::chrono::steady_clock::time_point> frameTimestamps_;
+
+    double currentFps() const
+    {
+        if (frameTimestamps_.size() < 2) {
+            return 0.0;
+        }
+        auto elapsed = std::chrono::duration<double>(
+            frameTimestamps_.back() - frameTimestamps_.front());
+        if (elapsed.count() <= 0.0) {
+            return 0.0;
+        }
+        return static_cast<double>(frameTimestamps_.size() - 1)
+               / elapsed.count();
+    }
 
 private:
     void setupConnections()
@@ -179,6 +199,12 @@ private:
         currentFrame_ = std::move(frame);
         lastFrameSeq_ = header.frameSeq;
         ++framesReceived_;
+
+        // Track frame timestamps for FPS calculation (keep last 60 samples)
+        frameTimestamps_.push_back(std::chrono::steady_clock::now());
+        while (frameTimestamps_.size() > 60) {
+            frameTimestamps_.pop_front();
+        }
 
         owner_->update();
         emit owner_->frameDisplayed(header.frameSeq);
@@ -367,6 +393,33 @@ void RemoteViewportWidget::paintEvent(QPaintEvent* /*event*/)
             painter.setPen(Qt::white);
             painter.drawText(widgetRect, Qt::AlignCenter, statusText);
         }
+    }
+
+    // Frame statistics overlay (bottom-left corner)
+    if (impl_->showStatistics_
+        && impl_->state() == RemoteConnectionState::Connected) {
+        double fps = impl_->currentFps();
+        QString statsText = QString("FPS: %1 | Frames: %2 | Seq: %3")
+                                .arg(fps, 0, 'f', 1)
+                                .arg(impl_->framesReceived())
+                                .arg(impl_->lastFrameSeq());
+
+        QFont statsFont = painter.font();
+        statsFont.setPointSize(10);
+        painter.setFont(statsFont);
+
+        QFontMetrics sfm(statsFont);
+        QRect statsRect = sfm.boundingRect(statsText);
+        statsRect.moveBottomLeft(
+            QPoint(8, widgetRect.height() - 8));
+        statsRect.adjust(-4, -2, 4, 2);
+
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(0, 0, 0, 180));
+        painter.drawRoundedRect(statsRect, 4, 4);
+
+        painter.setPen(QColor(0, 255, 0));
+        painter.drawText(statsRect, Qt::AlignCenter, statsText);
     }
 }
 
@@ -597,6 +650,27 @@ void RemoteViewportWidget::keyReleaseEvent(QKeyEvent* event)
 
     impl_->sendInputEvent(json);
     emit inputEventSent("key_up");
+    event->accept();
+}
+
+void RemoteViewportWidget::setShowStatistics(bool show)
+{
+    impl_->showStatistics_ = show;
+    update();
+}
+
+void RemoteViewportWidget::contextMenuEvent(QContextMenuEvent* event)
+{
+    QMenu menu(this);
+
+    auto* statsAction = menu.addAction(tr("Show Statistics"));
+    statsAction->setCheckable(true);
+    statsAction->setChecked(impl_->showStatistics_);
+
+    connect(statsAction, &QAction::toggled,
+            this, &RemoteViewportWidget::setShowStatistics);
+
+    menu.exec(event->globalPos());
     event->accept();
 }
 

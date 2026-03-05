@@ -33,11 +33,14 @@
 #include "ui/dialogs/settings_dialog.hpp"
 #include "core/app_log_level.hpp"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QGroupBox>
 #include <QLabel>
+#include <QLineEdit>
 #include <QSettings>
+#include <QSpinBox>
 #include <QVBoxLayout>
 
 namespace dicom_viewer::ui {
@@ -64,6 +67,11 @@ public:
     QComboBox* logLevelCombo = nullptr;
     QLabel* descriptionLabel = nullptr;
     int initialLevelIndex = 2; // Information
+
+    // Remote rendering
+    QCheckBox* remoteEnabledCheck = nullptr;
+    QLineEdit* remoteHostEdit = nullptr;
+    QSpinBox* remotePortSpin = nullptr;
 };
 
 SettingsDialog::SettingsDialog(QWidget* parent)
@@ -103,7 +111,39 @@ void SettingsDialog::setupUI()
     loggingLayout->addWidget(impl_->descriptionLabel);
 
     mainLayout->addWidget(loggingGroup);
+
+    // Remote rendering group box
+    auto* remoteGroup = new QGroupBox(tr("Remote Rendering"));
+    auto* remoteLayout = new QVBoxLayout(remoteGroup);
+
+    impl_->remoteEnabledCheck = new QCheckBox(tr("Enable remote rendering mode"));
+    remoteLayout->addWidget(impl_->remoteEnabledCheck);
+
+    auto* hostLayout = new QHBoxLayout;
+    hostLayout->addWidget(new QLabel(tr("Server Host:")));
+    impl_->remoteHostEdit = new QLineEdit;
+    impl_->remoteHostEdit->setPlaceholderText("localhost");
+    hostLayout->addWidget(impl_->remoteHostEdit, 1);
+    remoteLayout->addLayout(hostLayout);
+
+    auto* portLayout = new QHBoxLayout;
+    portLayout->addWidget(new QLabel(tr("Server Port:")));
+    impl_->remotePortSpin = new QSpinBox;
+    impl_->remotePortSpin->setRange(1, 65535);
+    impl_->remotePortSpin->setValue(8081);
+    portLayout->addWidget(impl_->remotePortSpin);
+    portLayout->addStretch();
+    remoteLayout->addLayout(portLayout);
+
+    // Disable host/port when remote rendering is off
+    impl_->remoteHostEdit->setEnabled(false);
+    impl_->remotePortSpin->setEnabled(false);
+
+    mainLayout->addWidget(remoteGroup);
     mainLayout->addStretch();
+
+    connect(impl_->remoteEnabledCheck, &QCheckBox::toggled,
+            this, &SettingsDialog::onRemoteEnabledToggled);
 
     // Dialog buttons
     auto* buttons = new QDialogButtonBox(
@@ -126,6 +166,14 @@ void SettingsDialog::loadSettings()
     impl_->logLevelCombo->setCurrentIndex(index);
     impl_->initialLevelIndex = index;
     onLogLevelChanged(index);
+
+    // Remote rendering
+    impl_->remoteEnabledCheck->setChecked(
+        settings.value("remote/enabled", false).toBool());
+    impl_->remoteHostEdit->setText(
+        settings.value("remote/host", "localhost").toString());
+    impl_->remotePortSpin->setValue(
+        settings.value("remote/port", 8081).toInt());
 }
 
 void SettingsDialog::saveSettings()
@@ -135,6 +183,15 @@ void SettingsDialog::saveSettings()
 
     QSettings settings;
     settings.setValue("logging/level", to_settings_value(level));
+
+    // Remote rendering
+    settings.setValue("remote/enabled", impl_->remoteEnabledCheck->isChecked());
+    QString host = impl_->remoteHostEdit->text().trimmed();
+    if (host.isEmpty()) {
+        host = "localhost";
+    }
+    settings.setValue("remote/host", host);
+    settings.setValue("remote/port", impl_->remotePortSpin->value());
 }
 
 void SettingsDialog::applyLogLevel()
@@ -162,6 +219,28 @@ void SettingsDialog::onLogLevelChanged(int index)
     if (index >= 0 && index < static_cast<int>(std::size(kLogLevels))) {
         impl_->descriptionLabel->setText(tr(kLogLevels[index].description));
     }
+}
+
+void SettingsDialog::onRemoteEnabledToggled(bool checked)
+{
+    impl_->remoteHostEdit->setEnabled(checked);
+    impl_->remotePortSpin->setEnabled(checked);
+}
+
+bool SettingsDialog::isRemoteRenderingEnabled() const
+{
+    return impl_->remoteEnabledCheck->isChecked();
+}
+
+QString SettingsDialog::remoteHost() const
+{
+    QString host = impl_->remoteHostEdit->text().trimmed();
+    return host.isEmpty() ? "localhost" : host;
+}
+
+uint16_t SettingsDialog::remotePort() const
+{
+    return static_cast<uint16_t>(impl_->remotePortSpin->value());
 }
 
 } // namespace dicom_viewer::ui

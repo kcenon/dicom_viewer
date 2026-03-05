@@ -144,6 +144,11 @@ public:
     [[nodiscard]] uint32_t lastFrameSeq() const;
 
     /**
+     * @brief Toggle frame statistics overlay (FPS, latency)
+     */
+    void setShowStatistics(bool show);
+
+    /**
      * @brief Parse a binary frame from the render server
      * @param data Raw binary data
      * @param size Data size in bytes
@@ -206,6 +211,7 @@ protected:
     void wheelEvent(QWheelEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
 private:
     class Impl;
