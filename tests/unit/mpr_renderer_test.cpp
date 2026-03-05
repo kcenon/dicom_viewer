@@ -643,3 +643,52 @@ TEST_F(MPRRendererTest, ExtremeSlicePositionsClamped) {
     EXPECT_NO_THROW(renderer->scrollSlice(MPRPlane::Sagittal, -999999));
     EXPECT_NO_THROW(renderer->update());
 }
+
+// =============================================================================
+// Off-Screen Rendering (Issue #469)
+// =============================================================================
+
+TEST_F(MPRRendererTest, OffscreenModeDefaultOff) {
+    EXPECT_FALSE(renderer->isOffscreenMode());
+}
+
+TEST_F(MPRRendererTest, EnableOffscreenMode) {
+    EXPECT_NO_THROW(renderer->enableOffscreenMode(256, 256));
+    EXPECT_TRUE(renderer->isOffscreenMode());
+}
+
+TEST_F(MPRRendererTest, CaptureFramePerPlane) {
+    auto volume = createTestVolume();
+    renderer->setInputData(volume);
+    renderer->enableOffscreenMode(64, 48);
+
+    for (auto plane : {MPRPlane::Axial, MPRPlane::Coronal, MPRPlane::Sagittal}) {
+        auto frame = renderer->captureFrame(plane);
+        // On headless (no OpenGL), frame may be empty
+        if (!frame.empty()) {
+            EXPECT_EQ(frame.size(), 64u * 48u * 4u);
+        }
+    }
+}
+
+TEST_F(MPRRendererTest, CaptureFrameNotInOffscreenMode) {
+    auto frame = renderer->captureFrame(MPRPlane::Axial);
+    EXPECT_TRUE(frame.empty());
+}
+
+TEST_F(MPRRendererTest, ResizeOffscreen) {
+    renderer->enableOffscreenMode(64, 48);
+    renderer->resizeOffscreen(128, 96);
+
+    auto volume = createTestVolume();
+    renderer->setInputData(volume);
+
+    auto frame = renderer->captureFrame(MPRPlane::Axial);
+    if (!frame.empty()) {
+        EXPECT_EQ(frame.size(), 128u * 96u * 4u);
+    }
+}
+
+TEST_F(MPRRendererTest, ResizeOffscreenNotInMode) {
+    EXPECT_NO_THROW(renderer->resizeOffscreen(128, 96));
+}

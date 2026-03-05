@@ -28,8 +28,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "services/surface_renderer.hpp"
+#include "services/render/offscreen_render_context.hpp"
 #include <kcenon/common/logging/log_macros.h>
 
+#include <vtkRenderWindow.h>
 #include <vtkMarchingCubes.h>
 #include <vtkWindowedSincPolyDataFilter.h>
 #include <vtkDecimatePro.h>
@@ -68,6 +70,10 @@ public:
     vtkSmartPointer<vtkImageData> inputData;
     std::vector<SurfaceEntry> surfaces;
     SurfaceQuality quality = SurfaceQuality::Medium;
+
+    // Off-screen rendering
+    std::unique_ptr<OffscreenRenderContext> offscreenCtx;
+    vtkSmartPointer<vtkRenderer> offscreenRenderer;
 
     SurfaceEntry createSurfaceEntry(const SurfaceConfig& config) {
         SurfaceEntry entry;
@@ -672,6 +678,47 @@ vtkSmartPointer<vtkLookupTable> SurfaceRenderer::createAFILookupTable(double max
     }
 
     return lut;
+}
+
+// =============================================================================
+// Off-Screen Rendering
+// =============================================================================
+
+void SurfaceRenderer::enableOffscreenMode(uint32_t width, uint32_t height)
+{
+    impl_->offscreenCtx = std::make_unique<OffscreenRenderContext>();
+    impl_->offscreenCtx->initialize(width, height);
+
+    impl_->offscreenRenderer = vtkSmartPointer<vtkRenderer>::New();
+    impl_->offscreenRenderer->SetBackground(0.0, 0.0, 0.0);
+
+    auto* renderWindow = impl_->offscreenCtx->getRenderWindow();
+    renderWindow->AddRenderer(impl_->offscreenRenderer);
+
+    addToRenderer(impl_->offscreenRenderer);
+
+    LOG_INFO(std::format("Surface renderer off-screen mode enabled: {}x{}", width, height));
+}
+
+bool SurfaceRenderer::isOffscreenMode() const
+{
+    return impl_->offscreenCtx && impl_->offscreenCtx->isInitialized();
+}
+
+std::vector<uint8_t> SurfaceRenderer::captureFrame()
+{
+    if (!isOffscreenMode()) {
+        return {};
+    }
+    return impl_->offscreenCtx->captureFrame();
+}
+
+void SurfaceRenderer::resizeOffscreen(uint32_t width, uint32_t height)
+{
+    if (!isOffscreenMode()) {
+        return;
+    }
+    impl_->offscreenCtx->resize(width, height);
 }
 
 } // namespace dicom_viewer::services

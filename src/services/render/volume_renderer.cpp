@@ -28,6 +28,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "services/volume_renderer.hpp"
+#include "services/render/offscreen_render_context.hpp"
 #include <kcenon/common/logging/log_macros.h>
 
 #include <vtkGPUVolumeRayCastMapper.h>
@@ -78,6 +79,10 @@ public:
 
     // Scalar overlays (name → entry)
     std::map<std::string, ScalarOverlayEntry> overlays;
+
+    // Off-screen rendering
+    std::unique_ptr<OffscreenRenderContext> offscreenCtx;
+    vtkSmartPointer<vtkRenderer> offscreenRenderer;
 
     Impl() {
         volume = vtkSmartPointer<vtkVolume>::New();
@@ -296,6 +301,48 @@ void VolumeRenderer::clearClippingPlanes()
 void VolumeRenderer::update()
 {
     impl_->volume->Modified();
+}
+
+// =============================================================================
+// Off-Screen Rendering
+// =============================================================================
+
+void VolumeRenderer::enableOffscreenMode(uint32_t width, uint32_t height)
+{
+    impl_->offscreenCtx = std::make_unique<OffscreenRenderContext>();
+    impl_->offscreenCtx->initialize(width, height);
+
+    impl_->offscreenRenderer = vtkSmartPointer<vtkRenderer>::New();
+    impl_->offscreenRenderer->SetBackground(0.0, 0.0, 0.0);
+
+    auto* renderWindow = impl_->offscreenCtx->getRenderWindow();
+    renderWindow->AddRenderer(impl_->offscreenRenderer);
+    impl_->offscreenRenderer->AddVolume(impl_->volume);
+
+    validateGPUSupport(vtkSmartPointer<vtkRenderWindow>(renderWindow));
+
+    LOG_INFO(std::format("Volume renderer off-screen mode enabled: {}x{}", width, height));
+}
+
+bool VolumeRenderer::isOffscreenMode() const
+{
+    return impl_->offscreenCtx && impl_->offscreenCtx->isInitialized();
+}
+
+std::vector<uint8_t> VolumeRenderer::captureFrame()
+{
+    if (!isOffscreenMode()) {
+        return {};
+    }
+    return impl_->offscreenCtx->captureFrame();
+}
+
+void VolumeRenderer::resizeOffscreen(uint32_t width, uint32_t height)
+{
+    if (!isOffscreenMode()) {
+        return;
+    }
+    impl_->offscreenCtx->resize(width, height);
 }
 
 // Preset definitions

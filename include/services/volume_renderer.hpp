@@ -46,6 +46,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -179,6 +180,37 @@ public:
      * @brief Update rendering (call after changes)
      */
     void update();
+
+    // ==================== Off-Screen Rendering ====================
+
+    /**
+     * @brief Enable headless off-screen rendering mode
+     * @param width Frame width in pixels
+     * @param height Frame height in pixels
+     *
+     * Creates an internal off-screen render window and attaches
+     * the volume actor to it. GPU support is validated automatically.
+     */
+    void enableOffscreenMode(uint32_t width, uint32_t height);
+
+    /**
+     * @brief Check if off-screen mode is active
+     * @return True if off-screen rendering is enabled
+     */
+    [[nodiscard]] bool isOffscreenMode() const;
+
+    /**
+     * @brief Capture the current frame as RGBA pixels
+     * @return RGBA pixel data (width * height * 4 bytes), empty if not in off-screen mode
+     */
+    [[nodiscard]] std::vector<uint8_t> captureFrame();
+
+    /**
+     * @brief Resize the off-screen render target
+     * @param width New width in pixels
+     * @param height New height in pixels
+     */
+    void resizeOffscreen(uint32_t width, uint32_t height);
 
     // Built-in presets
     static TransferFunctionPreset getPresetCTBone();

@@ -30,6 +30,7 @@
 #include <gtest/gtest.h>
 
 #include "services/volume_renderer.hpp"
+#include "services/render/offscreen_render_context.hpp"
 
 #include <vtkImageData.h>
 #include <vtkSmartPointer.h>
@@ -298,4 +299,57 @@ TEST_F(VolumeRendererTest, NullTransferFunctionHandled) {
     };
     EXPECT_NO_THROW(renderer->applyPreset(singlePoint));
     EXPECT_NO_THROW(renderer->update());
+}
+
+// =============================================================================
+// Off-Screen Rendering (Issue #469)
+// =============================================================================
+
+TEST_F(VolumeRendererTest, OffscreenModeDefaultOff) {
+    EXPECT_FALSE(renderer->isOffscreenMode());
+}
+
+TEST_F(VolumeRendererTest, EnableOffscreenMode) {
+    EXPECT_NO_THROW(renderer->enableOffscreenMode(256, 256));
+    EXPECT_TRUE(renderer->isOffscreenMode());
+}
+
+TEST_F(VolumeRendererTest, CaptureFrameWithoutData) {
+    renderer->enableOffscreenMode(64, 48);
+    auto frame = renderer->captureFrame();
+    // On headless (no OpenGL), frame may be empty
+    if (!frame.empty()) {
+        EXPECT_EQ(frame.size(), 64u * 48u * 4u);
+    }
+}
+
+TEST_F(VolumeRendererTest, CaptureFrameWithData) {
+    auto volume = createTestVolume();
+    renderer->setInputData(volume);
+    renderer->applyPreset(VolumeRenderer::getPresetCTBone());
+    renderer->enableOffscreenMode(64, 48);
+
+    auto frame = renderer->captureFrame();
+    if (!frame.empty()) {
+        EXPECT_EQ(frame.size(), 64u * 48u * 4u);
+    }
+}
+
+TEST_F(VolumeRendererTest, CaptureFrameNotInOffscreenMode) {
+    auto frame = renderer->captureFrame();
+    EXPECT_TRUE(frame.empty());
+}
+
+TEST_F(VolumeRendererTest, ResizeOffscreen) {
+    renderer->enableOffscreenMode(64, 48);
+    renderer->resizeOffscreen(128, 96);
+
+    auto frame = renderer->captureFrame();
+    if (!frame.empty()) {
+        EXPECT_EQ(frame.size(), 128u * 96u * 4u);
+    }
+}
+
+TEST_F(VolumeRendererTest, ResizeOffscreenNotInMode) {
+    EXPECT_NO_THROW(renderer->resizeOffscreen(128, 96));
 }

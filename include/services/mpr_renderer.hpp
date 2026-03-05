@@ -47,8 +47,10 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <functional>
 #include <memory>
+#include <vector>
 
 #include <vtkSmartPointer.h>
 #include <vtkImageData.h>
@@ -250,6 +252,38 @@ public:
      * @brief Update all views
      */
     void update();
+
+    // ==================== Off-Screen Rendering ====================
+
+    /**
+     * @brief Enable headless off-screen rendering mode
+     * @param width Frame width in pixels
+     * @param height Frame height in pixels
+     *
+     * Creates three internal off-screen render contexts (one per plane)
+     * for server-side rendering without a display.
+     */
+    void enableOffscreenMode(uint32_t width, uint32_t height);
+
+    /**
+     * @brief Check if off-screen mode is active
+     * @return True if off-screen rendering is enabled
+     */
+    [[nodiscard]] bool isOffscreenMode() const;
+
+    /**
+     * @brief Capture the current frame for a specific plane as RGBA pixels
+     * @param plane MPR plane to capture
+     * @return RGBA pixel data (width * height * 4 bytes), empty if not in off-screen mode
+     */
+    [[nodiscard]] std::vector<uint8_t> captureFrame(MPRPlane plane);
+
+    /**
+     * @brief Resize all off-screen render targets
+     * @param width New width in pixels
+     * @param height New height in pixels
+     */
+    void resizeOffscreen(uint32_t width, uint32_t height);
 
     /**
      * @brief Reset views to default positions (center of volume)

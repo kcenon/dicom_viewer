@@ -2034,3 +2034,38 @@ target_include_directories(settings_dialog_test PRIVATE
 )
 
 gtest_discover_tests(settings_dialog_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for OffscreenRenderContext
+add_executable(offscreen_render_context_test
+    unit/offscreen_render_context_test.cpp
+)
+
+target_link_libraries(offscreen_render_context_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(offscreen_render_context_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(offscreen_render_context_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for RenderSession
+add_executable(render_session_test
+    unit/render_session_test.cpp
+)
+
+target_link_libraries(render_session_test PRIVATE
+    render_service
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(render_session_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(render_session_test DISCOVERY_TIMEOUT 60)
