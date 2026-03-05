@@ -30,6 +30,7 @@
 #include "services/render/render_session_manager.hpp"
 #include "services/render/adaptive_quality_controller.hpp"
 #include "services/render/render_session.hpp"
+#include "services/render/session_token_validator.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -224,6 +225,8 @@ public:
 
     const RenderSessionManagerConfig& config() const { return config_; }
 
+    SessionTokenValidator& tokenValidator() { return tokenValidator_; }
+
 private:
     void renderLoop()
     {
@@ -290,6 +293,7 @@ private:
     }
 
     RenderSessionManagerConfig config_;
+    SessionTokenValidator tokenValidator_;
 
     mutable std::mutex mutex_;
     std::unordered_map<std::string, SessionEntry> sessions_;
@@ -394,6 +398,25 @@ std::vector<std::string> RenderSessionManager::activeSessionIds() const
 const RenderSessionManagerConfig& RenderSessionManager::config() const
 {
     return impl_->config();
+}
+
+SessionTokenValidator* RenderSessionManager::tokenValidator()
+{
+    return &impl_->tokenValidator();
+}
+
+TokenValidationResult RenderSessionManager::validateSessionToken(
+    const std::string& token,
+    const std::string& requiredStudyUid)
+{
+    return impl_->tokenValidator().validateToken(token, requiredStudyUid);
+}
+
+std::string RenderSessionManager::generateSessionToken(
+    const std::string& userId,
+    const std::string& studyUid)
+{
+    return impl_->tokenValidator().generateToken(userId, studyUid);
 }
 
 } // namespace dicom_viewer::services

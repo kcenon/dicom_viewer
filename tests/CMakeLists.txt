@@ -2174,6 +2174,23 @@ target_include_directories(input_event_dispatcher_test PRIVATE
 
 gtest_discover_tests(input_event_dispatcher_test DISCOVERY_TIMEOUT 60)
 
+# Unit tests for SessionTokenValidator
+add_executable(session_token_validator_test
+    unit/session_token_validator_test.cpp
+)
+
+target_link_libraries(session_token_validator_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(session_token_validator_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(session_token_validator_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for RemoteViewportWidget
 add_executable(remote_viewport_widget_test
     unit/remote_viewport_widget_test.cpp
