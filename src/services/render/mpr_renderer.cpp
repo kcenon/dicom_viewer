@@ -28,6 +28,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "services/mpr_renderer.hpp"
+#include "services/render/offscreen_render_context.hpp"
 #include <kcenon/common/logging/log_macros.h>
 #include "services/coordinate/mpr_coordinate_transformer.hpp"
 #include "services/segmentation/mpr_segmentation_renderer.hpp"
@@ -38,6 +39,7 @@
 #include <vtkImageMapToColors.h>
 #include <vtkLookupTable.h>
 #include <vtkRenderer.h>
+#include <vtkRenderWindow.h>
 #include <vtkCamera.h>
 #include <vtkMatrix4x4.h>
 #include <vtkTransform.h>
@@ -113,6 +115,9 @@ public:
     // Segmentation support (using unified coordinate service)
     std::unique_ptr<coordinate::MPRCoordinateTransformer> coordinateTransformer;
     std::unique_ptr<MPRSegmentationRenderer> segmentationRenderer;
+
+    // Off-screen rendering (one context per plane)
+    std::array<std::unique_ptr<OffscreenRenderContext>, 3> offscreenContexts;
 
     Impl() {
         coordinateTransformer = std::make_unique<coordinate::MPRCoordinateTransformer>();
@@ -694,6 +699,43 @@ int MPRRenderer::worldPositionToSliceIndex(MPRPlane plane, double worldPosition)
 
 double MPRRenderer::sliceIndexToWorldPosition(MPRPlane plane, int sliceIndex) const {
     return impl_->coordinateTransformer->getWorldPosition(plane, sliceIndex);
+}
+
+// =============================================================================
+// Off-Screen Rendering
+// =============================================================================
+
+void MPRRenderer::enableOffscreenMode(uint32_t width, uint32_t height) {
+    for (int i = 0; i < 3; ++i) {
+        impl_->offscreenContexts[i] = std::make_unique<OffscreenRenderContext>();
+        impl_->offscreenContexts[i]->initialize(width, height);
+
+        auto* renderWindow = impl_->offscreenContexts[i]->getRenderWindow();
+        renderWindow->AddRenderer(impl_->renderers[i]);
+    }
+
+    LOG_INFO(std::format("MPR renderer off-screen mode enabled: {}x{}", width, height));
+}
+
+bool MPRRenderer::isOffscreenMode() const {
+    return impl_->offscreenContexts[0] != nullptr
+        && impl_->offscreenContexts[0]->isInitialized();
+}
+
+std::vector<uint8_t> MPRRenderer::captureFrame(MPRPlane plane) {
+    int idx = static_cast<int>(plane);
+    if (idx < 0 || idx >= 3 || !impl_->offscreenContexts[idx]) {
+        return {};
+    }
+    return impl_->offscreenContexts[idx]->captureFrame();
+}
+
+void MPRRenderer::resizeOffscreen(uint32_t width, uint32_t height) {
+    for (int i = 0; i < 3; ++i) {
+        if (impl_->offscreenContexts[i]) {
+            impl_->offscreenContexts[i]->resize(width, height);
+        }
+    }
 }
 
 } // namespace dicom_viewer::services

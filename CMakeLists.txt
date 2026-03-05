@@ -534,6 +534,8 @@ add_library(render_service STATIC
     src/services/render/streamline_overlay_renderer.cpp
     src/services/render/hemodynamic_surface_manager.cpp
     src/services/render/asc_view_controller.cpp
+    src/services/render/offscreen_render_context.cpp
+    src/services/render/render_session.cpp
 )
 
 target_link_libraries(render_service PUBLIC
