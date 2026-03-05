@@ -37,7 +37,7 @@ jobs:
       # ---------------------------------------------------------------
       - name: Install dependencies
         run: |
-          brew install itk fftw spdlog fmt nlohmann-json googletest expat
+          brew install itk fftw spdlog fmt nlohmann-json googletest expat qt6-websockets
 
       # ---------------------------------------------------------------
       # 2b. Fix SDK paths (prevent SDK version mixing)
