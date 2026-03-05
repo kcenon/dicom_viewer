@@ -537,13 +537,54 @@ add_library(render_service STATIC
     src/services/render/offscreen_render_context.cpp
     src/services/render/render_session.cpp
     src/services/render/frame_encoder.cpp
+    src/services/render/websocket_frame_streamer.cpp
 )
+
+# Crow WebSocket framework (header-only)
+# Try pacs_system build directory first, then fall back to FetchContent
+set(CROW_INCLUDE_DIR "${PACS_SYSTEM_BUILD_DIR}/_deps/crow-src/include")
+set(ASIO_INCLUDE_DIR "${PACS_SYSTEM_BUILD_DIR}/_deps/asio-src/asio/include")
 
 target_link_libraries(render_service PUBLIC
     dicom_viewer_core
     coordinate_service
     ${VTK_LIBRARIES}
 )
+
+if(EXISTS "${CROW_INCLUDE_DIR}/crow.h" AND EXISTS "${ASIO_INCLUDE_DIR}/asio.hpp")
+    target_include_directories(render_service PRIVATE
+        ${CROW_INCLUDE_DIR}
+        ${ASIO_INCLUDE_DIR}
+    )
+    target_compile_definitions(render_service PRIVATE CROW_DISABLE_STATIC_DIR)
+    message(STATUS "  Crow WebSocket: enabled (from pacs_system: ${CROW_INCLUDE_DIR})")
+else()
+    message(STATUS "  Crow WebSocket: not found in pacs_system, fetching via FetchContent...")
+    include(FetchContent)
+    FetchContent_Declare(
+        asio_standalone
+        GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
+        GIT_TAG        asio-1-30-2
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_Declare(
+        Crow
+        GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
+        GIT_TAG        master
+        GIT_SHALLOW    TRUE
+    )
+    set(CROW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(CROW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(CROW_ENABLE_SSL OFF CACHE BOOL "" FORCE)
+    set(CROW_ENABLE_COMPRESSION OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(asio_standalone Crow)
+    target_include_directories(render_service PRIVATE
+        ${asio_standalone_SOURCE_DIR}/asio/include
+        ${crow_SOURCE_DIR}/include
+    )
+    target_compile_definitions(render_service PRIVATE CROW_DISABLE_STATIC_DIR)
+    message(STATUS "  Crow WebSocket: enabled (via FetchContent)")
+endif()
 
 add_library(measurement_service STATIC
     src/services/measurement/linear_measurement_tool.cpp

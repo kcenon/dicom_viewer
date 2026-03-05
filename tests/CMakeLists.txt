@@ -2086,3 +2086,20 @@ target_include_directories(frame_encoder_test PRIVATE
 )
 
 gtest_discover_tests(frame_encoder_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for WebSocketFrameStreamer
+add_executable(websocket_frame_streamer_test
+    unit/websocket_frame_streamer_test.cpp
+)
+
+target_link_libraries(websocket_frame_streamer_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(websocket_frame_streamer_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(websocket_frame_streamer_test DISCOVERY_TIMEOUT 60)
