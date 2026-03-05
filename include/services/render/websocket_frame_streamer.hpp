@@ -73,6 +73,9 @@
 
 namespace dicom_viewer::services {
 
+class AuditService;
+class SessionTokenValidator;
+
 /**
  * @brief Configuration for the WebSocket frame streaming server
  */
@@ -187,6 +190,23 @@ public:
      * @param sessionId Session to check
      */
     [[nodiscard]] bool hasClients(const std::string& sessionId) const;
+
+    /**
+     * @brief Set the token validator for WebSocket authentication
+     * @details When set, clients must pass a valid token as query parameter:
+     *          ws://host:port/render/{session_id}?token=<token>
+     *          If nullptr, no authentication is required.
+     * @param validator Non-owning pointer to a token validator
+     */
+    void setTokenValidator(SessionTokenValidator* validator);
+
+    /**
+     * @brief Set the audit service for ATNA audit trail logging
+     * @details When set, emits audit events for session connect, disconnect,
+     *          and authentication failures.
+     * @param audit Non-owning pointer to an audit service
+     */
+    void setAuditService(AuditService* audit);
 
 private:
     class Impl;

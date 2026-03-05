@@ -28,6 +28,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "services/render/websocket_frame_streamer.hpp"
+#include "services/audit_service.hpp"
+#include "services/render/session_token_validator.hpp"
 
 #include <crow.h>
 
@@ -67,19 +69,68 @@ public:
         CROW_WEBSOCKET_ROUTE((*app_), "/render/<string>")
             .onaccept([this](const crow::request& req, void** userdata) -> bool {
                 // Extract session_id from URL: /render/{session_id}
-                auto pos = req.url.rfind('/');
-                if (pos == std::string::npos || pos + 1 >= req.url.size()) {
+                auto urlPath = req.url;
+                // Strip query string for path parsing
+                auto qpos = urlPath.find('?');
+                if (qpos != std::string::npos) {
+                    urlPath = urlPath.substr(0, qpos);
+                }
+                auto pos = urlPath.rfind('/');
+                if (pos == std::string::npos || pos + 1 >= urlPath.size()) {
                     return false;
                 }
-                auto* sid = new std::string(req.url.substr(pos + 1));
+                std::string sessionId = urlPath.substr(pos + 1);
+
+                // Token validation (if validator is set)
+                SessionTokenValidator* validator = tokenValidator_.load();
+                if (validator) {
+                    // Extract token from query parameter: ?token=<token>
+                    std::string token;
+                    auto tokenParam = req.url_params.get("token");
+                    if (tokenParam) {
+                        token = tokenParam;
+                    }
+
+                    auto result = validator->validateToken(token, sessionId);
+                    if (result != TokenValidationResult::Valid) {
+                        // Audit authentication failure
+                        AuditService* audit = auditService_.load();
+                        if (audit) {
+                            std::string desc = "Render session auth failed for "
+                                + sessionId + ": ";
+                            switch (result) {
+                            case TokenValidationResult::Empty:
+                                desc += "no token provided";
+                                break;
+                            case TokenValidationResult::Expired:
+                                desc += "token expired";
+                                break;
+                            case TokenValidationResult::InvalidSignature:
+                                desc += "invalid signature";
+                                break;
+                            case TokenValidationResult::InvalidFormat:
+                                desc += "malformed token";
+                                break;
+                            case TokenValidationResult::StudyMismatch:
+                                desc += "study UID mismatch";
+                                break;
+                            default:
+                                desc += "unknown error";
+                                break;
+                            }
+                            audit->auditSecurityAlert("anonymous", desc);
+                        }
+                        return false;
+                    }
+                }
 
                 // Check max connections
                 std::lock_guard lock(mutex_);
                 if (connectionSessions_.size() >= config_.maxConnections) {
-                    delete sid;
                     return false;
                 }
 
+                auto* sid = new std::string(std::move(sessionId));
                 *userdata = sid;
                 return true;
             })
@@ -192,9 +243,18 @@ private:
     void onOpen(crow::websocket::connection& conn,
                 const std::string& sessionId)
     {
-        std::lock_guard lock(mutex_);
-        sessions_[sessionId].insert(&conn);
-        connectionSessions_[&conn] = sessionId;
+        {
+            std::lock_guard lock(mutex_);
+            sessions_[sessionId].insert(&conn);
+            connectionSessions_[&conn] = sessionId;
+        }
+
+        // Audit successful session connection
+        AuditService* audit = auditService_.load();
+        if (audit) {
+            audit->auditAssociation(
+                "render:" + sessionId, true /*isLogin*/, true /*success*/);
+        }
     }
 
     void onMessage(crow::websocket::connection& /*conn*/,
@@ -239,19 +299,31 @@ private:
     void onClose(crow::websocket::connection& conn,
                  const std::string& /*reason*/, uint16_t /*statusCode*/)
     {
-        std::lock_guard lock(mutex_);
+        std::string sessionId;
+        {
+            std::lock_guard lock(mutex_);
 
-        auto it = connectionSessions_.find(&conn);
-        if (it != connectionSessions_.end()) {
-            auto& sessionId = it->second;
-            auto sessIt = sessions_.find(sessionId);
-            if (sessIt != sessions_.end()) {
-                sessIt->second.erase(&conn);
-                if (sessIt->second.empty()) {
-                    sessions_.erase(sessIt);
+            auto it = connectionSessions_.find(&conn);
+            if (it != connectionSessions_.end()) {
+                sessionId = it->second;
+                auto sessIt = sessions_.find(sessionId);
+                if (sessIt != sessions_.end()) {
+                    sessIt->second.erase(&conn);
+                    if (sessIt->second.empty()) {
+                        sessions_.erase(sessIt);
+                    }
                 }
+                connectionSessions_.erase(it);
             }
-            connectionSessions_.erase(it);
+        }
+
+        // Audit session disconnection
+        if (!sessionId.empty()) {
+            AuditService* audit = auditService_.load();
+            if (audit) {
+                audit->auditAssociation(
+                    "render:" + sessionId, false /*isLogin*/, true /*success*/);
+            }
         }
     }
 
@@ -296,6 +368,10 @@ private:
                        std::string> connectionSessions_;
 
     InputEventCallback inputCallback_;
+
+public:
+    std::atomic<SessionTokenValidator*> tokenValidator_{nullptr};
+    std::atomic<AuditService*> auditService_{nullptr};
 };
 
 // ---------------------------------------------------------------------------
@@ -362,6 +438,18 @@ bool WebSocketFrameStreamer::hasClients(const std::string& sessionId) const
 {
     if (!impl_) return false;
     return impl_->hasClients(sessionId);
+}
+
+void WebSocketFrameStreamer::setTokenValidator(SessionTokenValidator* validator)
+{
+    if (!impl_) return;
+    impl_->tokenValidator_.store(validator);
+}
+
+void WebSocketFrameStreamer::setAuditService(AuditService* audit)
+{
+    if (!impl_) return;
+    impl_->auditService_.store(audit);
 }
 
 } // namespace dicom_viewer::services

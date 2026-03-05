@@ -65,6 +65,8 @@ namespace dicom_viewer::services {
 
 class AdaptiveQualityController;
 class RenderSession;
+class SessionTokenValidator;
+enum class TokenValidationResult;
 
 /**
  * @brief Configuration for the render session manager
@@ -213,6 +215,32 @@ public:
      * @brief Get the manager configuration
      */
     [[nodiscard]] const RenderSessionManagerConfig& config() const;
+
+    /**
+     * @brief Get the session token validator
+     * @return Pointer to the token validator
+     */
+    [[nodiscard]] SessionTokenValidator* tokenValidator();
+
+    /**
+     * @brief Validate a token for a session
+     * @param token Token string to validate
+     * @param requiredStudyUid Study UID that the token must grant access to
+     * @return Token validation result
+     */
+    [[nodiscard]] TokenValidationResult validateSessionToken(
+        const std::string& token,
+        const std::string& requiredStudyUid = {});
+
+    /**
+     * @brief Generate a session access token
+     * @param userId User identity
+     * @param studyUid Study Instance UID to grant access to
+     * @return Signed token string
+     */
+    [[nodiscard]] std::string generateSessionToken(
+        const std::string& userId,
+        const std::string& studyUid);
 
 private:
     class Impl;
