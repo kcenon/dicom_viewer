@@ -536,6 +536,7 @@ add_library(render_service STATIC
     src/services/render/asc_view_controller.cpp
     src/services/render/offscreen_render_context.cpp
     src/services/render/render_session.cpp
+    src/services/render/frame_encoder.cpp
 )
 
 target_link_libraries(render_service PUBLIC
