@@ -2103,3 +2103,21 @@ target_include_directories(websocket_frame_streamer_test PRIVATE
 )
 
 gtest_discover_tests(websocket_frame_streamer_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for InputEventDispatcher
+add_executable(input_event_dispatcher_test
+    unit/input_event_dispatcher_test.cpp
+)
+
+target_link_libraries(input_event_dispatcher_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+    ${VTK_LIBRARIES}
+)
+
+target_include_directories(input_event_dispatcher_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(input_event_dispatcher_test DISCOVERY_TIMEOUT 60)
