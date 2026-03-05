@@ -2070,6 +2070,24 @@ target_include_directories(render_session_test PRIVATE
 
 gtest_discover_tests(render_session_test DISCOVERY_TIMEOUT 60)
 
+# Unit tests for RenderSessionManager
+add_executable(render_session_manager_test
+    unit/render_session_manager_test.cpp
+)
+
+target_link_libraries(render_session_manager_test PRIVATE
+    render_service
+    segmentation_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(render_session_manager_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(render_session_manager_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for FrameEncoder
 add_executable(frame_encoder_test
     unit/frame_encoder_test.cpp
