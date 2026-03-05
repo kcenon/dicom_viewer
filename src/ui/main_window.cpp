@@ -31,6 +31,7 @@
 #include "ui/intro_page.hpp"
 #include "ui/viewport_widget.hpp"
 #include "ui/viewport_layout_manager.hpp"
+#include "ui/widgets/remote_viewport_widget.hpp"
 #include "ui/widgets/phase_slider_widget.hpp"
 #include "ui/widgets/sp_mode_toggle.hpp"
 #include "ui/panels/patient_browser.hpp"
@@ -178,6 +179,10 @@ public:
     std::unique_ptr<core::ProjectManager> projectManager;
     QMenu* recentProjectsMenu = nullptr;
     QAction* closeCaseAction = nullptr;
+
+    // Remote rendering
+    RemoteViewportWidget* remoteViewport = nullptr;
+    QAction* toggleRemoteRenderingAction = nullptr;
 };
 
 MainWindow::MainWindow(QWidget* parent)
@@ -231,6 +236,10 @@ void MainWindow::setupUI()
     impl_->layoutManager = new ViewportLayoutManager(this);
     impl_->viewport = impl_->layoutManager->primaryViewport();
     impl_->centralStack->addWidget(impl_->layoutManager);
+
+    // Page 2: Remote rendering viewport
+    impl_->remoteViewport = new RemoteViewportWidget(this);
+    impl_->centralStack->addWidget(impl_->remoteViewport);
 
     // Start on intro page
     impl_->centralStack->setCurrentIndex(0);
@@ -531,6 +540,31 @@ void MainWindow::setupMenuBar()
 
     auto cascadeAction = displayMenu->addAction(tr("&Cascade Windows"));
     auto tileAction = displayMenu->addAction(tr("&Tile Windows"));
+
+    displayMenu->addSeparator();
+
+    impl_->toggleRemoteRenderingAction = displayMenu->addAction(
+        tr("Remote &Rendering Mode"));
+    impl_->toggleRemoteRenderingAction->setCheckable(true);
+    impl_->toggleRemoteRenderingAction->setChecked(false);
+    impl_->toggleRemoteRenderingAction->setShortcut(
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R));
+    connect(impl_->toggleRemoteRenderingAction, &QAction::toggled,
+            this, [this](bool enabled) {
+        if (enabled) {
+            QSettings settings;
+            QString host = settings.value("remote/host", "localhost").toString();
+            uint16_t port = static_cast<uint16_t>(
+                settings.value("remote/port", 8081).toInt());
+            QString sessionId = "default";
+
+            impl_->remoteViewport->connectToServer(host, port, sessionId);
+            impl_->centralStack->setCurrentIndex(2);
+        } else {
+            impl_->remoteViewport->disconnectFromServer();
+            impl_->centralStack->setCurrentIndex(1);
+        }
+    });
 
     // =========================================================================
     // Measure menu — distance, angle, ROI, quantification
@@ -1798,7 +1832,12 @@ void MainWindow::onToggleStorageSCP()
 void MainWindow::onShowSettings()
 {
     SettingsDialog dialog(this);
-    dialog.exec();
+    if (dialog.exec() == QDialog::Accepted) {
+        bool remoteEnabled = dialog.isRemoteRenderingEnabled();
+        if (impl_->toggleRemoteRenderingAction->isChecked() != remoteEnabled) {
+            impl_->toggleRemoteRenderingAction->setChecked(remoteEnabled);
+        }
+    }
 }
 
 void MainWindow::onShowAbout()

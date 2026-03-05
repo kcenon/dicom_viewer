@@ -476,3 +476,16 @@ TEST_F(RemoteViewportWidgetTest, SerializeAllModifiers) {
     EXPECT_TRUE(obj["ctrl"].toBool());
     EXPECT_TRUE(obj["alt"].toBool());
 }
+
+// =============================================================================
+// Statistics overlay
+// =============================================================================
+
+TEST_F(RemoteViewportWidgetTest, SetShowStatisticsDoesNotCrash) {
+    RemoteViewportWidget widget;
+
+    // Toggle statistics on/off without connection
+    widget.setShowStatistics(true);
+    widget.setShowStatistics(false);
+    // No crash = success
+}

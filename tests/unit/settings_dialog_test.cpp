@@ -30,11 +30,14 @@
 #include <gtest/gtest.h>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QSettings>
+#include <QSpinBox>
 
 #include "ui/dialogs/settings_dialog.hpp"
 #include "core/app_log_level.hpp"
@@ -178,4 +181,121 @@ TEST(SettingsDialogTest, CancelDoesNotSave) {
 
     // Clean up
     settings.remove("logging/level");
+}
+
+// =============================================================================
+// Remote rendering settings
+// =============================================================================
+
+TEST(SettingsDialogTest, RemoteRenderingDefaultDisabled) {
+    QSettings settings;
+    settings.remove("remote/enabled");
+    settings.remove("remote/host");
+    settings.remove("remote/port");
+    settings.sync();
+
+    SettingsDialog dialog;
+    EXPECT_FALSE(dialog.isRemoteRenderingEnabled());
+    EXPECT_EQ(dialog.remoteHost(), "localhost");
+    EXPECT_EQ(dialog.remotePort(), 8081);
+
+    settings.remove("remote/enabled");
+    settings.remove("remote/host");
+    settings.remove("remote/port");
+}
+
+TEST(SettingsDialogTest, RemoteRenderingLoadFromSettings) {
+    QSettings settings;
+    settings.setValue("remote/enabled", true);
+    settings.setValue("remote/host", "render-server");
+    settings.setValue("remote/port", 9090);
+    settings.sync();
+
+    SettingsDialog dialog;
+    EXPECT_TRUE(dialog.isRemoteRenderingEnabled());
+    EXPECT_EQ(dialog.remoteHost(), "render-server");
+    EXPECT_EQ(dialog.remotePort(), 9090);
+
+    settings.remove("remote/enabled");
+    settings.remove("remote/host");
+    settings.remove("remote/port");
+}
+
+TEST(SettingsDialogTest, RemoteRenderingSavesToSettings) {
+    QSettings settings;
+    settings.remove("remote/enabled");
+    settings.remove("remote/host");
+    settings.remove("remote/port");
+    settings.sync();
+
+    SettingsDialog dialog;
+
+    auto* check = dialog.findChild<QCheckBox*>();
+    ASSERT_NE(check, nullptr);
+    check->setChecked(true);
+
+    auto* hostEdit = dialog.findChild<QLineEdit*>();
+    ASSERT_NE(hostEdit, nullptr);
+    hostEdit->setText("my-server");
+
+    auto* portSpin = dialog.findChild<QSpinBox*>();
+    ASSERT_NE(portSpin, nullptr);
+    portSpin->setValue(3000);
+
+    dialog.accept();
+
+    settings.sync();
+    EXPECT_TRUE(settings.value("remote/enabled").toBool());
+    EXPECT_EQ(settings.value("remote/host").toString(), "my-server");
+    EXPECT_EQ(settings.value("remote/port").toInt(), 3000);
+
+    settings.remove("remote/enabled");
+    settings.remove("remote/host");
+    settings.remove("remote/port");
+}
+
+TEST(SettingsDialogTest, RemoteEmptyHostNormalizesToLocalhost) {
+    QSettings settings;
+    settings.remove("remote/host");
+    settings.sync();
+
+    SettingsDialog dialog;
+
+    auto* hostEdit = dialog.findChild<QLineEdit*>();
+    ASSERT_NE(hostEdit, nullptr);
+    hostEdit->setText("   ");
+
+    dialog.accept();
+
+    settings.sync();
+    EXPECT_EQ(settings.value("remote/host").toString(), "localhost");
+
+    settings.remove("remote/enabled");
+    settings.remove("remote/host");
+    settings.remove("remote/port");
+}
+
+TEST(SettingsDialogTest, RemoteHostPortDisabledWhenUnchecked) {
+    QSettings settings;
+    settings.remove("remote/enabled");
+    settings.sync();
+
+    SettingsDialog dialog;
+
+    auto* hostEdit = dialog.findChild<QLineEdit*>();
+    auto* portSpin = dialog.findChild<QSpinBox*>();
+    ASSERT_NE(hostEdit, nullptr);
+    ASSERT_NE(portSpin, nullptr);
+
+    EXPECT_FALSE(hostEdit->isEnabled());
+    EXPECT_FALSE(portSpin->isEnabled());
+
+    auto* check = dialog.findChild<QCheckBox*>();
+    ASSERT_NE(check, nullptr);
+    check->setChecked(true);
+
+    EXPECT_TRUE(hostEdit->isEnabled());
+    EXPECT_TRUE(portSpin->isEnabled());
+
+    settings.remove("remote/enabled");
 }

@@ -43,8 +43,10 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <QDialog>
+#include <QString>
 
 namespace dicom_viewer::ui {
 
@@ -68,11 +70,27 @@ public:
     SettingsDialog(const SettingsDialog&) = delete;
     SettingsDialog& operator=(const SettingsDialog&) = delete;
 
+    /**
+     * @brief Check if remote rendering is enabled in current dialog state
+     */
+    [[nodiscard]] bool isRemoteRenderingEnabled() const;
+
+    /**
+     * @brief Get the configured remote server host
+     */
+    [[nodiscard]] QString remoteHost() const;
+
+    /**
+     * @brief Get the configured remote server port
+     */
+    [[nodiscard]] uint16_t remotePort() const;
+
 public slots:
     void accept() override;
 
 private slots:
     void onLogLevelChanged(int index);
+    void onRemoteEnabledToggled(bool checked);
 
 private:
     void setupUI();
