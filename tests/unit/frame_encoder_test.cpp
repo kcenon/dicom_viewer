@@ -30,6 +30,7 @@
 #include <gtest/gtest.h>
 
 #include "services/render/frame_encoder.hpp"
+#include "services/render/dirty_region_tracker.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -328,4 +329,163 @@ TEST_F(FrameEncoderTest, BenchmarkJpegQualityComparison) {
 
         EXPECT_FALSE(result.empty());
     }
+}
+
+// =============================================================================
+// Delta encoding
+// =============================================================================
+
+TEST_F(FrameEncoderTest, EncodeDeltaIdenticalFrames) {
+    auto frame = createTestRGBA(64, 64);
+    auto delta = encoder.encodeDelta(
+        frame.data(), frame.data(), 64, 64, 85);
+
+    EXPECT_TRUE(delta.tiles.empty());
+    EXPECT_FALSE(delta.fullFrame);
+    EXPECT_DOUBLE_EQ(delta.dirtyRatio, 0.0);
+}
+
+TEST_F(FrameEncoderTest, EncodeDeltaSmallChange) {
+    auto prev = createSolidRGBA(100, 100, 0, 0, 0);
+    auto curr = createSolidRGBA(100, 100, 0, 0, 0);
+
+    // Change a small 10x10 region
+    for (uint32_t y = 20; y < 30; ++y) {
+        for (uint32_t x = 30; x < 40; ++x) {
+            size_t idx = (static_cast<size_t>(y) * 100 + x) * 4;
+            curr[idx + 0] = 255;
+            curr[idx + 1] = 0;
+            curr[idx + 2] = 0;
+        }
+    }
+
+    auto delta = encoder.encodeDelta(
+        curr.data(), prev.data(), 100, 100, 85);
+
+    EXPECT_FALSE(delta.fullFrame);
+    EXPECT_GT(delta.dirtyRatio, 0.0);
+    EXPECT_LE(delta.dirtyRatio, 0.02);
+    ASSERT_FALSE(delta.tiles.empty());
+
+    // Each tile should contain valid JPEG data
+    for (const auto& tile : delta.tiles) {
+        ASSERT_GE(tile.jpegData.size(), 2u);
+        EXPECT_EQ(tile.jpegData[0], 0xFF);
+        EXPECT_EQ(tile.jpegData[1], 0xD8);
+    }
+}
+
+TEST_F(FrameEncoderTest, EncodeDeltaFullFrameFallback) {
+    auto prev = createSolidRGBA(100, 100, 0, 0, 0);
+    auto curr = createSolidRGBA(100, 100, 255, 255, 255); // All changed
+
+    auto delta = encoder.encodeDelta(
+        curr.data(), prev.data(), 100, 100, 85);
+
+    EXPECT_TRUE(delta.fullFrame);
+    EXPECT_GT(delta.dirtyRatio, 0.60);
+    ASSERT_EQ(delta.tiles.size(), 1u);
+    EXPECT_EQ(delta.tiles[0].x, 0);
+    EXPECT_EQ(delta.tiles[0].y, 0);
+}
+
+TEST_F(FrameEncoderTest, EncodeDeltaDeltaSmallerThanFullFrame) {
+    auto prev = createTestRGBA(128, 128);
+    auto curr = createTestRGBA(128, 128);
+
+    // Modify a small area
+    for (uint32_t y = 10; y < 20; ++y) {
+        for (uint32_t x = 10; x < 20; ++x) {
+            size_t idx = (static_cast<size_t>(y) * 128 + x) * 4;
+            curr[idx + 0] = 255;
+        }
+    }
+
+    auto delta = encoder.encodeDelta(
+        curr.data(), prev.data(), 128, 128, 85);
+    auto fullJpeg = encoder.encodeJpeg(curr.data(), 128, 128, 85);
+
+    ASSERT_FALSE(delta.fullFrame);
+    ASSERT_FALSE(delta.tiles.empty());
+
+    // Sum delta tile sizes should be less than full frame JPEG
+    size_t deltaSize = 0;
+    for (const auto& t : delta.tiles) {
+        deltaSize += t.jpegData.size();
+    }
+    EXPECT_LT(deltaSize, fullJpeg.size());
+}
+
+TEST_F(FrameEncoderTest, EncodeDeltaNullInputs) {
+    auto frame = createTestRGBA(32, 32);
+
+    auto delta1 = encoder.encodeDelta(nullptr, frame.data(), 32, 32);
+    EXPECT_TRUE(delta1.tiles.empty());
+
+    auto delta2 = encoder.encodeDelta(frame.data(), nullptr, 32, 32);
+    EXPECT_TRUE(delta2.tiles.empty());
+}
+
+// =============================================================================
+// Delta serialization round-trip
+// =============================================================================
+
+TEST_F(FrameEncoderTest, SerializeDeltaRoundTrip) {
+    auto prev = createSolidRGBA(64, 64, 0, 0, 0);
+    auto curr = createSolidRGBA(64, 64, 0, 0, 0);
+
+    // Small change
+    for (uint32_t y = 10; y < 20; ++y) {
+        for (uint32_t x = 10; x < 20; ++x) {
+            size_t idx = (static_cast<size_t>(y) * 64 + x) * 4;
+            curr[idx + 0] = 200;
+        }
+    }
+
+    auto delta = encoder.encodeDelta(
+        curr.data(), prev.data(), 64, 64, 85);
+
+    auto serialized = FrameEncoder::serializeDelta(delta);
+    ASSERT_FALSE(serialized.empty());
+
+    auto deserialized = FrameEncoder::deserializeDelta(serialized);
+
+    EXPECT_EQ(deserialized.fullFrame, delta.fullFrame);
+    ASSERT_EQ(deserialized.tiles.size(), delta.tiles.size());
+
+    for (size_t i = 0; i < delta.tiles.size(); ++i) {
+        EXPECT_EQ(deserialized.tiles[i].x, delta.tiles[i].x);
+        EXPECT_EQ(deserialized.tiles[i].y, delta.tiles[i].y);
+        EXPECT_EQ(deserialized.tiles[i].width, delta.tiles[i].width);
+        EXPECT_EQ(deserialized.tiles[i].height, delta.tiles[i].height);
+        EXPECT_EQ(deserialized.tiles[i].jpegData.size(),
+                  delta.tiles[i].jpegData.size());
+        EXPECT_EQ(deserialized.tiles[i].jpegData, delta.tiles[i].jpegData);
+    }
+}
+
+TEST_F(FrameEncoderTest, DeserializeDeltaEmptyInput) {
+    auto delta = FrameEncoder::deserializeDelta({});
+    EXPECT_TRUE(delta.tiles.empty());
+}
+
+TEST_F(FrameEncoderTest, DeserializeDeltaTruncatedInput) {
+    std::vector<uint8_t> truncated = {0x00, 0x01, 0x00};
+    auto delta = FrameEncoder::deserializeDelta(truncated);
+    EXPECT_TRUE(delta.tiles.empty());
+}
+
+TEST_F(FrameEncoderTest, SerializeDeltaFullFrame) {
+    auto prev = createSolidRGBA(32, 32, 0, 0, 0);
+    auto curr = createSolidRGBA(32, 32, 255, 255, 255);
+
+    auto delta = encoder.encodeDelta(
+        curr.data(), prev.data(), 32, 32, 85);
+    EXPECT_TRUE(delta.fullFrame);
+
+    auto serialized = FrameEncoder::serializeDelta(delta);
+    auto deserialized = FrameEncoder::deserializeDelta(serialized);
+
+    EXPECT_TRUE(deserialized.fullFrame);
+    EXPECT_EQ(deserialized.tiles.size(), 1u);
 }

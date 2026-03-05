@@ -78,6 +78,14 @@ enum class RemoteConnectionState {
 };
 
 /**
+ * @brief Frame type in the binary protocol
+ */
+enum class FrameType : uint8_t {
+    FullFrame = 0x00,  ///< Complete JPEG frame
+    DeltaFrame = 0x01  ///< Delta-encoded tiles
+};
+
+/**
  * @brief Parsed binary frame header from the render server
  */
 struct FrameHeader {
@@ -85,6 +93,7 @@ struct FrameHeader {
     uint32_t frameSeq = 0;
     uint32_t width = 0;
     uint32_t height = 0;
+    FrameType frameType = FrameType::FullFrame;
     const uint8_t* imageData = nullptr;
     size_t imageDataSize = 0;
 };
