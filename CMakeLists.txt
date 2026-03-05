@@ -537,13 +537,29 @@ add_library(render_service STATIC
     src/services/render/offscreen_render_context.cpp
     src/services/render/render_session.cpp
     src/services/render/frame_encoder.cpp
+    src/services/render/websocket_frame_streamer.cpp
 )
+
+# Crow WebSocket framework (header-only, from pacs_system build)
+set(CROW_INCLUDE_DIR "${PACS_SYSTEM_ROOT}/build/_deps/crow-src/include")
+set(ASIO_INCLUDE_DIR "${PACS_SYSTEM_ROOT}/build/_deps/asio-src/asio/include")
 
 target_link_libraries(render_service PUBLIC
     dicom_viewer_core
     coordinate_service
     ${VTK_LIBRARIES}
 )
+
+if(EXISTS "${CROW_INCLUDE_DIR}/crow.h" AND EXISTS "${ASIO_INCLUDE_DIR}/asio.hpp")
+    target_include_directories(render_service PRIVATE
+        ${CROW_INCLUDE_DIR}
+        ${ASIO_INCLUDE_DIR}
+    )
+    target_compile_definitions(render_service PRIVATE CROW_DISABLE_STATIC_DIR)
+    message(STATUS "  Crow WebSocket: enabled (${CROW_INCLUDE_DIR})")
+else()
+    message(WARNING "  Crow WebSocket: disabled (headers not found)")
+endif()
 
 add_library(measurement_service STATIC
     src/services/measurement/linear_measurement_tool.cpp
