@@ -58,6 +58,9 @@
 
 namespace dicom_viewer::services {
 
+struct DirtyRect;
+struct DirtyRegionResult;
+
 /**
  * @brief Encoding format for frame compression
  */
@@ -65,6 +68,26 @@ enum class EncodeFormat {
     Jpeg,       ///< Lossy JPEG compression (quality-adjustable)
     Png,        ///< Lossless PNG compression
     H264Stream  ///< H.264 temporal compression (requires ffmpeg)
+};
+
+/**
+ * @brief A single encoded dirty tile for delta frame transmission
+ */
+struct EncodedTile {
+    uint16_t x = 0;       ///< Tile X position in frame
+    uint16_t y = 0;       ///< Tile Y position in frame
+    uint16_t width = 0;   ///< Tile width in pixels
+    uint16_t height = 0;  ///< Tile height in pixels
+    std::vector<uint8_t> jpegData;  ///< Compressed JPEG data for this tile
+};
+
+/**
+ * @brief Result of delta frame encoding
+ */
+struct DeltaFrame {
+    std::vector<EncodedTile> tiles;  ///< Encoded dirty tiles
+    bool fullFrame = false;          ///< True if this is a full frame (not delta)
+    double dirtyRatio = 0.0;         ///< Fraction of frame that changed
 };
 
 /**
@@ -121,6 +144,37 @@ public:
     [[nodiscard]] std::vector<uint8_t> encode(
         const uint8_t* rgba, uint32_t width, uint32_t height,
         EncodeFormat format, int quality = 85);
+
+    /**
+     * @brief Encode a delta frame: only changed tiles between current and previous
+     * @param current Current frame RGBA data (width * height * 4 bytes)
+     * @param previous Previous frame RGBA data (same dimensions)
+     * @param width Frame width in pixels
+     * @param height Frame height in pixels
+     * @param quality JPEG quality for tile encoding (1-100)
+     * @return Delta frame with encoded tiles, or full frame if dirty ratio exceeds threshold
+     */
+    [[nodiscard]] DeltaFrame encodeDelta(
+        const uint8_t* current, const uint8_t* previous,
+        uint32_t width, uint32_t height,
+        int quality = 85);
+
+    /**
+     * @brief Serialize a DeltaFrame to binary wire format
+     * @details Wire format per tile: [2B x][2B y][2B w][2B h][4B jpeg_size][N bytes JPEG]
+     * @param delta The delta frame to serialize
+     * @return Binary data ready for network transmission
+     */
+    [[nodiscard]] static std::vector<uint8_t> serializeDelta(
+        const DeltaFrame& delta);
+
+    /**
+     * @brief Deserialize binary wire format back to a DeltaFrame
+     * @param data Binary data from serializeDelta
+     * @return Deserialized delta frame
+     */
+    [[nodiscard]] static DeltaFrame deserializeDelta(
+        const std::vector<uint8_t>& data);
 
     /**
      * @brief Check if H.264 encoding is available

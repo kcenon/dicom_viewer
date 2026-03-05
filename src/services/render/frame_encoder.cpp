@@ -28,6 +28,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "services/render/frame_encoder.hpp"
+#include "services/render/dirty_region_tracker.hpp"
 
 #include <vtkImageData.h>
 #include <vtkJPEGWriter.h>
@@ -174,6 +175,168 @@ std::vector<uint8_t> FrameEncoder::encode(
         return {};
     }
     return {};
+}
+
+// ---------------------------------------------------------------------------
+// Delta frame encoding
+// ---------------------------------------------------------------------------
+DeltaFrame FrameEncoder::encodeDelta(
+    const uint8_t* current, const uint8_t* previous,
+    uint32_t width, uint32_t height, int quality)
+{
+    DeltaFrame result;
+
+    if (!current || !previous || width == 0 || height == 0) {
+        return result;
+    }
+
+    quality = std::clamp(quality, 1, 100);
+
+    DirtyRegionTracker tracker;
+    auto detection = tracker.detect(current, previous, width, height);
+
+    result.dirtyRatio = detection.dirtyRatio;
+    result.fullFrame = detection.fullFrameRequired;
+
+    if (detection.regions.empty()) {
+        return result;
+    }
+
+    if (detection.fullFrameRequired) {
+        // Encode the entire frame as a single tile
+        EncodedTile tile;
+        tile.x = 0;
+        tile.y = 0;
+        tile.width = static_cast<uint16_t>(std::min(width, uint32_t(UINT16_MAX)));
+        tile.height = static_cast<uint16_t>(std::min(height, uint32_t(UINT16_MAX)));
+        tile.jpegData = encodeJpeg(current, width, height, quality);
+        if (!tile.jpegData.empty()) {
+            result.tiles.push_back(std::move(tile));
+        }
+        return result;
+    }
+
+    // Encode each dirty region as a JPEG tile
+    for (const auto& rect : detection.regions) {
+        auto tileRgba = DirtyRegionTracker::extractRegion(
+            current, width, height, rect);
+        if (tileRgba.empty()) {
+            continue;
+        }
+
+        EncodedTile tile;
+        tile.x = static_cast<uint16_t>(rect.x);
+        tile.y = static_cast<uint16_t>(rect.y);
+        tile.width = static_cast<uint16_t>(rect.width);
+        tile.height = static_cast<uint16_t>(rect.height);
+        tile.jpegData = encodeJpeg(
+            tileRgba.data(), rect.width, rect.height, quality);
+
+        if (!tile.jpegData.empty()) {
+            result.tiles.push_back(std::move(tile));
+        }
+    }
+
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Delta serialization
+// ---------------------------------------------------------------------------
+std::vector<uint8_t> FrameEncoder::serializeDelta(const DeltaFrame& delta)
+{
+    // Header: [1B flags][4B tile_count]
+    // Per tile: [2B x][2B y][2B w][2B h][4B jpeg_size][N bytes JPEG]
+
+    // Calculate total size
+    size_t totalSize = 1 + 4; // flags + tile_count
+    for (const auto& tile : delta.tiles) {
+        totalSize += 2 + 2 + 2 + 2 + 4 + tile.jpegData.size();
+    }
+
+    std::vector<uint8_t> data(totalSize);
+    size_t offset = 0;
+
+    // Flags byte: bit 0 = fullFrame
+    uint8_t flags = delta.fullFrame ? 0x01 : 0x00;
+    data[offset++] = flags;
+
+    // Tile count (4 bytes, little-endian)
+    uint32_t tileCount = static_cast<uint32_t>(delta.tiles.size());
+    std::memcpy(data.data() + offset, &tileCount, 4);
+    offset += 4;
+
+    // Tiles
+    for (const auto& tile : delta.tiles) {
+        std::memcpy(data.data() + offset, &tile.x, 2);
+        offset += 2;
+        std::memcpy(data.data() + offset, &tile.y, 2);
+        offset += 2;
+        std::memcpy(data.data() + offset, &tile.width, 2);
+        offset += 2;
+        std::memcpy(data.data() + offset, &tile.height, 2);
+        offset += 2;
+
+        uint32_t jpegSize = static_cast<uint32_t>(tile.jpegData.size());
+        std::memcpy(data.data() + offset, &jpegSize, 4);
+        offset += 4;
+
+        std::memcpy(data.data() + offset, tile.jpegData.data(), jpegSize);
+        offset += jpegSize;
+    }
+
+    return data;
+}
+
+DeltaFrame FrameEncoder::deserializeDelta(const std::vector<uint8_t>& data)
+{
+    DeltaFrame result;
+
+    // Minimum: 1B flags + 4B tile_count
+    if (data.size() < 5) {
+        return result;
+    }
+
+    size_t offset = 0;
+
+    uint8_t flags = data[offset++];
+    result.fullFrame = (flags & 0x01) != 0;
+
+    uint32_t tileCount = 0;
+    std::memcpy(&tileCount, data.data() + offset, 4);
+    offset += 4;
+
+    for (uint32_t i = 0; i < tileCount; ++i) {
+        if (offset + 12 > data.size()) {
+            break; // Not enough data for tile header
+        }
+
+        EncodedTile tile;
+        std::memcpy(&tile.x, data.data() + offset, 2);
+        offset += 2;
+        std::memcpy(&tile.y, data.data() + offset, 2);
+        offset += 2;
+        std::memcpy(&tile.width, data.data() + offset, 2);
+        offset += 2;
+        std::memcpy(&tile.height, data.data() + offset, 2);
+        offset += 2;
+
+        uint32_t jpegSize = 0;
+        std::memcpy(&jpegSize, data.data() + offset, 4);
+        offset += 4;
+
+        if (offset + jpegSize > data.size()) {
+            break; // Not enough data for JPEG payload
+        }
+
+        tile.jpegData.assign(
+            data.data() + offset, data.data() + offset + jpegSize);
+        offset += jpegSize;
+
+        result.tiles.push_back(std::move(tile));
+    }
+
+    return result;
 }
 
 // ---------------------------------------------------------------------------

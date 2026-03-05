@@ -28,6 +28,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ui/widgets/remote_viewport_widget.hpp"
+#include "services/render/frame_encoder.hpp"
 
 #include <QAction>
 #include <QContextMenuEvent>
@@ -97,8 +98,11 @@ public:
     }
 
     QImage currentFrame_;
+    QImage baseFrame_;  // Stored base frame for delta tile compositing
     bool showStatistics_ = false;
     std::deque<std::chrono::steady_clock::time_point> frameTimestamps_;
+    uint32_t deltaFramesReceived_ = 0;
+    uint32_t fullFramesReceived_ = 0;
 
     double currentFps() const
     {
@@ -189,14 +193,12 @@ private:
             return;
         }
 
-        QImage frame = QImage::fromData(
-            header.imageData,
-            static_cast<int>(header.imageDataSize), "JPEG");
-        if (frame.isNull()) {
-            return;
+        if (header.frameType == FrameType::DeltaFrame) {
+            applyDeltaFrame(header);
+        } else {
+            applyFullFrame(header);
         }
 
-        currentFrame_ = std::move(frame);
         lastFrameSeq_ = header.frameSeq;
         ++framesReceived_;
 
@@ -208,6 +210,65 @@ private:
 
         owner_->update();
         emit owner_->frameDisplayed(header.frameSeq);
+    }
+
+    void applyFullFrame(const FrameHeader& header)
+    {
+        QImage frame = QImage::fromData(
+            header.imageData,
+            static_cast<int>(header.imageDataSize), "JPEG");
+        if (frame.isNull()) {
+            return;
+        }
+
+        currentFrame_ = frame;
+        baseFrame_ = frame.convertToFormat(QImage::Format_RGBA8888);
+        ++fullFramesReceived_;
+    }
+
+    void applyDeltaFrame(const FrameHeader& header)
+    {
+        std::vector<uint8_t> deltaData(
+            header.imageData,
+            header.imageData + header.imageDataSize);
+        auto delta = dicom_viewer::services::FrameEncoder::deserializeDelta(
+            deltaData);
+
+        if (delta.fullFrame || baseFrame_.isNull()) {
+            // Full frame fallback or no base frame yet
+            if (!delta.tiles.empty()) {
+                QImage frame = QImage::fromData(
+                    delta.tiles[0].jpegData.data(),
+                    static_cast<int>(delta.tiles[0].jpegData.size()),
+                    "JPEG");
+                if (!frame.isNull()) {
+                    currentFrame_ = frame;
+                    baseFrame_ = frame.convertToFormat(
+                        QImage::Format_RGBA8888);
+                }
+            }
+            ++fullFramesReceived_;
+            return;
+        }
+
+        // Apply tiles onto base frame
+        QImage composited = baseFrame_.copy();
+
+        for (const auto& tile : delta.tiles) {
+            QImage tileImage = QImage::fromData(
+                tile.jpegData.data(),
+                static_cast<int>(tile.jpegData.size()), "JPEG");
+            if (tileImage.isNull()) {
+                continue;
+            }
+
+            QPainter tilePainter(&composited);
+            tilePainter.drawImage(tile.x, tile.y, tileImage);
+        }
+
+        baseFrame_ = composited;
+        currentFrame_ = composited;
+        ++deltaFramesReceived_;
     }
 
     void setState(RemoteConnectionState newState)
@@ -399,10 +460,12 @@ void RemoteViewportWidget::paintEvent(QPaintEvent* /*event*/)
     if (impl_->showStatistics_
         && impl_->state() == RemoteConnectionState::Connected) {
         double fps = impl_->currentFps();
-        QString statsText = QString("FPS: %1 | Frames: %2 | Seq: %3")
+        QString statsText = QString("FPS: %1 | Frames: %2 | Seq: %3 | Delta: %4 | Full: %5")
                                 .arg(fps, 0, 'f', 1)
                                 .arg(impl_->framesReceived())
-                                .arg(impl_->lastFrameSeq());
+                                .arg(impl_->lastFrameSeq())
+                                .arg(impl_->deltaFramesReceived_)
+                                .arg(impl_->fullFramesReceived_);
 
         QFont statsFont = painter.font();
         statsFont.setPointSize(10);
