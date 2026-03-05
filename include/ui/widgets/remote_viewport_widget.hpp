@@ -61,6 +61,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
+#include <QByteArray>
 #include <QWidget>
 
 namespace dicom_viewer::ui {
@@ -151,6 +153,33 @@ public:
     static bool parseFrameHeader(const char* data, size_t size,
                                  FrameHeader& header);
 
+    /**
+     * @brief Serialize an input event to JSON for transmission to server
+     * @param type Event type (e.g. "mouse_move", "mouse_down", "key_down")
+     * @param sessionId Session identifier
+     * @param x Normalized X coordinate (0.0-1.0)
+     * @param y Normalized Y coordinate (0.0-1.0)
+     * @param buttons Mouse button bitmask (1=left, 2=right, 4=middle)
+     * @param keyCode Key code (Qt::Key value)
+     * @param keySym Key symbol string (e.g. "ArrowUp", "Escape")
+     * @param delta Scroll wheel delta
+     * @param shiftKey Shift modifier
+     * @param ctrlKey Ctrl modifier
+     * @param altKey Alt modifier
+     * @return JSON bytes ready for WebSocket transmission
+     */
+    static QByteArray serializeInputEvent(
+        const std::string& type,
+        const std::string& sessionId,
+        double x, double y,
+        int buttons = 0,
+        int keyCode = 0,
+        const std::string& keySym = {},
+        double delta = 0.0,
+        bool shiftKey = false,
+        bool ctrlKey = false,
+        bool altKey = false);
+
 signals:
     /**
      * @brief Connection state changed
@@ -163,8 +192,20 @@ signals:
      */
     void frameDisplayed(uint32_t frameSeq);
 
+    /**
+     * @brief An input event was serialized and sent to the server
+     * @param type Event type string
+     */
+    void inputEventSent(const QString& type);
+
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
+    void keyReleaseEvent(QKeyEvent* event) override;
 
 private:
     class Impl;

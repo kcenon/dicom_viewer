@@ -32,6 +32,8 @@
 #include "ui/widgets/remote_viewport_widget.hpp"
 
 #include <QApplication>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include <cstring>
 #include <string>
@@ -282,4 +284,195 @@ TEST_F(RemoteViewportWidgetTest, FrameHeaderDefaults) {
     EXPECT_EQ(header.height, 0u);
     EXPECT_EQ(header.imageData, nullptr);
     EXPECT_EQ(header.imageDataSize, 0u);
+}
+
+// =============================================================================
+// Input event serialization
+// =============================================================================
+
+TEST_F(RemoteViewportWidgetTest, SerializeMouseMoveEvent) {
+    auto json = RemoteViewportWidget::serializeInputEvent(
+        "mouse_move", "sess-42",
+        0.5, 0.75,
+        1, // left button
+        0, {},
+        0.0,
+        false, false, false);
+
+    QJsonDocument doc = QJsonDocument::fromJson(json);
+    ASSERT_FALSE(doc.isNull());
+
+    QJsonObject obj = doc.object();
+    EXPECT_EQ(obj["type"].toString().toStdString(), "mouse_move");
+    EXPECT_EQ(obj["session_id"].toString().toStdString(), "sess-42");
+    EXPECT_DOUBLE_EQ(obj["x"].toDouble(), 0.5);
+    EXPECT_DOUBLE_EQ(obj["y"].toDouble(), 0.75);
+    EXPECT_EQ(obj["buttons"].toInt(), 1);
+    EXPECT_EQ(obj["key_code"].toInt(), 0);
+    EXPECT_TRUE(obj["key"].toString().isEmpty());
+    EXPECT_DOUBLE_EQ(obj["delta"].toDouble(), 0.0);
+    EXPECT_FALSE(obj["shift"].toBool());
+    EXPECT_FALSE(obj["ctrl"].toBool());
+    EXPECT_FALSE(obj["alt"].toBool());
+    EXPECT_TRUE(obj.contains("ts"));
+    EXPECT_GT(obj["ts"].toInteger(), 0);
+}
+
+TEST_F(RemoteViewportWidgetTest, SerializeMouseDownEvent) {
+    auto json = RemoteViewportWidget::serializeInputEvent(
+        "mouse_down", "session-1",
+        0.25, 0.50,
+        2, // right button
+        0, {},
+        0.0,
+        true, false, true); // shift + alt
+
+    QJsonDocument doc = QJsonDocument::fromJson(json);
+    QJsonObject obj = doc.object();
+
+    EXPECT_EQ(obj["type"].toString().toStdString(), "mouse_down");
+    EXPECT_EQ(obj["buttons"].toInt(), 2);
+    EXPECT_DOUBLE_EQ(obj["x"].toDouble(), 0.25);
+    EXPECT_DOUBLE_EQ(obj["y"].toDouble(), 0.50);
+    EXPECT_TRUE(obj["shift"].toBool());
+    EXPECT_FALSE(obj["ctrl"].toBool());
+    EXPECT_TRUE(obj["alt"].toBool());
+}
+
+TEST_F(RemoteViewportWidgetTest, SerializeMouseUpEvent) {
+    auto json = RemoteViewportWidget::serializeInputEvent(
+        "mouse_up", "session-1",
+        0.1, 0.9,
+        5, // left + middle
+        0, {},
+        0.0,
+        false, true, false); // ctrl
+
+    QJsonDocument doc = QJsonDocument::fromJson(json);
+    QJsonObject obj = doc.object();
+
+    EXPECT_EQ(obj["type"].toString().toStdString(), "mouse_up");
+    EXPECT_EQ(obj["buttons"].toInt(), 5);
+    EXPECT_TRUE(obj["ctrl"].toBool());
+}
+
+TEST_F(RemoteViewportWidgetTest, SerializeScrollEvent) {
+    auto json = RemoteViewportWidget::serializeInputEvent(
+        "scroll", "session-1",
+        0.5, 0.5,
+        0,
+        0, {},
+        -2.5, // scroll backward
+        false, false, false);
+
+    QJsonDocument doc = QJsonDocument::fromJson(json);
+    QJsonObject obj = doc.object();
+
+    EXPECT_EQ(obj["type"].toString().toStdString(), "scroll");
+    EXPECT_DOUBLE_EQ(obj["delta"].toDouble(), -2.5);
+    EXPECT_EQ(obj["buttons"].toInt(), 0);
+}
+
+TEST_F(RemoteViewportWidgetTest, SerializeKeyDownEvent) {
+    auto json = RemoteViewportWidget::serializeInputEvent(
+        "key_down", "session-1",
+        0.0, 0.0, 0,
+        Qt::Key_A,
+        "a",
+        0.0,
+        false, true, false); // ctrl+a
+
+    QJsonDocument doc = QJsonDocument::fromJson(json);
+    QJsonObject obj = doc.object();
+
+    EXPECT_EQ(obj["type"].toString().toStdString(), "key_down");
+    EXPECT_EQ(obj["key_code"].toInt(), Qt::Key_A);
+    EXPECT_EQ(obj["key"].toString().toStdString(), "a");
+    EXPECT_TRUE(obj["ctrl"].toBool());
+    EXPECT_DOUBLE_EQ(obj["x"].toDouble(), 0.0);
+    EXPECT_DOUBLE_EQ(obj["y"].toDouble(), 0.0);
+}
+
+TEST_F(RemoteViewportWidgetTest, SerializeKeyUpEvent) {
+    auto json = RemoteViewportWidget::serializeInputEvent(
+        "key_up", "session-1",
+        0.0, 0.0, 0,
+        Qt::Key_Escape,
+        "Escape",
+        0.0,
+        false, false, false);
+
+    QJsonDocument doc = QJsonDocument::fromJson(json);
+    QJsonObject obj = doc.object();
+
+    EXPECT_EQ(obj["type"].toString().toStdString(), "key_up");
+    EXPECT_EQ(obj["key_code"].toInt(), Qt::Key_Escape);
+    EXPECT_EQ(obj["key"].toString().toStdString(), "Escape");
+}
+
+TEST_F(RemoteViewportWidgetTest, SerializeContainsAllServerFields) {
+    // Verify all 11 fields expected by the server are present
+    auto json = RemoteViewportWidget::serializeInputEvent(
+        "mouse_move", "s1",
+        0.0, 0.0, 0, 0, {}, 0.0, false, false, false);
+
+    QJsonDocument doc = QJsonDocument::fromJson(json);
+    QJsonObject obj = doc.object();
+
+    EXPECT_TRUE(obj.contains("session_id"));
+    EXPECT_TRUE(obj.contains("type"));
+    EXPECT_TRUE(obj.contains("x"));
+    EXPECT_TRUE(obj.contains("y"));
+    EXPECT_TRUE(obj.contains("buttons"));
+    EXPECT_TRUE(obj.contains("key_code"));
+    EXPECT_TRUE(obj.contains("key"));
+    EXPECT_TRUE(obj.contains("ts"));
+    EXPECT_TRUE(obj.contains("delta"));
+    EXPECT_TRUE(obj.contains("shift"));
+    EXPECT_TRUE(obj.contains("ctrl"));
+    EXPECT_TRUE(obj.contains("alt"));
+}
+
+TEST_F(RemoteViewportWidgetTest, SerializeEmptySessionId) {
+    auto json = RemoteViewportWidget::serializeInputEvent(
+        "mouse_move", "",
+        0.5, 0.5, 0, 0, {}, 0.0, false, false, false);
+
+    QJsonDocument doc = QJsonDocument::fromJson(json);
+    QJsonObject obj = doc.object();
+
+    EXPECT_TRUE(obj["session_id"].toString().isEmpty());
+}
+
+TEST_F(RemoteViewportWidgetTest, SerializeArrowKeySymbol) {
+    auto json = RemoteViewportWidget::serializeInputEvent(
+        "key_down", "session-1",
+        0.0, 0.0, 0,
+        Qt::Key_Up,
+        "ArrowUp",
+        0.0,
+        false, false, false);
+
+    QJsonDocument doc = QJsonDocument::fromJson(json);
+    QJsonObject obj = doc.object();
+
+    EXPECT_EQ(obj["key"].toString().toStdString(), "ArrowUp");
+    EXPECT_EQ(obj["key_code"].toInt(), Qt::Key_Up);
+}
+
+TEST_F(RemoteViewportWidgetTest, SerializeAllModifiers) {
+    auto json = RemoteViewportWidget::serializeInputEvent(
+        "key_down", "session-1",
+        0.0, 0.0, 0,
+        Qt::Key_S,
+        "s",
+        0.0,
+        true, true, true); // shift + ctrl + alt
+
+    QJsonDocument doc = QJsonDocument::fromJson(json);
+    QJsonObject obj = doc.object();
+
+    EXPECT_TRUE(obj["shift"].toBool());
+    EXPECT_TRUE(obj["ctrl"].toBool());
+    EXPECT_TRUE(obj["alt"].toBool());
 }

@@ -30,12 +30,18 @@
 #include "ui/widgets/remote_viewport_widget.hpp"
 
 #include <QImage>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QKeyEvent>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPaintEvent>
 #include <QTimer>
 #include <QUrl>
 #include <QWebSocket>
+#include <QWheelEvent>
 
+#include <chrono>
 #include <cstring>
 
 namespace dicom_viewer::ui {
@@ -74,8 +80,17 @@ public:
 
     RemoteConnectionState state() const { return state_; }
     QString sessionId() const { return sessionId_; }
+    std::string sessionIdStd() const { return sessionId_.toStdString(); }
     uint64_t framesReceived() const { return framesReceived_; }
     uint32_t lastFrameSeq() const { return lastFrameSeq_; }
+
+    void sendInputEvent(const QByteArray& json)
+    {
+        if (state_ != RemoteConnectionState::Connected || !socket_) {
+            return;
+        }
+        socket_->sendTextMessage(QString::fromUtf8(json));
+    }
 
     QImage currentFrame_;
 
@@ -353,6 +368,236 @@ void RemoteViewportWidget::paintEvent(QPaintEvent* /*event*/)
             painter.drawText(widgetRect, Qt::AlignCenter, statusText);
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Input event serialization
+// ---------------------------------------------------------------------------
+
+namespace {
+
+std::string qtKeyToKeySym(int key)
+{
+    switch (key) {
+    case Qt::Key_Left:      return "ArrowLeft";
+    case Qt::Key_Right:     return "ArrowRight";
+    case Qt::Key_Up:        return "ArrowUp";
+    case Qt::Key_Down:      return "ArrowDown";
+    case Qt::Key_Return:
+    case Qt::Key_Enter:     return "Enter";
+    case Qt::Key_Escape:    return "Escape";
+    case Qt::Key_Space:     return "Space";
+    case Qt::Key_Backspace: return "Backspace";
+    case Qt::Key_Tab:       return "Tab";
+    case Qt::Key_Delete:    return "Delete";
+    case Qt::Key_Home:      return "Home";
+    case Qt::Key_End:       return "End";
+    case Qt::Key_PageUp:    return "PageUp";
+    case Qt::Key_PageDown:  return "PageDown";
+    case Qt::Key_Shift:     return "Shift";
+    case Qt::Key_Control:   return "Control";
+    case Qt::Key_Alt:       return "Alt";
+    default: {
+        if (key >= Qt::Key_A && key <= Qt::Key_Z) {
+            return std::string(1, static_cast<char>('a' + (key - Qt::Key_A)));
+        }
+        if (key >= Qt::Key_0 && key <= Qt::Key_9) {
+            return std::string(1, static_cast<char>('0' + (key - Qt::Key_0)));
+        }
+        if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
+            return "F" + std::to_string(key - Qt::Key_F1 + 1);
+        }
+        return {};
+    }
+    }
+}
+
+int qtButtonsToMask(Qt::MouseButtons buttons)
+{
+    int mask = 0;
+    if (buttons & Qt::LeftButton)   mask |= 1;
+    if (buttons & Qt::RightButton)  mask |= 2;
+    if (buttons & Qt::MiddleButton) mask |= 4;
+    return mask;
+}
+
+uint64_t currentTimestampMs()
+{
+    return static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch())
+            .count());
+}
+
+} // anonymous namespace
+
+QByteArray RemoteViewportWidget::serializeInputEvent(
+    const std::string& type,
+    const std::string& sessionId,
+    double x, double y,
+    int buttons,
+    int keyCode,
+    const std::string& keySym,
+    double delta,
+    bool shiftKey,
+    bool ctrlKey,
+    bool altKey)
+{
+    QJsonObject obj;
+    obj["session_id"] = QString::fromStdString(sessionId);
+    obj["type"] = QString::fromStdString(type);
+    obj["x"] = x;
+    obj["y"] = y;
+    obj["buttons"] = buttons;
+    obj["key_code"] = keyCode;
+    obj["key"] = QString::fromStdString(keySym);
+    obj["ts"] = static_cast<qint64>(currentTimestampMs());
+    obj["delta"] = delta;
+    obj["shift"] = shiftKey;
+    obj["ctrl"] = ctrlKey;
+    obj["alt"] = altKey;
+
+    return QJsonDocument(obj).toJson(QJsonDocument::Compact);
+}
+
+// ---------------------------------------------------------------------------
+// Event handlers
+// ---------------------------------------------------------------------------
+
+void RemoteViewportWidget::mouseMoveEvent(QMouseEvent* event)
+{
+    double nx = static_cast<double>(event->position().x()) / width();
+    double ny = static_cast<double>(event->position().y()) / height();
+    auto mods = event->modifiers();
+
+    auto json = serializeInputEvent(
+        "mouse_move", impl_->sessionIdStd(),
+        nx, ny,
+        qtButtonsToMask(event->buttons()),
+        0, {},
+        0.0,
+        mods & Qt::ShiftModifier,
+        mods & Qt::ControlModifier,
+        mods & Qt::AltModifier);
+
+    impl_->sendInputEvent(json);
+    emit inputEventSent("mouse_move");
+    event->accept();
+}
+
+void RemoteViewportWidget::mousePressEvent(QMouseEvent* event)
+{
+    double nx = static_cast<double>(event->position().x()) / width();
+    double ny = static_cast<double>(event->position().y()) / height();
+    auto mods = event->modifiers();
+
+    auto json = serializeInputEvent(
+        "mouse_down", impl_->sessionIdStd(),
+        nx, ny,
+        qtButtonsToMask(event->buttons()),
+        0, {},
+        0.0,
+        mods & Qt::ShiftModifier,
+        mods & Qt::ControlModifier,
+        mods & Qt::AltModifier);
+
+    impl_->sendInputEvent(json);
+    emit inputEventSent("mouse_down");
+    event->accept();
+}
+
+void RemoteViewportWidget::mouseReleaseEvent(QMouseEvent* event)
+{
+    double nx = static_cast<double>(event->position().x()) / width();
+    double ny = static_cast<double>(event->position().y()) / height();
+    auto mods = event->modifiers();
+
+    // buttons() returns buttons still held; add the released button
+    int mask = qtButtonsToMask(event->buttons())
+             | qtButtonsToMask(event->button());
+
+    auto json = serializeInputEvent(
+        "mouse_up", impl_->sessionIdStd(),
+        nx, ny, mask,
+        0, {},
+        0.0,
+        mods & Qt::ShiftModifier,
+        mods & Qt::ControlModifier,
+        mods & Qt::AltModifier);
+
+    impl_->sendInputEvent(json);
+    emit inputEventSent("mouse_up");
+    event->accept();
+}
+
+void RemoteViewportWidget::wheelEvent(QWheelEvent* event)
+{
+    double nx = static_cast<double>(event->position().x()) / width();
+    double ny = static_cast<double>(event->position().y()) / height();
+    auto mods = event->modifiers();
+
+    // angleDelta().y() is in 1/8 degree increments; normalize to whole steps
+    double delta = event->angleDelta().y() / 120.0;
+
+    auto json = serializeInputEvent(
+        "scroll", impl_->sessionIdStd(),
+        nx, ny,
+        qtButtonsToMask(event->buttons()),
+        0, {},
+        delta,
+        mods & Qt::ShiftModifier,
+        mods & Qt::ControlModifier,
+        mods & Qt::AltModifier);
+
+    impl_->sendInputEvent(json);
+    emit inputEventSent("scroll");
+    event->accept();
+}
+
+void RemoteViewportWidget::keyPressEvent(QKeyEvent* event)
+{
+    if (event->isAutoRepeat()) {
+        event->accept();
+        return;
+    }
+
+    auto mods = event->modifiers();
+    auto json = serializeInputEvent(
+        "key_down", impl_->sessionIdStd(),
+        0.0, 0.0, 0,
+        event->key(),
+        qtKeyToKeySym(event->key()),
+        0.0,
+        mods & Qt::ShiftModifier,
+        mods & Qt::ControlModifier,
+        mods & Qt::AltModifier);
+
+    impl_->sendInputEvent(json);
+    emit inputEventSent("key_down");
+    event->accept();
+}
+
+void RemoteViewportWidget::keyReleaseEvent(QKeyEvent* event)
+{
+    if (event->isAutoRepeat()) {
+        event->accept();
+        return;
+    }
+
+    auto mods = event->modifiers();
+    auto json = serializeInputEvent(
+        "key_up", impl_->sessionIdStd(),
+        0.0, 0.0, 0,
+        event->key(),
+        qtKeyToKeySym(event->key()),
+        0.0,
+        mods & Qt::ShiftModifier,
+        mods & Qt::ControlModifier,
+        mods & Qt::AltModifier);
+
+    impl_->sendInputEvent(json);
+    emit inputEventSent("key_up");
+    event->accept();
 }
 
 } // namespace dicom_viewer::ui
