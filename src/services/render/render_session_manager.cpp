@@ -28,6 +28,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "services/render/render_session_manager.hpp"
+#include "services/render/adaptive_quality_controller.hpp"
 #include "services/render/render_session.hpp"
 
 #include <atomic>
@@ -50,6 +51,7 @@ public:
         uint32_t width;
         uint32_t height;
         uint32_t frameSeq = 0;
+        AdaptiveQualityController qualityController;
     };
 
     explicit Impl(const RenderSessionManagerConfig& config) : config_(config) {}
@@ -112,6 +114,36 @@ public:
         if (it != sessions_.end()) {
             it->second.lastActive = std::chrono::steady_clock::now();
         }
+    }
+
+    void notifyInteractionStart(const std::string& sessionId)
+    {
+        std::lock_guard lock(mutex_);
+        auto it = sessions_.find(sessionId);
+        if (it != sessions_.end()) {
+            it->second.qualityController.onInteractionStart();
+            it->second.lastActive = std::chrono::steady_clock::now();
+        }
+    }
+
+    void notifyInteractionEnd(const std::string& sessionId)
+    {
+        std::lock_guard lock(mutex_);
+        auto it = sessions_.find(sessionId);
+        if (it != sessions_.end()) {
+            it->second.qualityController.onInteractionEnd();
+        }
+    }
+
+    AdaptiveQualityController* getQualityController(
+        const std::string& sessionId)
+    {
+        std::lock_guard lock(mutex_);
+        auto it = sessions_.find(sessionId);
+        if (it == sessions_.end()) {
+            return nullptr;
+        }
+        return &it->second.qualityController;
     }
 
     void setFrameReadyCallback(FrameReadyCallback callback)
@@ -243,6 +275,12 @@ private:
             }
 
             auto& entry = it->second;
+
+            // Check adaptive quality controller
+            if (!entry.qualityController.shouldEmitFrame()) {
+                continue;
+            }
+
             auto frame = entry.session->captureVolumeFrame();
             if (!frame.empty()) {
                 cb(id, frame, entry.width, entry.height);
@@ -298,6 +336,24 @@ RenderSession* RenderSessionManager::getSession(const std::string& sessionId)
 void RenderSessionManager::touchSession(const std::string& sessionId)
 {
     impl_->touchSession(sessionId);
+}
+
+void RenderSessionManager::notifyInteractionStart(
+    const std::string& sessionId)
+{
+    impl_->notifyInteractionStart(sessionId);
+}
+
+void RenderSessionManager::notifyInteractionEnd(
+    const std::string& sessionId)
+{
+    impl_->notifyInteractionEnd(sessionId);
+}
+
+AdaptiveQualityController* RenderSessionManager::getQualityController(
+    const std::string& sessionId)
+{
+    return impl_->getQualityController(sessionId);
 }
 
 void RenderSessionManager::setFrameReadyCallback(FrameReadyCallback callback)

@@ -30,6 +30,7 @@
 #include <gtest/gtest.h>
 
 #include "services/render/render_session_manager.hpp"
+#include "services/render/adaptive_quality_controller.hpp"
 #include "services/render/render_session.hpp"
 
 #include <algorithm>
@@ -469,4 +470,59 @@ TEST_F(RenderSessionManagerTest, GetSessionReturnsValidPointer) {
 
     // The RenderSession should be a valid object we can interact with
     // (VolumeRenderer and MPRRenderer are initialized in off-screen mode)
+}
+
+// =============================================================================
+// Adaptive quality controller integration
+// =============================================================================
+
+TEST_F(RenderSessionManagerTest, GetQualityControllerReturnsNullForMissing) {
+    auto cfg = defaultConfig();
+    RenderSessionManager mgr(cfg);
+
+    EXPECT_EQ(mgr.getQualityController("nonexistent"), nullptr);
+}
+
+TEST_F(RenderSessionManagerTest, GetQualityControllerReturnsValidPointer) {
+    auto cfg = defaultConfig();
+    RenderSessionManager mgr(cfg);
+
+    mgr.createSession("s1");
+    auto* qc = mgr.getQualityController("s1");
+    ASSERT_NE(qc, nullptr);
+    EXPECT_EQ(qc->state(), QualityState::Idle);
+}
+
+TEST_F(RenderSessionManagerTest, NotifyInteractionStartChangesState) {
+    auto cfg = defaultConfig();
+    RenderSessionManager mgr(cfg);
+
+    mgr.createSession("s1");
+    mgr.notifyInteractionStart("s1");
+
+    auto* qc = mgr.getQualityController("s1");
+    ASSERT_NE(qc, nullptr);
+    EXPECT_EQ(qc->state(), QualityState::Interacting);
+}
+
+TEST_F(RenderSessionManagerTest, NotifyInteractionEndChangesState) {
+    auto cfg = defaultConfig();
+    RenderSessionManager mgr(cfg);
+
+    mgr.createSession("s1");
+    mgr.notifyInteractionStart("s1");
+    mgr.notifyInteractionEnd("s1");
+
+    auto* qc = mgr.getQualityController("s1");
+    ASSERT_NE(qc, nullptr);
+    EXPECT_EQ(qc->state(), QualityState::PostInteraction);
+}
+
+TEST_F(RenderSessionManagerTest, NotifyInteractionOnMissingSessionIsNoop) {
+    auto cfg = defaultConfig();
+    RenderSessionManager mgr(cfg);
+
+    // Should not crash
+    mgr.notifyInteractionStart("nonexistent");
+    mgr.notifyInteractionEnd("nonexistent");
 }
