@@ -30,16 +30,11 @@
 /**
  * @file session_token_validator.hpp
  * @brief Token-based authentication for render session access
- * @details Generates and validates signed opaque tokens that bind a user
+ * @details Generates and validates RS256-signed JWTs that bind a user
  *          identity to a specific Study Instance UID with an expiry time.
  *
- * ## Token Format (opaque, base64url-encoded)
- * ```
- * base64url(study_uid:user_id:expiry_epoch:signature)
- * ```
- *
- * The signature is computed over the payload using a server-side secret key.
- * Tokens are short-lived (default 1 hour) and non-renewable.
+ * Tokens carry standard JWT claims (`sub`, `iss`, `aud`, `exp`, `iat`)
+ * plus viewer-specific claims (`study_uid`, `role`, `organization`).
  *
  * ## Thread Safety
  * - All methods are thread-safe (internal mutex)
@@ -60,14 +55,38 @@ namespace dicom_viewer::services {
  * @brief Configuration for session token validation
  */
 struct SessionTokenConfig {
-    /// Server-side secret key for token signing
-    std::string secretKey = "dicom-viewer-default-secret";
+    /// JWT issuer (`iss`)
+    std::string issuer = "dicom-viewer";
+
+    /// JWT audience (`aud`)
+    std::string audience = "dicom-viewer-render";
+
+    /// RSA private key file path for local token signing
+    std::string privateKeyPath;
+
+    /// RSA public key file path for local token verification
+    std::string publicKeyPath;
+
+    /// Optional JWKS endpoint URL for future remote key rotation
+    std::string jwksEndpointUrl;
+
+    /// JWT key identifier (`kid`)
+    std::string keyId = "dicom-viewer-local";
+
+    /// Default role claim when callers do not provide one yet
+    std::string defaultRole = "Viewer";
+
+    /// Default organization claim when callers do not provide one yet
+    std::string defaultOrganization = "local";
 
     /// Token expiry duration in seconds (default: 1 hour)
     uint32_t expirySeconds = 3600;
 
     /// Allow unauthenticated local connections for development
     bool allowUnauthenticatedLocal = false;
+
+    /// Generate an ephemeral in-memory key pair when no file paths are set
+    bool allowEphemeralKeys = true;
 };
 
 /**
@@ -77,7 +96,9 @@ enum class TokenValidationResult {
     Valid,              ///< Token is valid and authorized
     Expired,            ///< Token has expired
     InvalidSignature,   ///< Token signature does not match
+    InvalidClaims,      ///< Issuer/audience or other claims do not match
     InvalidFormat,      ///< Token format is malformed
+    UnsupportedAlgorithm, ///< Token uses an unsupported signing algorithm
     StudyMismatch,      ///< Token was issued for a different study
     Empty               ///< No token provided
 };
@@ -88,6 +109,11 @@ enum class TokenValidationResult {
 struct TokenPayload {
     std::string studyUid;    ///< Study Instance UID this token grants access to
     std::string userId;      ///< User identity
+    std::string issuer;      ///< JWT issuer
+    std::string audience;    ///< JWT audience
+    std::string role;        ///< Downstream RBAC role
+    std::string organization; ///< Tenant / organization scope
+    uint64_t issuedAtEpoch = 0; ///< Issued-at time as Unix epoch seconds
     uint64_t expiryEpoch = 0; ///< Expiry time as Unix epoch seconds
 };
 

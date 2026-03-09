@@ -470,6 +470,23 @@ endif()
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(jwt-cpp CONFIG QUIET)
+
+if(NOT TARGET jwt-cpp::jwt-cpp)
+    include(FetchContent)
+    FetchContent_Declare(
+        jwt_cpp
+        GIT_REPOSITORY https://github.com/Thalhammer/jwt-cpp.git
+        GIT_TAG        v0.7.1
+        GIT_SHALLOW    TRUE
+    )
+    set(JWT_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(JWT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(JWT_DISABLE_PICOJSON OFF CACHE BOOL "" FORCE)
+    set(JWT_EXTERNAL_PICOJSON OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(jwt_cpp)
+endif()
 
 # Include directories (VTK/ITK headers propagated via imported targets in target_link_libraries)
 include_directories(
@@ -555,6 +572,9 @@ target_link_libraries(render_service PUBLIC
     dicom_viewer_core
     coordinate_service
     ${VTK_LIBRARIES}
+    jwt-cpp::jwt-cpp
+    OpenSSL::SSL
+    OpenSSL::Crypto
 )
 
 if(EXISTS "${CROW_INCLUDE_DIR}/crow.h" AND EXISTS "${ASIO_INCLUDE_DIR}/asio.hpp")

@@ -91,7 +91,7 @@ public:
                         token = tokenParam;
                     }
 
-                    auto result = validator->validateToken(token, sessionId);
+                    auto result = validator->validateToken(token);
                     if (result != TokenValidationResult::Valid) {
                         // Audit authentication failure
                         AuditService* audit = auditService_.load();
@@ -108,8 +108,14 @@ public:
                             case TokenValidationResult::InvalidSignature:
                                 desc += "invalid signature";
                                 break;
+                            case TokenValidationResult::InvalidClaims:
+                                desc += "invalid claims";
+                                break;
                             case TokenValidationResult::InvalidFormat:
                                 desc += "malformed token";
+                                break;
+                            case TokenValidationResult::UnsupportedAlgorithm:
+                                desc += "unsupported JWT algorithm";
                                 break;
                             case TokenValidationResult::StudyMismatch:
                                 desc += "study UID mismatch";
