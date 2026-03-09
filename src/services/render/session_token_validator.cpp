@@ -29,148 +29,216 @@
 
 #include "services/render/session_token_validator.hpp"
 
-#include <algorithm>
+#include <jwt-cpp/jwt.h>
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+
 #include <chrono>
-#include <cstring>
-#include <functional>
+#include <filesystem>
+#include <fstream>
+#include <memory>
 #include <mutex>
 #include <sstream>
+#include <system_error>
 
 namespace dicom_viewer::services {
 
 namespace {
 
-// Simple base64url encoding (no padding)
-std::string base64urlEncode(const std::string& input)
+using EvpPkeyPtr = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
+using EvpPkeyCtxPtr = std::unique_ptr<EVP_PKEY_CTX, decltype(&EVP_PKEY_CTX_free)>;
+using BioPtr = std::unique_ptr<BIO, decltype(&BIO_free)>;
+
+struct KeyMaterial {
+    std::string privateKeyPem;
+    std::string publicKeyPem;
+};
+
+std::string readFileIfPresent(const std::string& path)
 {
-    static constexpr char table[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-    std::string result;
-    result.reserve((input.size() + 2) / 3 * 4);
-
-    size_t i = 0;
-    while (i < input.size()) {
-        size_t start = i;
-        uint32_t a = static_cast<uint8_t>(input[i++]);
-        uint32_t b = (i < input.size()) ? static_cast<uint8_t>(input[i++]) : 0;
-        uint32_t c = (i < input.size()) ? static_cast<uint8_t>(input[i++]) : 0;
-
-        uint32_t triple = (a << 16) | (b << 8) | c;
-
-        size_t remaining = input.size() - start;
-        result.push_back(table[(triple >> 18) & 0x3F]);
-        result.push_back(table[(triple >> 12) & 0x3F]);
-        if (remaining > 1) {
-            result.push_back(table[(triple >> 6) & 0x3F]);
-        }
-        if (remaining > 2) {
-            result.push_back(table[triple & 0x3F]);
-        }
+    if (path.empty() || !std::filesystem::exists(path)) {
+        return {};
     }
 
-    return result;
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        return {};
+    }
+
+    std::ostringstream buffer;
+    buffer << input.rdbuf();
+    return buffer.str();
 }
 
-// Simple base64url decoding
-std::string base64urlDecode(const std::string& input)
+std::string readBioToString(BIO* bio)
 {
-    auto decodeChar = [](char c) -> int {
-        if (c >= 'A' && c <= 'Z') return c - 'A';
-        if (c >= 'a' && c <= 'z') return c - 'a' + 26;
-        if (c >= '0' && c <= '9') return c - '0' + 52;
-        if (c == '-') return 62;
-        if (c == '_') return 63;
-        return -1;
+    const auto size = BIO_pending(bio);
+    if (size <= 0) {
+        return {};
+    }
+
+    std::string value(static_cast<size_t>(size), '\0');
+    const auto read = BIO_read(bio, value.data(), size);
+    if (read <= 0) {
+        return {};
+    }
+
+    value.resize(static_cast<size_t>(read));
+    return value;
+}
+
+std::string derivePublicKeyPem(const std::string& privateKeyPem)
+{
+    if (privateKeyPem.empty()) {
+        return {};
+    }
+
+    BioPtr privateBio(BIO_new_mem_buf(
+                          privateKeyPem.data(),
+                          static_cast<int>(privateKeyPem.size())),
+                      BIO_free);
+    if (!privateBio) {
+        return {};
+    }
+
+    EvpPkeyPtr key(PEM_read_bio_PrivateKey(privateBio.get(), nullptr, nullptr, nullptr),
+                   EVP_PKEY_free);
+    if (!key) {
+        return {};
+    }
+
+    BioPtr publicBio(BIO_new(BIO_s_mem()), BIO_free);
+    if (!publicBio || PEM_write_bio_PUBKEY(publicBio.get(), key.get()) != 1) {
+        return {};
+    }
+
+    return readBioToString(publicBio.get());
+}
+
+KeyMaterial generateEphemeralKeyMaterial()
+{
+    EvpPkeyCtxPtr ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr),
+                      EVP_PKEY_CTX_free);
+    if (!ctx || EVP_PKEY_keygen_init(ctx.get()) <= 0) {
+        return {};
+    }
+
+    if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx.get(), 2048) <= 0) {
+        return {};
+    }
+
+    EVP_PKEY* rawKey = nullptr;
+    if (EVP_PKEY_keygen(ctx.get(), &rawKey) <= 0 || !rawKey) {
+        return {};
+    }
+
+    EvpPkeyPtr key(rawKey, EVP_PKEY_free);
+
+    BioPtr privateBio(BIO_new(BIO_s_mem()), BIO_free);
+    BioPtr publicBio(BIO_new(BIO_s_mem()), BIO_free);
+    if (!privateBio || !publicBio) {
+        return {};
+    }
+
+    if (PEM_write_bio_PrivateKey(privateBio.get(), key.get(), nullptr, nullptr, 0, nullptr, nullptr) != 1) {
+        return {};
+    }
+    if (PEM_write_bio_PUBKEY(publicBio.get(), key.get()) != 1) {
+        return {};
+    }
+
+    return {
+        readBioToString(privateBio.get()),
+        readBioToString(publicBio.get())
     };
-
-    std::string result;
-    result.reserve(input.size() * 3 / 4);
-
-    size_t i = 0;
-    while (i < input.size()) {
-        int a = (i < input.size()) ? decodeChar(input[i++]) : -1;
-        int b = (i < input.size()) ? decodeChar(input[i++]) : -1;
-        int c = (i < input.size()) ? decodeChar(input[i++]) : -1;
-        int d = (i < input.size()) ? decodeChar(input[i++]) : -1;
-
-        if (a < 0 || b < 0) break;
-
-        uint32_t triple = (static_cast<uint32_t>(a) << 18)
-                         | (static_cast<uint32_t>(b) << 12);
-
-        result.push_back(static_cast<char>((triple >> 16) & 0xFF));
-
-        if (c >= 0) {
-            triple |= (static_cast<uint32_t>(c) << 6);
-            result.push_back(static_cast<char>((triple >> 8) & 0xFF));
-        }
-
-        if (d >= 0) {
-            triple |= static_cast<uint32_t>(d);
-            result.push_back(static_cast<char>(triple & 0xFF));
-        }
-    }
-
-    return result;
 }
 
-// Compute a keyed hash (HMAC-like) using std::hash for portability
-// Not cryptographically secure — suitable for same-process token validation
-std::string computeSignature(const std::string& payload,
-                              const std::string& secret)
-{
-    std::hash<std::string> hasher;
-    size_t h1 = hasher(secret + ":" + payload);
-    size_t h2 = hasher(payload + ":" + secret);
-
-    // Combine both hashes for reduced collision probability
-    uint64_t combined = (static_cast<uint64_t>(h1) << 32)
-                       | (static_cast<uint64_t>(h2) & 0xFFFFFFFF);
-
-    char buf[17];
-    std::snprintf(buf, sizeof(buf), "%016llx",
-                  static_cast<unsigned long long>(combined));
-    return std::string(buf);
-}
-
-uint64_t currentEpochSeconds()
+uint64_t toEpochSeconds(const std::chrono::system_clock::time_point& timePoint)
 {
     return static_cast<uint64_t>(
         std::chrono::duration_cast<std::chrono::seconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count());
+            timePoint.time_since_epoch()).count());
 }
 
-} // anonymous namespace
+template<typename DecodedJwt>
+std::string getOptionalStringClaim(const DecodedJwt& decoded,
+                                   const std::string& claimName)
+{
+    if (!decoded.has_payload_claim(claimName)) {
+        return {};
+    }
+
+    return decoded.get_payload_claim(claimName).as_string();
+}
+
+TokenValidationResult mapVerificationError(const std::error_code& error)
+{
+    using jwt::error::token_verification_error;
+
+    if (!error) {
+        return TokenValidationResult::Valid;
+    }
+
+    if (error == token_verification_error::token_expired) {
+        return TokenValidationResult::Expired;
+    }
+    if (error == token_verification_error::wrong_algorithm) {
+        return TokenValidationResult::UnsupportedAlgorithm;
+    }
+    if (error == token_verification_error::audience_missmatch
+        || error == token_verification_error::claim_value_missmatch
+        || error == token_verification_error::claim_type_missmatch
+        || error == token_verification_error::missing_claim) {
+        return TokenValidationResult::InvalidClaims;
+    }
+
+    return TokenValidationResult::InvalidSignature;
+}
+
+} // namespace
 
 // ---------------------------------------------------------------------------
 // Impl
 // ---------------------------------------------------------------------------
 class SessionTokenValidator::Impl {
 public:
-    explicit Impl(const SessionTokenConfig& config) : config_(config) {}
+    explicit Impl(const SessionTokenConfig& config) : config_(config)
+    {
+        refreshKeyMaterial();
+    }
 
     std::string generateToken(const std::string& userId,
-                               const std::string& studyUid) const
+                              const std::string& studyUid) const
     {
         std::lock_guard lock(mutex_);
 
-        uint64_t expiry = currentEpochSeconds() + config_.expirySeconds;
+        if (keyMaterial_.privateKeyPem.empty()) {
+            return {};
+        }
 
-        // Payload: study_uid|user_id|expiry
-        std::string payload = studyUid + "|" + userId + "|"
-                             + std::to_string(expiry);
+        const auto now = std::chrono::system_clock::now();
+        const auto expiry = now + std::chrono::seconds(config_.expirySeconds);
 
-        std::string signature = computeSignature(payload, config_.secretKey);
-
-        // Token: base64url(payload|signature)
-        return base64urlEncode(payload + "|" + signature);
+        try {
+            return jwt::create()
+                .set_type("JWT")
+                .set_key_id(config_.keyId)
+                .set_issuer(config_.issuer)
+                .set_audience(config_.audience)
+                .set_subject(userId)
+                .set_issued_at(now)
+                .set_expires_at(expiry)
+                .set_payload_claim("study_uid", jwt::claim(std::string(studyUid)))
+                .set_payload_claim("role", jwt::claim(std::string(config_.defaultRole)))
+                .set_payload_claim("organization", jwt::claim(std::string(config_.defaultOrganization)))
+                .sign(jwt::algorithm::rs256("", keyMaterial_.privateKeyPem, "", ""));
+        } catch (...) {
+            return {};
+        }
     }
 
-    TokenValidationResult validateToken(
-        const std::string& token,
-        TokenPayload& payload) const
+    TokenValidationResult validateToken(const std::string& token,
+                                        TokenPayload& payload) const
     {
         std::lock_guard lock(mutex_);
 
@@ -178,78 +246,99 @@ public:
             return TokenValidationResult::Empty;
         }
 
-        std::string decoded = base64urlDecode(token);
-        if (decoded.empty()) {
+        auto decoded = jwt::decode(token);
+        if (!decoded.has_algorithm()) {
             return TokenValidationResult::InvalidFormat;
         }
-
-        // Parse: study_uid|user_id|expiry|signature
-        std::vector<std::string> parts;
-        std::istringstream stream(decoded);
-        std::string part;
-        while (std::getline(stream, part, '|')) {
-            parts.push_back(part);
+        if (decoded.get_algorithm() != "RS256") {
+            return TokenValidationResult::UnsupportedAlgorithm;
         }
 
-        if (parts.size() != 4) {
-            return TokenValidationResult::InvalidFormat;
-        }
-
-        const auto& studyUid = parts[0];
-        const auto& userId = parts[1];
-        const auto& expiryStr = parts[2];
-        const auto& signature = parts[3];
-
-        // Reconstruct payload and verify signature
-        std::string payloadStr = studyUid + "|" + userId + "|" + expiryStr;
-        std::string expectedSig = computeSignature(
-            payloadStr, config_.secretKey);
-
-        if (signature != expectedSig) {
+        if (keyMaterial_.publicKeyPem.empty()) {
             return TokenValidationResult::InvalidSignature;
         }
 
-        // Parse expiry
-        uint64_t expiry = 0;
-        try {
-            expiry = std::stoull(expiryStr);
-        } catch (...) {
-            return TokenValidationResult::InvalidFormat;
-        }
+        std::error_code error;
+        jwt::verify()
+            .allow_algorithm(jwt::algorithm::rs256(keyMaterial_.publicKeyPem, "", "", ""))
+            .with_issuer(config_.issuer)
+            .with_audience(config_.audience)
+            .verify(decoded, error);
 
-        // Check expiry
-        if (currentEpochSeconds() > expiry) {
-            return TokenValidationResult::Expired;
-        }
-
-        payload.studyUid = studyUid;
-        payload.userId = userId;
-        payload.expiryEpoch = expiry;
-
-        return TokenValidationResult::Valid;
-    }
-
-    TokenValidationResult validateToken(
-        const std::string& token,
-        const std::string& requiredStudyUid) const
-    {
-        TokenPayload payload;
-        auto result = validateToken(token, payload);
-
+        auto result = mapVerificationError(error);
         if (result != TokenValidationResult::Valid) {
             return result;
         }
 
-        if (!requiredStudyUid.empty()
-            && payload.studyUid != requiredStudyUid) {
+        try {
+            payload.userId = decoded.get_subject();
+            payload.studyUid = getOptionalStringClaim(decoded, "study_uid");
+            payload.issuer = decoded.get_issuer();
+            if (decoded.has_audience()) {
+                const auto audiences = decoded.get_audience();
+                if (!audiences.empty()) {
+                    payload.audience = *audiences.begin();
+                }
+            }
+            payload.role = getOptionalStringClaim(decoded, "role");
+            payload.organization = getOptionalStringClaim(decoded, "organization");
+            payload.issuedAtEpoch = decoded.has_issued_at()
+                ? toEpochSeconds(decoded.get_issued_at()) : 0;
+            payload.expiryEpoch = decoded.has_expires_at()
+                ? toEpochSeconds(decoded.get_expires_at()) : 0;
+        } catch (...) {
+            return TokenValidationResult::InvalidClaims;
+        }
+
+        if (payload.userId.empty() || payload.studyUid.empty()) {
+            return TokenValidationResult::InvalidClaims;
+        }
+
+        return TokenValidationResult::Valid;
+    }
+
+    TokenValidationResult validateToken(const std::string& token,
+                                        const std::string& requiredStudyUid) const
+    {
+        TokenPayload payload;
+        auto result = validateToken(token, payload);
+        if (result != TokenValidationResult::Valid) {
+            return result;
+        }
+
+        if (!requiredStudyUid.empty() && payload.studyUid != requiredStudyUid) {
             return TokenValidationResult::StudyMismatch;
         }
 
         return TokenValidationResult::Valid;
     }
 
+    void setConfig(const SessionTokenConfig& config)
+    {
+        std::lock_guard lock(mutex_);
+        config_ = config;
+        refreshKeyMaterial();
+    }
+
+    void refreshKeyMaterial()
+    {
+        keyMaterial_.privateKeyPem = readFileIfPresent(config_.privateKeyPath);
+        keyMaterial_.publicKeyPem = readFileIfPresent(config_.publicKeyPath);
+
+        if (keyMaterial_.publicKeyPem.empty() && !keyMaterial_.privateKeyPem.empty()) {
+            keyMaterial_.publicKeyPem = derivePublicKeyPem(keyMaterial_.privateKeyPem);
+        }
+
+        if (keyMaterial_.privateKeyPem.empty()
+            && keyMaterial_.publicKeyPem.empty()
+            && config_.allowEphemeralKeys) {
+            keyMaterial_ = generateEphemeralKeyMaterial();
+        }
+    }
+
     mutable std::mutex mutex_;
     SessionTokenConfig config_;
+    KeyMaterial keyMaterial_;
 };
 
 // ---------------------------------------------------------------------------
@@ -277,13 +366,21 @@ TokenValidationResult SessionTokenValidator::validateToken(
     const std::string& token,
     const std::string& requiredStudyUid) const
 {
-    return impl_->validateToken(token, requiredStudyUid);
+    try {
+        return impl_->validateToken(token, requiredStudyUid);
+    } catch (...) {
+        return TokenValidationResult::InvalidFormat;
+    }
 }
 
 TokenValidationResult SessionTokenValidator::validateToken(
     const std::string& token, TokenPayload& payload) const
 {
-    return impl_->validateToken(token, payload);
+    try {
+        return impl_->validateToken(token, payload);
+    } catch (...) {
+        return TokenValidationResult::InvalidFormat;
+    }
 }
 
 bool SessionTokenValidator::allowsUnauthenticatedLocal() const
@@ -299,8 +396,7 @@ const SessionTokenConfig& SessionTokenValidator::config() const
 
 void SessionTokenValidator::setConfig(const SessionTokenConfig& config)
 {
-    std::lock_guard lock(impl_->mutex_);
-    impl_->config_ = config;
+    impl_->setConfig(config);
 }
 
 } // namespace dicom_viewer::services
