@@ -1018,33 +1018,8 @@ if(NOT DICOM_VIEWER_SERVER_ONLY)
         ARCHIVE DESTINATION lib
     )
 else()
-    # Headless server executable (no Qt required)
-    # Full service wiring is implemented in issue #500
-    add_executable(dicom_viewer_server
-        server/src/main.cpp
-    )
-
-    target_include_directories(dicom_viewer_server PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
-    )
-
-    target_link_libraries(dicom_viewer_server PRIVATE
-        spdlog::spdlog
-        fmt::fmt
-        nlohmann_json::nlohmann_json
-        OpenSSL::SSL
-        OpenSSL::Crypto
-    )
-
-    if(TARGET jwt-cpp::jwt-cpp)
-        target_link_libraries(dicom_viewer_server PRIVATE jwt-cpp::jwt-cpp)
-    endif()
-
-    install(TARGETS dicom_viewer_server
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-    )
+    # Headless server build — delegate to server/CMakeLists.txt
+    add_subdirectory(server)
 endif()
 
 # Tests
