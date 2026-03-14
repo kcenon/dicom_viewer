@@ -29,16 +29,17 @@
 
 /**
  * @file auth_routes.hpp
- * @brief Authentication REST API routes (login, refresh, logout)
- * @details Registers public login/refresh routes and the authenticated
- *          logout route. All routes delegate to AuthProvider.
+ * @brief Authentication REST API routes (login, refresh, logout, emergency access)
+ * @details Registers public login/refresh routes, the authenticated logout route,
+ *          and the HIPAA break-glass emergency access route.
  *
  * ## Routes
- * | Method | Path                       | Auth      |
- * |--------|----------------------------|-----------|
- * | POST   | /api/v1/auth/login         | Public    |
- * | POST   | /api/v1/auth/refresh       | Public    |
- * | POST   | /api/v1/auth/logout        | Bearer    |
+ * | Method | Path                              | Auth      |
+ * |--------|-----------------------------------|-----------|
+ * | POST   | /api/v1/auth/login                | Public    |
+ * | POST   | /api/v1/auth/refresh              | Public    |
+ * | POST   | /api/v1/auth/logout               | Bearer    |
+ * | POST   | /api/v1/auth/emergency-access     | Clinician |
  *
  * @author kcenon
  * @since 1.0.0

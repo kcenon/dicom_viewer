@@ -233,6 +233,54 @@ void registerAuthRoutes(routes::App* app,
             res.code = 204;
             res.end();
         });
+
+    // POST /api/v1/auth/emergency-access — HIPAA break-glass (Clinician+)
+    // Logs an emergency access event and confirms the clinician's identity.
+    CROW_ROUTE(*app, "/api/v1/auth/emergency-access")
+        .methods(crow::HTTPMethod::Post)(
+        [app, auth, audit, corsOrigin](const crow::request& req, crow::response& res) {
+            addCorsHeaders(res, corsOrigin);
+
+            if (!requireRole(*app, req, res, services::Role::Clinician, corsOrigin)) return;
+
+            json body;
+            try {
+                body = json::parse(req.body);
+            } catch (...) {
+                res.code = 400;
+                res.body = R"({"error":"bad_request","message":"Invalid JSON body"})";
+                res.end();
+                return;
+            }
+
+            const auto reason = body.value("reason", std::string{});
+            if (reason.empty()) {
+                res.code = 400;
+                res.body = R"({"error":"bad_request","message":"reason is required for emergency access"})";
+                res.end();
+                return;
+            }
+
+            const auto& ctx = app->get_context<JwtMiddleware>(req);
+            const auto userId = ctx.userId;
+
+            // Emit a security alert to the ATNA audit trail (mandatory for HIPAA)
+            if (audit) {
+                audit->auditSecurityAlert(userId, "emergency_access: " + reason);
+            }
+            spdlog::warn("[auth] EMERGENCY ACCESS: user='{}' reason='{}'", userId, reason);
+
+            json resp;
+            resp["userId"]    = userId;
+            resp["role"]      = ctx.role;
+            resp["emergency"] = true;
+            resp["reason"]    = reason;
+            resp["note"]      = "Emergency access logged to ATNA audit trail";
+
+            res.code = 200;
+            res.body = resp.dump();
+            res.end();
+        });
 }
 
 } // namespace dicom_viewer::server
