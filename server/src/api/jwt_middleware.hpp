@@ -88,8 +88,12 @@ struct JwtMiddleware {
     services::SessionTokenValidator* validator = nullptr;
 
     void before_handle(crow::request& req, crow::response& res, context& ctx) {
-        // Health check and other public endpoints skip validation
-        if (req.url == "/api/v1/health" || req.url == "/") {
+        // Public endpoints: health check, auth login/refresh (no Bearer token yet)
+        if (req.url == "/api/v1/health" ||
+            req.url == "/api/v1/health/gpu" ||
+            req.url == "/api/v1/auth/login" ||
+            req.url == "/api/v1/auth/refresh" ||
+            req.url == "/") {
             ctx.skip = true;
             return;
         }

@@ -31,14 +31,21 @@
  * @file api_server.hpp
  * @brief Crow-based REST API server for the headless DICOM viewer server
  * @details Bootstraps a Crow application with JWT middleware, CORS headers,
- *          and the initial set of API routes (health check, session management
- *          stub). Full route implementation is added in issue #501.
+ *          and the full set of API routes (health, auth, sessions).
  *
- * ## Routes (Phase 1.1)
- * | Method | Path                  | Auth | Description          |
- * |--------|-----------------------|------|----------------------|
- * | GET    | /api/v1/health        | No   | Health check         |
- * | GET    | /api/v1/sessions      | Yes  | List active sessions |
+ * ## Routes (Phase 1.3)
+ * | Method | Path                          | Auth      | Description             |
+ * |--------|-------------------------------|-----------|-------------------------|
+ * | GET    | /api/v1/health                | No        | Health check            |
+ * | GET    | /api/v1/health/gpu            | No        | GPU metrics (stub)      |
+ * | POST   | /api/v1/auth/login            | No        | User authentication     |
+ * | POST   | /api/v1/auth/refresh          | No        | Token refresh           |
+ * | POST   | /api/v1/auth/logout           | Bearer    | Token revocation        |
+ * | POST   | /api/v1/sessions              | Clinician | Create render session   |
+ * | DELETE | /api/v1/sessions/{id}         | Clinician | Destroy render session  |
+ * | GET    | /api/v1/sessions/{id}         | Viewer    | Get session status      |
+ * | POST   | /api/v1/sessions/{id}/resize  | Clinician | Resize viewport         |
+ * | POST   | /api/v1/sessions/{id}/viewport| Clinician | Set viewport layout     |
  *
  * @author kcenon
  * @since 1.0.0
@@ -51,6 +58,7 @@
 #include <string>
 
 namespace dicom_viewer::services {
+class AuthProvider;
 class RenderSessionManager;
 class SessionTokenValidator;
 class AuditService;
@@ -73,6 +81,10 @@ struct ApiServerConfig {
 
     /// Server version string included in responses
     std::string serverVersion = "0.3.0";
+
+    /// WebSocket server base URL for session wsUrl construction
+    /// e.g., "ws://localhost:8081"
+    std::string wsBaseUrl = "ws://localhost:8081";
 };
 
 /**
@@ -104,6 +116,13 @@ public:
     void setServices(services::RenderSessionManager* sessions,
                      services::SessionTokenValidator* validator,
                      services::AuditService* audit);
+
+    /**
+     * @brief Inject the authentication provider for auth routes
+     * @param auth AuthProvider implementation (non-owning, may be nullptr)
+     * @note If nullptr, auth routes return 503 Service Unavailable
+     */
+    void setAuthProvider(services::AuthProvider* auth);
 
     /**
      * @brief Start the HTTP server (non-blocking — runs in background thread)
