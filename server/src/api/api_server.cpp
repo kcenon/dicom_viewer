@@ -31,10 +31,21 @@
 #include "jwt_middleware.hpp"
 
 #include "auth_routes.hpp"
+#include "cardiac_routes.hpp"
+#include "export_routes.hpp"
+#include "flow_routes.hpp"
 #include "health_routes.hpp"
+#include "measurement_routes.hpp"
+#include "pacs_routes.hpp"
+#include "render_routes.hpp"
+#include "segmentation_routes.hpp"
 #include "session_routes.hpp"
+#include "study_routes.hpp"
 
 #include "services/auth/auth_provider.hpp"
+#include "services/dicom_echo_scu.hpp"
+#include "services/dicom_find_scu.hpp"
+#include "services/dicom_move_scu.hpp"
 #include "services/render/render_session_manager.hpp"
 #include "services/render/session_token_validator.hpp"
 #include "services/audit_service.hpp"
@@ -74,6 +85,14 @@ public:
 
     void setAuthProvider(services::AuthProvider* auth) {
         auth_ = auth;
+    }
+
+    void setPacsServices(services::DicomEchoSCU* echo,
+                         services::DicomFindSCU* finder,
+                         services::DicomMoveSCU* mover) {
+        echo_   = echo;
+        finder_ = finder;
+        mover_  = mover;
     }
 
     bool start() {
@@ -143,6 +162,14 @@ private:
         // ---- Modular route registration ----
         registerAuthRoutes(app_.get(), auth_, audit_, config_.corsOrigin);
         registerSessionRoutes(app_.get(), sessions_, audit_, config_.wsBaseUrl, config_.corsOrigin);
+        registerStudyRoutes(app_.get(), sessions_, audit_, config_.uploadDir, config_.corsOrigin);
+        registerPacsRoutes(app_.get(), echo_, finder_, mover_, audit_, config_.corsOrigin);
+        registerRenderRoutes(app_.get(), sessions_, config_.corsOrigin);
+        registerSegmentationRoutes(app_.get(), sessions_, config_.corsOrigin);
+        registerMeasurementRoutes(app_.get(), sessions_, audit_, config_.corsOrigin);
+        registerFlowRoutes(app_.get(), sessions_, config_.corsOrigin);
+        registerCardiacRoutes(app_.get(), sessions_, config_.corsOrigin);
+        registerExportRoutes(app_.get(), sessions_, audit_, config_.exportDir, config_.corsOrigin);
         registerHealthRoutes(app_.get(), config_.corsOrigin);
 
         // ---- Catch-all 404 ----
@@ -163,6 +190,9 @@ private:
     services::RenderSessionManager* sessions_ = nullptr;
     services::SessionTokenValidator* validator_ = nullptr;
     services::AuditService* audit_ = nullptr;
+    services::DicomEchoSCU* echo_ = nullptr;
+    services::DicomFindSCU* finder_ = nullptr;
+    services::DicomMoveSCU* mover_ = nullptr;
 };
 
 // ---- ApiServer public interface ----
@@ -186,6 +216,12 @@ uint16_t ApiServer::port() const { return impl_->port(); }
 
 void ApiServer::setAuthProvider(services::AuthProvider* auth) {
     impl_->setAuthProvider(auth);
+}
+
+void ApiServer::setPacsServices(services::DicomEchoSCU* echo,
+                                 services::DicomFindSCU* finder,
+                                 services::DicomMoveSCU* mover) {
+    impl_->setPacsServices(echo, finder, mover);
 }
 
 void ApiServer::registerRoutes() {

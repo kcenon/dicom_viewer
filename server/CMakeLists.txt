@@ -7,8 +7,16 @@ set(SERVER_SOURCES
     src/main.cpp
     src/api/api_server.cpp
     src/api/auth_routes.cpp
-    src/api/session_routes.cpp
+    src/api/cardiac_routes.cpp
+    src/api/export_routes.cpp
+    src/api/flow_routes.cpp
     src/api/health_routes.cpp
+    src/api/measurement_routes.cpp
+    src/api/pacs_routes.cpp
+    src/api/render_routes.cpp
+    src/api/segmentation_routes.cpp
+    src/api/session_routes.cpp
+    src/api/study_routes.cpp
 )
 
 # Headless server executable

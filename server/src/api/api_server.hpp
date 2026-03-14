@@ -31,21 +31,40 @@
  * @file api_server.hpp
  * @brief Crow-based REST API server for the headless DICOM viewer server
  * @details Bootstraps a Crow application with JWT middleware, CORS headers,
- *          and the full set of API routes (health, auth, sessions).
+ *          and the full set of API routes.
  *
- * ## Routes (Phase 1.3)
- * | Method | Path                          | Auth      | Description             |
- * |--------|-------------------------------|-----------|-------------------------|
- * | GET    | /api/v1/health                | No        | Health check            |
- * | GET    | /api/v1/health/gpu            | No        | GPU metrics (stub)      |
- * | POST   | /api/v1/auth/login            | No        | User authentication     |
- * | POST   | /api/v1/auth/refresh          | No        | Token refresh           |
- * | POST   | /api/v1/auth/logout           | Bearer    | Token revocation        |
- * | POST   | /api/v1/sessions              | Clinician | Create render session   |
- * | DELETE | /api/v1/sessions/{id}         | Clinician | Destroy render session  |
- * | GET    | /api/v1/sessions/{id}         | Viewer    | Get session status      |
- * | POST   | /api/v1/sessions/{id}/resize  | Clinician | Resize viewport         |
- * | POST   | /api/v1/sessions/{id}/viewport| Clinician | Set viewport layout     |
+ * ## Routes
+ * | Method | Path                                        | Auth      | Description                  |
+ * |--------|---------------------------------------------|-----------|------------------------------|
+ * | GET    | /api/v1/health                              | No        | Health check                 |
+ * | GET    | /api/v1/health/gpu                          | No        | GPU metrics (stub)           |
+ * | POST   | /api/v1/auth/login                          | No        | User authentication          |
+ * | POST   | /api/v1/auth/refresh                        | No        | Token refresh                |
+ * | POST   | /api/v1/auth/logout                         | Bearer    | Token revocation             |
+ * | POST   | /api/v1/sessions                            | Clinician | Create render session        |
+ * | DELETE | /api/v1/sessions/{id}                       | Clinician | Destroy render session       |
+ * | GET    | /api/v1/sessions/{id}                       | Viewer    | Get session status           |
+ * | POST   | /api/v1/sessions/{id}/resize                | Clinician | Resize viewport              |
+ * | POST   | /api/v1/sessions/{id}/viewport              | Clinician | Set viewport layout          |
+ * | POST   | /api/v1/studies/upload                      | Clinician | DICOM file upload            |
+ * | GET    | /api/v1/studies                             | Viewer    | List studies                 |
+ * | GET    | /api/v1/studies/{uid}/series                | Viewer    | List series                  |
+ * | POST   | /api/v1/sessions/{id}/load                  | Clinician | Load study into session      |
+ * | POST   | /api/v1/pacs/servers/{id}/echo              | Clinician | C-ECHO connectivity test     |
+ * | POST   | /api/v1/pacs/query                          | Clinician | C-FIND study query           |
+ * | POST   | /api/v1/pacs/retrieve                       | Clinician | C-MOVE image retrieval       |
+ * | POST   | /api/v1/sessions/{id}/render/preset         | Clinician | Apply render preset          |
+ * | POST   | /api/v1/sessions/{id}/render/window-level   | Clinician | Set window/level             |
+ * | POST   | /api/v1/sessions/{id}/render/blend-mode     | Clinician | Set blend mode               |
+ * | GET    | /api/v1/sessions/{id}/render/snapshot       | Viewer    | Frame snapshot status        |
+ * | POST   | /api/v1/sessions/{id}/segmentation/*        | Clinician | Segmentation tools           |
+ * | GET    | /api/v1/sessions/{id}/measurements          | Viewer    | List measurements            |
+ * | POST   | /api/v1/sessions/{id}/measurements/*        | Clinician | Create measurement           |
+ * | POST   | /api/v1/sessions/{id}/flow/*                | Clinician | 4D flow operations           |
+ * | POST   | /api/v1/sessions/{id}/cardiac/*             | Clinician | Cardiac analysis             |
+ * | POST   | /api/v1/sessions/{id}/export/report         | Clinician | Start report export          |
+ * | POST   | /api/v1/sessions/{id}/export/csv            | Clinician | Start CSV export             |
+ * | GET    | /api/v1/export/{job_id}                     | Clinician | Poll export job              |
  *
  * @author kcenon
  * @since 1.0.0
@@ -62,6 +81,9 @@ class AuthProvider;
 class RenderSessionManager;
 class SessionTokenValidator;
 class AuditService;
+class DicomEchoSCU;
+class DicomFindSCU;
+class DicomMoveSCU;
 } // namespace dicom_viewer::services
 
 namespace dicom_viewer::server {
@@ -85,6 +107,12 @@ struct ApiServerConfig {
     /// WebSocket server base URL for session wsUrl construction
     /// e.g., "ws://localhost:8081"
     std::string wsBaseUrl = "ws://localhost:8081";
+
+    /// Directory for incoming DICOM file uploads
+    std::string uploadDir = "/tmp/dicom_uploads";
+
+    /// Directory for generated export files
+    std::string exportDir = "/tmp/dicom_exports";
 };
 
 /**
@@ -123,6 +151,16 @@ public:
      * @note If nullptr, auth routes return 503 Service Unavailable
      */
     void setAuthProvider(services::AuthProvider* auth);
+
+    /**
+     * @brief Inject PACS SCU services for PACS integration routes
+     * @param echo   C-ECHO SCU (non-owning, may be nullptr)
+     * @param finder C-FIND SCU (non-owning, may be nullptr)
+     * @param mover  C-MOVE SCU (non-owning, may be nullptr)
+     */
+    void setPacsServices(services::DicomEchoSCU* echo,
+                         services::DicomFindSCU* finder,
+                         services::DicomMoveSCU* mover);
 
     /**
      * @brief Start the HTTP server (non-blocking — runs in background thread)
