@@ -473,6 +473,52 @@ find_package(nlohmann_json REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(jwt-cpp CONFIG QUIET)
 
+# Optional: libldap for LdapAuthProvider (LDAPS/AD authentication)
+# On macOS, Apple's LDAP.framework has a broken self-referential header;
+# only detect Homebrew OpenLDAP (or system OpenLDAP on Linux).
+if(APPLE)
+    # Apple's LDAP.framework has a broken self-referential header; require Homebrew OpenLDAP.
+    # CMake may still find LDAP.framework via framework search paths — exclude frameworks explicitly.
+    find_library(LIBLDAP_LIBRARY NAMES ldap
+        HINTS /opt/homebrew/lib /opt/homebrew/opt/openldap/lib /usr/local/lib
+        NO_DEFAULT_PATH
+        NO_CMAKE_SYSTEM_FRAMEWORK_PATH
+        NO_CMAKE_SYSTEM_PATH
+    )
+    find_path(LIBLDAP_INCLUDE_DIR ldap.h
+        HINTS /opt/homebrew/include /opt/homebrew/opt/openldap/include /usr/local/include
+        NO_DEFAULT_PATH
+        NO_CMAKE_SYSTEM_FRAMEWORK_PATH
+        NO_CMAKE_SYSTEM_PATH
+    )
+    # Reject Apple LDAP.framework even if somehow found above
+    if(LIBLDAP_LIBRARY MATCHES "LDAP\\.framework")
+        unset(LIBLDAP_LIBRARY CACHE)
+        unset(LIBLDAP_INCLUDE_DIR CACHE)
+    endif()
+else()
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(LIBLDAP QUIET ldap)
+    endif()
+    if(NOT LIBLDAP_FOUND)
+        find_library(LIBLDAP_LIBRARY NAMES ldap ldap_r)
+        find_path(LIBLDAP_INCLUDE_DIR ldap.h)
+    endif()
+endif()
+
+if(LIBLDAP_LIBRARY AND LIBLDAP_INCLUDE_DIR AND NOT LIBLDAP_FOUND)
+    set(LIBLDAP_FOUND TRUE)
+    set(LIBLDAP_LIBRARIES "${LIBLDAP_LIBRARY}")
+    set(LIBLDAP_INCLUDE_DIRS "${LIBLDAP_INCLUDE_DIR}")
+endif()
+
+if(LIBLDAP_FOUND)
+    message(STATUS "libldap found: LDAP authentication enabled (${LIBLDAP_LIBRARIES})")
+else()
+    message(STATUS "libldap not found: LdapAuthProvider compiled without LDAP support (configure-only mode)")
+endif()
+
 if(NOT TARGET jwt-cpp::jwt-cpp)
     include(FetchContent)
     FetchContent_Declare(
@@ -531,6 +577,30 @@ target_link_libraries(dicom_viewer_core PUBLIC
     ZLIB::ZLIB
     nlohmann_json::nlohmann_json
 )
+
+# Authentication service (AuthProvider interface, LDAP and OIDC backends, factory)
+add_library(auth_service STATIC
+    src/services/auth/ldap_auth_provider.cpp
+    src/services/auth/oidc_auth_provider.cpp
+    src/services/auth/auth_provider_factory.cpp
+)
+
+target_include_directories(auth_service PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(auth_service PUBLIC
+    jwt-cpp::jwt-cpp
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    nlohmann_json::nlohmann_json
+)
+
+if(LIBLDAP_FOUND)
+    target_compile_definitions(auth_service PUBLIC DICOM_VIEWER_HAS_LDAP)
+    target_include_directories(auth_service PRIVATE ${LIBLDAP_INCLUDE_DIRS})
+    target_link_libraries(auth_service PUBLIC ${LIBLDAP_LIBRARIES})
+endif()
 
 # Coordinate transformation service (unified MPR coordinate system)
 add_library(coordinate_service STATIC
