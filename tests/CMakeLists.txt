@@ -3,6 +3,23 @@ enable_testing()
 # Find Google Test
 find_package(GTest REQUIRED)
 
+# Unit tests for AuthProvider (interface, LDAP, OIDC, factory)
+add_executable(auth_provider_test
+    unit/auth_provider_test.cpp
+)
+
+target_link_libraries(auth_provider_test PRIVATE
+    auth_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(auth_provider_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(auth_provider_test)
+
 # Unit tests for series assembly
 add_executable(series_assembly_test
     unit/series_assembly_test.cpp
