@@ -591,6 +591,7 @@ add_library(auth_service STATIC
     src/services/auth/ldap_auth_provider.cpp
     src/services/auth/oidc_auth_provider.cpp
     src/services/auth/auth_provider_factory.cpp
+    src/services/auth/rbac_middleware.cpp
 )
 
 target_include_directories(auth_service PUBLIC

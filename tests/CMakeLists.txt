@@ -2226,3 +2226,20 @@ target_include_directories(remote_viewport_widget_test PRIVATE
 )
 
 gtest_discover_tests(remote_viewport_widget_test DISCOVERY_TIMEOUT 60)
+
+# Unit tests for RbacChecker (role-based access control logic)
+add_executable(rbac_middleware_test
+    unit/rbac_middleware_test.cpp
+)
+
+target_link_libraries(rbac_middleware_test PRIVATE
+    auth_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(rbac_middleware_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(rbac_middleware_test)
