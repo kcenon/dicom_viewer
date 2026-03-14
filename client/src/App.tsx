@@ -1,12 +1,15 @@
 import { useSessionStore } from '@/stores/sessionStore'
+import { AuthProvider } from '@/components/auth/AuthProvider'
 
 function App() {
   const connectionStatus = useSessionStore((s) => s.connectionStatus)
 
   return (
-    <div data-testid="app-root" data-status={connectionStatus}>
-      {/* UI components will be added in issue #506 */}
-    </div>
+    <AuthProvider>
+      <div data-testid="app-root" data-status={connectionStatus}>
+        {/* Layout components will be added in issue #520 */}
+      </div>
+    </AuthProvider>
   )
 }
 

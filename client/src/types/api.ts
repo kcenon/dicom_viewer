@@ -74,3 +74,34 @@ export interface ApiError {
   message: string
   details?: Record<string, unknown>
 }
+
+// Auth types
+
+export type UserRole = 'admin' | 'radiologist' | 'technician' | 'viewer'
+
+export interface AuthUser {
+  id: string
+  username: string
+  role: UserRole
+  expiresAt: number // Unix timestamp in ms
+}
+
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface LoginResponse {
+  token: string
+  refreshToken: string
+  user: AuthUser
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string
+}
+
+export interface RefreshTokenResponse {
+  token: string
+  user: AuthUser
+}
