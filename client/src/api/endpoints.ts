@@ -12,6 +12,10 @@ import type {
   PacsQueryResult,
   ExportReportRequest,
   ExportCsvRequest,
+  LoginRequest,
+  LoginResponse,
+  RefreshTokenRequest,
+  RefreshTokenResponse,
 } from '@/types/api'
 
 // --- Session ---
@@ -80,5 +84,27 @@ export function useExportCsv() {
   return useMutation({
     mutationFn: (req: ExportCsvRequest) =>
       http.post<Blob>('/export/csv', req),
+  })
+}
+
+// --- Auth ---
+
+export function useLogin() {
+  return useMutation({
+    mutationFn: (req: LoginRequest) =>
+      http.post<LoginResponse>('/auth/login', req),
+  })
+}
+
+export function useLogout() {
+  return useMutation({
+    mutationFn: () => http.post<void>('/auth/logout'),
+  })
+}
+
+export function useRefreshToken() {
+  return useMutation({
+    mutationFn: (req: RefreshTokenRequest) =>
+      http.post<RefreshTokenResponse>('/auth/refresh', req),
   })
 }
