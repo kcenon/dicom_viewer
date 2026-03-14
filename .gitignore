@@ -33,6 +33,11 @@ documents/
 # macOS
 .DS_Store
 
+# React client
+client/node_modules/
+client/dist/
+client/**/*.tsbuildinfo
+
 # Qt
 moc_*.cpp
 ui_*.h
