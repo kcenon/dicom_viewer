@@ -6,6 +6,9 @@ cmake_minimum_required(VERSION 3.20)
 set(SERVER_SOURCES
     src/main.cpp
     src/api/api_server.cpp
+    src/api/auth_routes.cpp
+    src/api/session_routes.cpp
+    src/api/health_routes.cpp
 )
 
 # Headless server executable

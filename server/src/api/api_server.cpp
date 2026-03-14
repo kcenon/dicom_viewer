@@ -30,6 +30,11 @@
 #include "api_server.hpp"
 #include "jwt_middleware.hpp"
 
+#include "auth_routes.hpp"
+#include "health_routes.hpp"
+#include "session_routes.hpp"
+
+#include "services/auth/auth_provider.hpp"
 #include "services/render/render_session_manager.hpp"
 #include "services/render/session_token_validator.hpp"
 #include "services/audit_service.hpp"
@@ -65,6 +70,10 @@ public:
         validator_ = validator;
         audit_ = audit;
         app_->get_middleware<JwtMiddleware>().validator = validator;
+    }
+
+    void setAuthProvider(services::AuthProvider* auth) {
+        auth_ = auth;
     }
 
     bool start() {
@@ -131,32 +140,10 @@ private:
                 res.end();
             });
 
-        // ---- List sessions (authenticated) ----
-        CROW_ROUTE((*app_), "/api/v1/sessions")(
-            [this](const crow::request& req, crow::response& res) {
-                auto& ctx = app_->get_context<JwtMiddleware>(req);
-                if (!ctx.authenticated) {
-                    res.code = 401;
-                    res.body = R"({"error":"unauthorized"})";
-                    res.end();
-                    return;
-                }
-
-                nlohmann::json body;
-                if (sessions_) {
-                    auto ids = sessions_->activeSessionIds();
-                    body["sessions"] = ids;
-                    body["count"] = ids.size();
-                } else {
-                    body["sessions"] = nlohmann::json::array();
-                    body["count"] = 0;
-                }
-
-                addCorsHeaders(res);
-                res.code = 200;
-                res.body = body.dump();
-                res.end();
-            });
+        // ---- Modular route registration ----
+        registerAuthRoutes(app_.get(), auth_, audit_, config_.corsOrigin);
+        registerSessionRoutes(app_.get(), sessions_, audit_, config_.wsBaseUrl, config_.corsOrigin);
+        registerHealthRoutes(app_.get(), config_.corsOrigin);
 
         // ---- Catch-all 404 ----
         CROW_CATCHALL_ROUTE((*app_))([this](crow::response& res) {
@@ -172,6 +159,7 @@ private:
     std::atomic<bool> running_;
     std::thread serverThread_;
 
+    services::AuthProvider* auth_ = nullptr;
     services::RenderSessionManager* sessions_ = nullptr;
     services::SessionTokenValidator* validator_ = nullptr;
     services::AuditService* audit_ = nullptr;
@@ -195,6 +183,10 @@ bool ApiServer::start() { return impl_->start(); }
 void ApiServer::stop() { impl_->stop(); }
 bool ApiServer::isRunning() const { return impl_->isRunning(); }
 uint16_t ApiServer::port() const { return impl_->port(); }
+
+void ApiServer::setAuthProvider(services::AuthProvider* auth) {
+    impl_->setAuthProvider(auth);
+}
 
 void ApiServer::registerRoutes() {
     // Routes are registered inside Impl::start()
