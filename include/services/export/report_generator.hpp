@@ -33,13 +33,11 @@
  * @brief Clinical report PDF generation with measurement and image embedding
  * @details Generates multi-page PDF reports embedding measurement tables,
  *          ROI statistics, volume calculations, and captured images.
- *          Supports customizable page layouts and Qt-based rendering
- *          for high-quality output.
+ *          Uses wkhtmltopdf for PDF rendering; no Qt dependency.
  *
  * ## Thread Safety
- * - PDF rendering uses Qt and must be called from the UI thread
+ * - PDF rendering is a blocking operation; use background threads for UI
  * - Image capture requires synchronized access to render windows
- * - Report generation is a blocking operation; use background threads for UI
  *
  * @author kcenon
  * @since 1.0.0
@@ -50,11 +48,7 @@
 #include "services/measurement/roi_statistics.hpp"
 #include "services/measurement/volume_calculator.hpp"
 
-#include <QImage>
-#include <QPageLayout>
-#include <QPageSize>
-#include <QString>
-
+#include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <functional>
@@ -62,8 +56,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-class QWidget;
 
 namespace dicom_viewer::services {
 
@@ -105,6 +97,23 @@ struct ReportError {
 };
 
 /**
+ * @brief Page orientation for report layout
+ */
+enum class PageOrientation {
+    Portrait,
+    Landscape
+};
+
+/**
+ * @brief Standard page size presets
+ */
+enum class PageSizePreset {
+    A4,
+    Letter,
+    Legal
+};
+
+/**
  * @brief Report template configuration
  *
  * Defines the appearance and content settings for generated reports.
@@ -112,9 +121,9 @@ struct ReportError {
  * @trace SRS-FR-045
  */
 struct ReportTemplate {
-    QString name = "Default";
-    QString logoPath;
-    QString institutionName;
+    std::string name = "Default";
+    std::string logoPath;
+    std::string institutionName;
 
     // Section visibility
     bool showPatientInfo = true;
@@ -123,19 +132,19 @@ struct ReportTemplate {
     bool showScreenshots = true;
 
     // Formatting
-    QString fontFamily = "Arial";
+    std::string fontFamily = "Arial";
     int titleFontSize = 18;
     int headerFontSize = 14;
     int bodyFontSize = 11;
-    QPageSize pageSize = QPageSize(QPageSize::A4);
-    QPageLayout::Orientation orientation = QPageLayout::Portrait;
+    PageSizePreset pageSize = PageSizePreset::A4;
+    PageOrientation orientation = PageOrientation::Portrait;
 
     // Colors (RGB hex strings)
-    QString titleColor = "#333333";
-    QString headerColor = "#2a5db0";
-    QString textColor = "#333333";
-    QString tableHeaderBackground = "#e8e8e8";
-    QString tableBorderColor = "#cccccc";
+    std::string titleColor = "#333333";
+    std::string headerColor = "#2a5db0";
+    std::string textColor = "#333333";
+    std::string tableHeaderBackground = "#e8e8e8";
+    std::string tableBorderColor = "#cccccc";
 };
 
 /**
@@ -158,12 +167,17 @@ struct PatientInfo {
 /**
  * @brief Screenshot data for report embedding
  *
+ * Stores PNG-encoded image bytes for embedding in HTML/PDF output.
+ * Use width/height to preserve original dimensions for layout.
+ *
  * @trace SRS-FR-045
  */
 struct ReportScreenshot {
-    QImage image;
-    QString caption;
-    QString viewType;  // "Axial", "Sagittal", "Coronal", "Volume", etc.
+    std::vector<uint8_t> pngData;  ///< PNG-encoded image bytes
+    int width = 0;                 ///< Image width in pixels
+    int height = 0;                ///< Image height in pixels
+    std::string caption;
+    std::string viewType;  ///< "Axial", "Sagittal", "Coronal", "Volume", etc.
 };
 
 /**
@@ -208,6 +222,8 @@ struct ReportOptions {
  * measurements, screenshots, and volume calculations following
  * medical imaging documentation standards.
  *
+ * PDF output is produced via wkhtmltopdf (must be available in PATH).
+ *
  * @example
  * @code
  * ReportGenerator generator;
@@ -232,7 +248,7 @@ struct ReportOptions {
  */
 class ReportGenerator {
 public:
-    using ProgressCallback = std::function<void(double progress, const QString& status)>;
+    using ProgressCallback = std::function<void(double progress, const std::string& status)>;
 
     ReportGenerator();
     ~ReportGenerator();
@@ -253,7 +269,7 @@ public:
      * @brief Generate PDF report
      *
      * Creates a PDF document with all report sections based on the provided
-     * data and options.
+     * data and options. Internally generates HTML then converts via wkhtmltopdf.
      *
      * @param data Report data containing patient info, measurements, etc.
      * @param outputPath Output file path for the PDF
@@ -266,34 +282,22 @@ public:
         const ReportOptions& options = {}) const;
 
     /**
-     * @brief Generate HTML report
+     * @brief Generate HTML report string
      *
-     * Creates an HTML document that can be displayed in a preview dialog
-     * or converted to PDF by the system.
+     * Creates a standalone HTML document suitable for browser preview
+     * or conversion to PDF via wkhtmltopdf.
      *
      * @param data Report data
      * @param options Generation options
      * @return HTML string or error
      */
-    [[nodiscard]] std::expected<QString, ReportError> generateHTML(
+    [[nodiscard]] std::expected<std::string, ReportError> generateHTML(
         const ReportData& data,
         const ReportOptions& options = {}) const;
 
     /**
-     * @brief Show report preview dialog
-     *
-     * Opens a preview dialog showing the report before saving.
-     *
-     * @param data Report data
-     * @param parent Parent widget for the dialog
-     * @param options Generation options
-     */
-    void showPreview(const ReportData& data, QWidget* parent,
-                     const ReportOptions& options = {});
-
-    /**
      * @brief Get available report templates
-     * @return Vector of template names
+     * @return Vector of templates
      */
     [[nodiscard]] std::vector<ReportTemplate> getAvailableTemplates() const;
 
@@ -311,7 +315,7 @@ public:
      * @return Template or error
      */
     [[nodiscard]] std::expected<ReportTemplate, ReportError>
-    loadTemplate(const QString& name) const;
+    loadTemplate(const std::string& name) const;
 
     /**
      * @brief Get default template

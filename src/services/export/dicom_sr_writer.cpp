@@ -29,9 +29,6 @@
 
 #include "services/export/dicom_sr_writer.hpp"
 
-#include <QDateTime>
-#include <QString>
-
 #include <atomic>
 #include <chrono>
 #include <ctime>
@@ -153,11 +150,11 @@ public:
 
     ProgressCallback progressCallback;
 
-    void reportProgress(double progress, const QString& status) const {
+    void reportProgress(double progress, const std::string& status) const {
         if (progressCallback) {
             progressCallback(progress, status);
         }
-        LOG_DEBUG(std::format("SR Writer: {} ({:.1f}%)", status.toStdString(), progress * 100.0));
+        LOG_DEBUG(std::format("SR Writer: {} ({:.1f}%)", status, progress * 100.0));
     }
 
     std::expected<SRCreationResult, SRError> createSR(
@@ -469,14 +466,14 @@ private:
         // Series Module
         ds.set_string(tags::modality, vr_type::CS, "SR");
         ds.set_string(tags::series_instance_uid, vr_type::UI, seriesUid);
-        ds.set_string(tags::series_description, vr_type::LO, options.seriesDescription.toStdString());
+        ds.set_string(tags::series_description, vr_type::LO, options.seriesDescription);
         ds.set_string(tags::series_number, vr_type::IS, std::to_string(options.seriesNumber));
 
         // Instance Number
         ds.set_string(tags::instance_number, vr_type::IS, std::to_string(options.instanceNumber));
 
         // Equipment Module
-        ds.set_string(tags::manufacturer, vr_type::LO, options.manufacturer.toStdString());
+        ds.set_string(tags::manufacturer, vr_type::LO, options.manufacturer);
 
         // Additional metadata
         ds.set_string(tags::institution_name, vr_type::LO, content.institutionName);

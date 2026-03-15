@@ -41,12 +41,11 @@
  */
 #pragma once
 
+#include "services/export/export_types.hpp"
 #include "services/export/report_generator.hpp"
 #include "services/measurement/measurement_types.hpp"
 #include "services/measurement/roi_statistics.hpp"
 #include "services/measurement/volume_calculator.hpp"
-
-#include <QString>
 
 #include <expected>
 #include <filesystem>
@@ -110,11 +109,11 @@ struct ExportOptions {
     /// CSV delimiter character
     char csvDelimiter = ',';
 
-    /// Date format string (Qt format)
-    QString dateFormat = "yyyy-MM-ddTHH:mm:ss";
+    /// Date format string (strftime format)
+    std::string dateFormat = "%Y-%m-%dT%H:%M:%S";
 
     /// Selected columns (empty = all columns)
-    std::vector<QString> selectedColumns;
+    std::vector<std::string> selectedColumns;
 
     /// Include UTF-8 BOM for Excel compatibility
     bool includeUtf8Bom = true;
@@ -148,7 +147,7 @@ struct ExportOptions {
  */
 class DataExporter {
 public:
-    using ProgressCallback = std::function<void(double progress, const QString& status)>;
+    using ProgressCallback = std::function<void(double progress, const std::string& status)>;
 
     DataExporter();
     ~DataExporter();
@@ -286,31 +285,31 @@ public:
      * @brief Get CSV header for distance measurements
      * @return Vector of column names
      */
-    [[nodiscard]] static std::vector<QString> getDistanceCSVHeader();
+    [[nodiscard]] static std::vector<std::string> getDistanceCSVHeader();
 
     /**
      * @brief Get CSV header for angle measurements
      * @return Vector of column names
      */
-    [[nodiscard]] static std::vector<QString> getAngleCSVHeader();
+    [[nodiscard]] static std::vector<std::string> getAngleCSVHeader();
 
     /**
      * @brief Get CSV header for area measurements
      * @return Vector of column names
      */
-    [[nodiscard]] static std::vector<QString> getAreaCSVHeader();
+    [[nodiscard]] static std::vector<std::string> getAreaCSVHeader();
 
     /**
      * @brief Get CSV header for ROI statistics
      * @return Vector of column names
      */
-    [[nodiscard]] static std::vector<QString> getROIStatisticsCSVHeader();
+    [[nodiscard]] static std::vector<std::string> getROIStatisticsCSVHeader();
 
     /**
      * @brief Get CSV header for volume results
      * @return Vector of column names
      */
-    [[nodiscard]] static std::vector<QString> getVolumeCSVHeader();
+    [[nodiscard]] static std::vector<std::string> getVolumeCSVHeader();
 
 private:
     class Impl;

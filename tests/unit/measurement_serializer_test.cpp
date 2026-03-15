@@ -30,9 +30,7 @@
 #include "services/export/measurement_serializer.hpp"
 
 #include <gtest/gtest.h>
-#include <QApplication>
-#include <QFile>
-#include <QTextStream>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 
@@ -155,9 +153,9 @@ protected:
         session_.slicePositions = {120, 64, 45};
 
         // Metadata
-        session_.version = QString::fromStdString(MeasurementSerializer::CURRENT_VERSION);
-        session_.created = QDateTime::currentDateTimeUtc();
-        session_.modified = QDateTime::currentDateTimeUtc();
+        session_.version = MeasurementSerializer::CURRENT_VERSION;
+        session_.created = std::chrono::system_clock::now();
+        session_.modified = std::chrono::system_clock::now();
     }
 
     void TearDown() override {
@@ -165,12 +163,12 @@ protected:
     }
 
     std::string readFile(const std::filesystem::path& path) {
-        QFile file(QString::fromStdString(path.string()));
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        std::ifstream file(path);
+        if (!file.is_open()) {
             return "";
         }
-        QTextStream stream(&file);
-        return stream.readAll().toStdString();
+        return std::string((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
     }
 
     std::filesystem::path testDir_;
@@ -257,9 +255,9 @@ TEST_F(MeasurementSerializerTest, ApplicationId) {
 }
 
 TEST_F(MeasurementSerializerTest, GetFileFilter) {
-    QString filter = MeasurementSerializer::getFileFilter();
-    EXPECT_TRUE(filter.contains(".dvmeas"));
-    EXPECT_TRUE(filter.contains("DICOM Viewer Measurements"));
+    std::string filter = MeasurementSerializer::getFileFilter();
+    EXPECT_NE(filter.find(".dvmeas"), std::string::npos);
+    EXPECT_NE(filter.find("DICOM Viewer Measurements"), std::string::npos);
 }
 
 TEST_F(MeasurementSerializerTest, GetSupportedVersions) {
@@ -328,10 +326,10 @@ TEST_F(MeasurementSerializerTest, LoadInvalidJson) {
     auto filePath = testDir_ / "invalid.dvmeas";
 
     // Write invalid JSON
-    QFile file(QString::fromStdString(filePath.string()));
-    file.open(QIODevice::WriteOnly);
-    file.write("{ invalid json }");
-    file.close();
+    {
+        std::ofstream file(filePath);
+        file << "{ invalid json }";
+    }
 
     auto result = serializer.load(filePath);
 
@@ -344,10 +342,10 @@ TEST_F(MeasurementSerializerTest, LoadMissingVersion) {
     auto filePath = testDir_ / "no_version.dvmeas";
 
     // Write JSON without version
-    QFile file(QString::fromStdString(filePath.string()));
-    file.open(QIODevice::WriteOnly);
-    file.write(R"({"measurements": {}})");
-    file.close();
+    {
+        std::ofstream file(filePath);
+        file << R"({"measurements": {}})";
+    }
 
     auto result = serializer.load(filePath);
 
@@ -360,10 +358,10 @@ TEST_F(MeasurementSerializerTest, LoadUnsupportedVersion) {
     auto filePath = testDir_ / "future_version.dvmeas";
 
     // Write JSON with unsupported version
-    QFile file(QString::fromStdString(filePath.string()));
-    file.open(QIODevice::WriteOnly);
-    file.write(R"({"version": "99.0.0", "measurements": {}})");
-    file.close();
+    {
+        std::ofstream file(filePath);
+        file << R"({"version": "99.0.0", "measurements": {}})";
+    }
 
     auto result = serializer.load(filePath);
 
@@ -396,7 +394,7 @@ TEST_F(MeasurementSerializerTest, RoundtripBasicSession) {
     EXPECT_EQ(loaded.patient.patientId, session_.patient.patientId);
 
     // Verify version
-    EXPECT_EQ(loaded.version.toStdString(), MeasurementSerializer::CURRENT_VERSION);
+    EXPECT_EQ(loaded.version, MeasurementSerializer::CURRENT_VERSION);
 }
 
 TEST_F(MeasurementSerializerTest, RoundtripDistanceMeasurements) {
@@ -598,10 +596,10 @@ TEST_F(MeasurementSerializerTest, ValidateInvalidJson) {
     MeasurementSerializer serializer;
     auto filePath = testDir_ / "invalid.dvmeas";
 
-    QFile file(QString::fromStdString(filePath.string()));
-    file.open(QIODevice::WriteOnly);
-    file.write("not json");
-    file.close();
+    {
+        std::ofstream file(filePath);
+        file << "not json";
+    }
 
     auto result = serializer.validate(filePath);
 
@@ -784,12 +782,7 @@ TEST_F(MeasurementSerializerTest, FileSizeScalesWithMeasurementCount) {
 
 }  // namespace
 
-// =============================================================================
-// Main with Qt Application
-// =============================================================================
-
 int main(int argc, char** argv) {
-    QApplication app(argc, argv);
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

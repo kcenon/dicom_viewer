@@ -29,12 +29,12 @@
 
 #include "services/export/measurement_serializer.hpp"
 
-#include <QFile>
-#include <QTextStream>
-
 #include <nlohmann/json.hpp>
 
+#include <chrono>
+#include <ctime>
 #include <fstream>
+#include <iomanip>
 #include <sstream>
 
 namespace dicom_viewer::services {
@@ -43,7 +43,7 @@ using json = nlohmann::json;
 
 namespace {
 
-QString roiTypeToString(RoiType type) {
+std::string roiTypeToString(RoiType type) {
     switch (type) {
         case RoiType::Ellipse: return "Ellipse";
         case RoiType::Rectangle: return "Rectangle";
@@ -136,7 +136,7 @@ json areaToJson(const AreaMeasurement& m) {
     return {
         {"id", m.id},
         {"label", m.label},
-        {"type", roiTypeToString(m.type).toStdString()},
+        {"type", roiTypeToString(m.type)},
         {"points", pointsArray},
         {"areaMm2", m.areaMm2},
         {"areaCm2", m.areaCm2},
@@ -241,6 +241,46 @@ PatientInfo jsonToPatient(const json& j) {
     return patient;
 }
 
+/**
+ * @brief Format a time_point as ISO 8601 UTC string (e.g. "2024-01-15T10:30:00Z")
+ */
+std::string timePointToIso8601(const std::chrono::system_clock::time_point& tp) {
+    auto time = std::chrono::system_clock::to_time_t(tp);
+    std::tm tm{};
+#ifdef _WIN32
+    gmtime_s(&tm, &time);
+#else
+    gmtime_r(&time, &tm);
+#endif
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
+    return oss.str();
+}
+
+/**
+ * @brief Parse an ISO 8601 UTC string to time_point.
+ * Accepts "YYYY-MM-DDTHH:MM:SSZ" format. Returns epoch on parse failure.
+ */
+std::chrono::system_clock::time_point iso8601ToTimePoint(const std::string& str) {
+    if (str.empty()) {
+        return std::chrono::system_clock::time_point{};
+    }
+
+    std::tm tm{};
+    std::istringstream iss(str);
+    // Try full ISO 8601 with trailing 'Z'
+    iss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
+    if (iss.fail()) {
+        return std::chrono::system_clock::time_point{};
+    }
+
+#ifdef _WIN32
+    return std::chrono::system_clock::from_time_t(_mkgmtime(&tm));
+#else
+    return std::chrono::system_clock::from_time_t(timegm(&tm));
+#endif
+}
+
 }  // namespace
 
 // =============================================================================
@@ -255,15 +295,18 @@ public:
         // Metadata
         root["version"] = CURRENT_VERSION;
         root["application"] = APPLICATION_ID;
-        root["created"] = session.created.isValid()
-            ? session.created.toString(Qt::ISODate).toStdString()
-            : QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString();
-        root["modified"] = QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString();
+
+        auto createdStr = timePointToIso8601(session.created);
+        if (createdStr.empty() || session.created == std::chrono::system_clock::time_point{}) {
+            createdStr = timePointToIso8601(std::chrono::system_clock::now());
+        }
+        root["created"] = createdStr;
+        root["modified"] = timePointToIso8601(std::chrono::system_clock::now());
 
         // Study info
         root["study"] = {
-            {"studyInstanceUID", session.studyInstanceUID.toStdString()},
-            {"seriesInstanceUID", session.seriesInstanceUID.toStdString()},
+            {"studyInstanceUID", session.studyInstanceUID},
+            {"seriesInstanceUID", session.seriesInstanceUID},
             {"patient", patientToJson(session.patient)}
         };
 
@@ -321,27 +364,15 @@ public:
         SessionData session;
 
         // Metadata
-        session.version = QString::fromStdString(root.value("version", ""));
-
-        std::string createdStr = root.value("created", "");
-        if (!createdStr.empty()) {
-            session.created = QDateTime::fromString(
-                QString::fromStdString(createdStr), Qt::ISODate);
-        }
-
-        std::string modifiedStr = root.value("modified", "");
-        if (!modifiedStr.empty()) {
-            session.modified = QDateTime::fromString(
-                QString::fromStdString(modifiedStr), Qt::ISODate);
-        }
+        session.version = root.value("version", "");
+        session.created = iso8601ToTimePoint(root.value("created", ""));
+        session.modified = iso8601ToTimePoint(root.value("modified", ""));
 
         // Study info
         if (root.contains("study")) {
             const auto& study = root["study"];
-            session.studyInstanceUID = QString::fromStdString(
-                study.value("studyInstanceUID", ""));
-            session.seriesInstanceUID = QString::fromStdString(
-                study.value("seriesInstanceUID", ""));
+            session.studyInstanceUID = study.value("studyInstanceUID", "");
+            session.seriesInstanceUID = study.value("seriesInstanceUID", "");
             if (study.contains("patient")) {
                 session.patient = jsonToPatient(study["patient"]);
             }
@@ -407,7 +438,6 @@ public:
     }
 
     std::expected<bool, SerializationError> validateSchema(const json& root) const {
-        // Check required fields
         if (!root.contains("version")) {
             return std::unexpected(SerializationError{
                 SerializationError::Code::InvalidSchema,
@@ -419,7 +449,7 @@ public:
         auto supportedVersions = MeasurementSerializer::getSupportedVersions();
         bool versionSupported = false;
         for (const auto& v : supportedVersions) {
-            if (v.toStdString() == version) {
+            if (v == version) {
                 versionSupported = true;
                 break;
             }
@@ -458,35 +488,26 @@ std::expected<void, SerializationError> MeasurementSerializer::save(
     const SessionData& session,
     const std::filesystem::path& filePath) const {
 
-    // Convert session to JSON
     auto jsonResult = impl_->sessionToJson(session);
     if (!jsonResult) {
         return std::unexpected(jsonResult.error());
     }
 
-    // Write to file
-    QFile file(QString::fromStdString(filePath.string()));
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    std::ofstream file(filePath, std::ios::out | std::ios::binary);
+    if (!file.is_open()) {
         return std::unexpected(SerializationError{
             SerializationError::Code::FileAccessDenied,
             "Cannot open file for writing: " + filePath.string()
         });
     }
 
-    QTextStream stream(&file);
-    stream.setEncoding(QStringConverter::Utf8);
-
-    std::string jsonStr = jsonResult->dump(2);  // Pretty print with 2-space indent
-    stream << QString::fromStdString(jsonStr);
-
-    file.close();
+    file << jsonResult->dump(2);  // Pretty print with 2-space indent
     return {};
 }
 
 std::expected<SessionData, SerializationError> MeasurementSerializer::load(
     const std::filesystem::path& filePath) const {
 
-    // Check file exists
     if (!std::filesystem::exists(filePath)) {
         return std::unexpected(SerializationError{
             SerializationError::Code::FileNotFound,
@@ -494,24 +515,20 @@ std::expected<SessionData, SerializationError> MeasurementSerializer::load(
         });
     }
 
-    // Read file
-    QFile file(QString::fromStdString(filePath.string()));
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
         return std::unexpected(SerializationError{
             SerializationError::Code::FileAccessDenied,
             "Cannot open file for reading: " + filePath.string()
         });
     }
 
-    QTextStream stream(&file);
-    stream.setEncoding(QStringConverter::Utf8);
-    QString content = stream.readAll();
-    file.close();
+    std::string content((std::istreambuf_iterator<char>(file)),
+                         std::istreambuf_iterator<char>());
 
-    // Parse JSON
     json root;
     try {
-        root = json::parse(content.toStdString());
+        root = json::parse(content);
     } catch (const json::parse_error& e) {
         return std::unexpected(SerializationError{
             SerializationError::Code::InvalidJson,
@@ -519,20 +536,17 @@ std::expected<SessionData, SerializationError> MeasurementSerializer::load(
         });
     }
 
-    // Validate schema
     auto validationResult = impl_->validateSchema(root);
     if (!validationResult) {
         return std::unexpected(validationResult.error());
     }
 
-    // Convert to session
     return impl_->jsonToSession(root);
 }
 
 std::expected<bool, SerializationError> MeasurementSerializer::validate(
     const std::filesystem::path& filePath) const {
 
-    // Check file exists
     if (!std::filesystem::exists(filePath)) {
         return std::unexpected(SerializationError{
             SerializationError::Code::FileNotFound,
@@ -540,24 +554,20 @@ std::expected<bool, SerializationError> MeasurementSerializer::validate(
         });
     }
 
-    // Read file
-    QFile file(QString::fromStdString(filePath.string()));
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
         return std::unexpected(SerializationError{
             SerializationError::Code::FileAccessDenied,
             "Cannot open file for reading: " + filePath.string()
         });
     }
 
-    QTextStream stream(&file);
-    stream.setEncoding(QStringConverter::Utf8);
-    QString content = stream.readAll();
-    file.close();
+    std::string content((std::istreambuf_iterator<char>(file)),
+                         std::istreambuf_iterator<char>());
 
-    // Parse JSON
     json root;
     try {
-        root = json::parse(content.toStdString());
+        root = json::parse(content);
     } catch (const json::parse_error& e) {
         return std::unexpected(SerializationError{
             SerializationError::Code::InvalidJson,
@@ -565,23 +575,22 @@ std::expected<bool, SerializationError> MeasurementSerializer::validate(
         });
     }
 
-    // Validate schema
     return impl_->validateSchema(root);
 }
 
 bool MeasurementSerializer::isCompatible(
     const SessionData& session,
-    const QString& currentStudyUID) {
-    return session.studyInstanceUID.isEmpty() ||
-           currentStudyUID.isEmpty() ||
+    const std::string& currentStudyUID) {
+    return session.studyInstanceUID.empty() ||
+           currentStudyUID.empty() ||
            session.studyInstanceUID == currentStudyUID;
 }
 
-QString MeasurementSerializer::getFileFilter() {
-    return QString("DICOM Viewer Measurements (*%1)").arg(FILE_EXTENSION);
+std::string MeasurementSerializer::getFileFilter() {
+    return std::string("DICOM Viewer Measurements (*") + FILE_EXTENSION + ")";
 }
 
-std::vector<QString> MeasurementSerializer::getSupportedVersions() {
+std::vector<std::string> MeasurementSerializer::getSupportedVersions() {
     return {"1.0.0"};
 }
 
