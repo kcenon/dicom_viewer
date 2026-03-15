@@ -51,8 +51,6 @@
 #include "services/measurement/volume_calculator.hpp"
 #include "services/pacs_config.hpp"
 
-#include <QString>
-
 #include <chrono>
 #include <expected>
 #include <filesystem>
@@ -335,7 +333,7 @@ struct SRWriterOptions {
     bool includeROIStatistics = true;
 
     /// Series description for the SR series
-    QString seriesDescription = "Measurement Report";
+    std::string seriesDescription = "Measurement Report";
 
     /// Series number for the SR series
     int seriesNumber = 999;
@@ -344,10 +342,10 @@ struct SRWriterOptions {
     int instanceNumber = 1;
 
     /// Manufacturer name
-    QString manufacturer = "DICOM Viewer";
+    std::string manufacturer = "DICOM Viewer";
 
     /// Software version
-    QString softwareVersion = "0.3.0";
+    std::string softwareVersion = "0.3.0";
 };
 
 /**
@@ -388,7 +386,7 @@ struct SRWriterOptions {
 class DicomSRWriter {
 public:
     /// Callback for progress updates
-    using ProgressCallback = std::function<void(double progress, const QString& status)>;
+    using ProgressCallback = std::function<void(double progress, const std::string& status)>;
 
     // Standard SOP Class UIDs
     static constexpr const char* COMPREHENSIVE_SR_SOP_CLASS = "1.2.840.10008.5.1.4.1.1.88.33";

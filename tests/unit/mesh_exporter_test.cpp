@@ -31,8 +31,6 @@
 #include "services/export/data_exporter.hpp"
 
 #include <gtest/gtest.h>
-#include <QApplication>
-#include <QFile>
 #include <filesystem>
 #include <fstream>
 
@@ -597,10 +595,10 @@ TEST_F(MeshExporterTest, ProgressCallback) {
     bool progressCalled = false;
     double lastProgress = -1.0;
 
-    exporter.setProgressCallback([&](double progress, const QString& status) {
+    exporter.setProgressCallback([&](double progress, const std::string& status) {
         progressCalled = true;
         lastProgress = progress;
-        EXPECT_FALSE(status.isEmpty());
+        EXPECT_FALSE(status.empty());
         EXPECT_GE(progress, 0.0);
         EXPECT_LE(progress, 1.0);
     });
@@ -851,9 +849,6 @@ TEST_F(MeshExporterTest, CoordinateSystemAffectsVertexPositions) {
 }  // namespace dicom_viewer::services
 
 int main(int argc, char** argv) {
-    // Initialize Qt application for QFile operations
-    QApplication app(argc, argv);
-
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

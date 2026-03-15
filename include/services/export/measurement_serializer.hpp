@@ -45,10 +45,8 @@
 #include "services/measurement/measurement_types.hpp"
 #include "services/segmentation/segmentation_label.hpp"
 
-#include <QDateTime>
-#include <QString>
-
 #include <array>
+#include <chrono>
 #include <expected>
 #include <filesystem>
 #include <memory>
@@ -106,8 +104,8 @@ struct SerializationError {
  */
 struct SessionData {
     // Study reference
-    QString studyInstanceUID;
-    QString seriesInstanceUID;
+    std::string studyInstanceUID;
+    std::string seriesInstanceUID;
     PatientInfo patient;
 
     // Measurements
@@ -125,9 +123,9 @@ struct SessionData {
     std::array<int, 3> slicePositions = {0, 0, 0};
 
     // Metadata
-    QString version;
-    QDateTime created;
-    QDateTime modified;
+    std::string version;
+    std::chrono::system_clock::time_point created;
+    std::chrono::system_clock::time_point modified;
 };
 
 /**
@@ -230,19 +228,19 @@ public:
      */
     [[nodiscard]] static bool isCompatible(
         const SessionData& session,
-        const QString& currentStudyUID);
+        const std::string& currentStudyUID);
 
     /**
      * @brief Get file filter string for file dialogs
      * @return Filter string like "DICOM Viewer Measurements (*.dvmeas)"
      */
-    [[nodiscard]] static QString getFileFilter();
+    [[nodiscard]] static std::string getFileFilter();
 
     /**
      * @brief Get supported versions for migration
      * @return Vector of version strings that can be migrated
      */
-    [[nodiscard]] static std::vector<QString> getSupportedVersions();
+    [[nodiscard]] static std::vector<std::string> getSupportedVersions();
 
 private:
     class Impl;

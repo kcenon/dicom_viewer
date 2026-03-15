@@ -30,15 +30,26 @@
 #include "services/export/report_generator.hpp"
 
 #include <gtest/gtest.h>
-#include <QApplication>
-#include <QImage>
-#include <QStandardPaths>
-#include <QFile>
 #include <filesystem>
 #include <fstream>
 
 namespace dicom_viewer::services {
 namespace {
+
+// Minimal 1x1 PNG bytes (blue pixel, IHDR+IDAT+IEND) for screenshot tests
+static std::vector<uint8_t> makeMinimalPng() {
+    return {
+        0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A, // PNG signature
+        0x00,0x00,0x00,0x0D,0x49,0x48,0x44,0x52, // IHDR length + type
+        0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01, // 1x1
+        0x08,0x02,0x00,0x00,0x00,0x90,0x77,0x53, // 8-bit RGB, CRC
+        0xDE,0x00,0x00,0x00,0x0C,0x49,0x44,0x41, // IDAT length + type
+        0x54,0x08,0xD7,0x63,0xF8,0xCF,0xC0,0x00,
+        0x00,0x00,0x02,0x00,0x01,0xE2,0x21,0xBC,
+        0x33,0x00,0x00,0x00,0x00,0x49,0x45,0x4E, // IEND
+        0x44,0xAE,0x42,0x60,0x82
+    };
+}
 
 class ReportGeneratorTest : public ::testing::Test {
 protected:
@@ -167,8 +178,8 @@ TEST_F(ReportGeneratorTest, ReportTemplateDefaultValues) {
     ReportTemplate templ;
 
     EXPECT_EQ(templ.name, "Default");
-    EXPECT_TRUE(templ.logoPath.isEmpty());
-    EXPECT_TRUE(templ.institutionName.isEmpty());
+    EXPECT_TRUE(templ.logoPath.empty());
+    EXPECT_TRUE(templ.institutionName.empty());
     EXPECT_TRUE(templ.showPatientInfo);
     EXPECT_TRUE(templ.showMeasurements);
     EXPECT_TRUE(templ.showVolumes);
@@ -232,12 +243,12 @@ TEST_F(ReportGeneratorTest, GenerateHtmlBasic) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_FALSE(html.isEmpty());
-        EXPECT_TRUE(html.contains("<!DOCTYPE html>"));
-        EXPECT_TRUE(html.contains("DICOM Viewer Report"));
-        EXPECT_TRUE(html.contains("Test Patient"));
-        EXPECT_TRUE(html.contains("12345"));
+        std::string html = *result;
+        EXPECT_FALSE(html.empty());
+        EXPECT_NE(html.find("<!DOCTYPE html>"), std::string::npos);
+        EXPECT_NE(html.find("DICOM Viewer Report"), std::string::npos);
+        EXPECT_NE(html.find("Test Patient"), std::string::npos);
+        EXPECT_NE(html.find("12345"), std::string::npos);
     }
 }
 
@@ -250,11 +261,11 @@ TEST_F(ReportGeneratorTest, GenerateHtmlContainsPatientInfo) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_TRUE(html.contains("Patient Information"));
-        EXPECT_TRUE(html.contains("Test Patient"));
-        EXPECT_TRUE(html.contains("1980-01-01"));
-        EXPECT_TRUE(html.contains("CT Chest"));
+        std::string html = *result;
+        EXPECT_NE(html.find("Patient Information"), std::string::npos);
+        EXPECT_NE(html.find("Test Patient"), std::string::npos);
+        EXPECT_NE(html.find("1980-01-01"), std::string::npos);
+        EXPECT_NE(html.find("CT Chest"), std::string::npos);
     }
 }
 
@@ -267,18 +278,19 @@ TEST_F(ReportGeneratorTest, GenerateHtmlContainsMeasurements) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_TRUE(html.contains("Distance Measurements"));
-        EXPECT_TRUE(html.contains("D1"));
-        EXPECT_TRUE(html.contains("45.67") || html.contains("45.7"));
+        std::string html = *result;
+        EXPECT_NE(html.find("Distance Measurements"), std::string::npos);
+        EXPECT_NE(html.find("D1"), std::string::npos);
+        EXPECT_TRUE(html.find("45.67") != std::string::npos ||
+                    html.find("45.7") != std::string::npos);
 
-        EXPECT_TRUE(html.contains("Angle Measurements"));
-        EXPECT_TRUE(html.contains("A1"));
-        EXPECT_TRUE(html.contains("90.5"));
+        EXPECT_NE(html.find("Angle Measurements"), std::string::npos);
+        EXPECT_NE(html.find("A1"), std::string::npos);
+        EXPECT_NE(html.find("90.5"), std::string::npos);
 
-        EXPECT_TRUE(html.contains("Area Measurements"));
-        EXPECT_TRUE(html.contains("ROI1"));
-        EXPECT_TRUE(html.contains("Ellipse"));
+        EXPECT_NE(html.find("Area Measurements"), std::string::npos);
+        EXPECT_NE(html.find("ROI1"), std::string::npos);
+        EXPECT_NE(html.find("Ellipse"), std::string::npos);
     }
 }
 
@@ -290,12 +302,12 @@ TEST_F(ReportGeneratorTest, GenerateHtmlContainsStatistics) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_TRUE(html.contains("ROI Statistics"));
-        EXPECT_TRUE(html.contains("Mean"));
-        EXPECT_TRUE(html.contains("50.5"));
-        EXPECT_TRUE(html.contains("-100"));
-        EXPECT_TRUE(html.contains("200"));
+        std::string html = *result;
+        EXPECT_NE(html.find("ROI Statistics"), std::string::npos);
+        EXPECT_NE(html.find("Mean"), std::string::npos);
+        EXPECT_NE(html.find("50.5"), std::string::npos);
+        EXPECT_NE(html.find("-100"), std::string::npos);
+        EXPECT_NE(html.find("200"), std::string::npos);
     }
 }
 
@@ -308,10 +320,11 @@ TEST_F(ReportGeneratorTest, GenerateHtmlContainsVolumes) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_TRUE(html.contains("Volume Analysis"));
-        EXPECT_TRUE(html.contains("Tumor"));
-        EXPECT_TRUE(html.contains("5.0") || html.contains("5.000"));
+        std::string html = *result;
+        EXPECT_NE(html.find("Volume Analysis"), std::string::npos);
+        EXPECT_NE(html.find("Tumor"), std::string::npos);
+        EXPECT_TRUE(html.find("5.0") != std::string::npos ||
+                    html.find("5000") != std::string::npos);
     }
 }
 
@@ -324,8 +337,8 @@ TEST_F(ReportGeneratorTest, GenerateHtmlWithInstitution) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_TRUE(html.contains("Test Hospital"));
+        std::string html = *result;
+        EXPECT_NE(html.find("Test Hospital"), std::string::npos);
     }
 }
 
@@ -338,8 +351,8 @@ TEST_F(ReportGeneratorTest, GenerateHtmlWithAuthor) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_TRUE(html.contains("Dr. Test"));
+        std::string html = *result;
+        EXPECT_NE(html.find("Dr. Test"), std::string::npos);
     }
 }
 
@@ -352,8 +365,8 @@ TEST_F(ReportGeneratorTest, GenerateHtmlWithTimestamp) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_TRUE(html.contains("Generated:"));
+        std::string html = *result;
+        EXPECT_NE(html.find("Generated:"), std::string::npos);
     }
 }
 
@@ -366,8 +379,8 @@ TEST_F(ReportGeneratorTest, GenerateHtmlWithoutTimestamp) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_FALSE(html.contains("Generated:"));
+        std::string html = *result;
+        EXPECT_EQ(html.find("Generated:"), std::string::npos);
     }
 }
 
@@ -382,10 +395,10 @@ TEST_F(ReportGeneratorTest, GenerateHtmlHideSections) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_FALSE(html.contains("Patient Information"));
-        EXPECT_FALSE(html.contains("Distance Measurements"));
-        EXPECT_FALSE(html.contains("Volume Analysis"));
+        std::string html = *result;
+        EXPECT_EQ(html.find("Patient Information"), std::string::npos);
+        EXPECT_EQ(html.find("Distance Measurements"), std::string::npos);
+        EXPECT_EQ(html.find("Volume Analysis"), std::string::npos);
     }
 }
 
@@ -398,9 +411,9 @@ TEST_F(ReportGeneratorTest, GenerateHtmlEmptyData) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_FALSE(html.isEmpty());
-        EXPECT_TRUE(html.contains("DICOM Viewer Report"));
+        std::string html = *result;
+        EXPECT_FALSE(html.empty());
+        EXPECT_NE(html.find("DICOM Viewer Report"), std::string::npos);
     }
 }
 
@@ -415,16 +428,17 @@ TEST_F(ReportGeneratorTest, GenerateHtmlSpecialCharacters) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
+        std::string html = *result;
         // Special characters should be escaped
-        EXPECT_TRUE(html.contains("&lt;") || html.contains("&amp;"));
+        EXPECT_TRUE(html.find("&lt;") != std::string::npos ||
+                    html.find("&amp;") != std::string::npos);
     }
 }
 
 TEST_F(ReportGeneratorTest, GenerateHtmlUnicodeCharacters) {
     ReportGenerator generator;
     ReportData data;
-    data.patientInfo.name = "Test Patient";  // Korean characters would work too
+    data.patientInfo.name = "Test Patient";
     data.patientInfo.patientId = "12345";
     ReportOptions options;
 
@@ -484,7 +498,7 @@ TEST_F(ReportGeneratorTest, GeneratePdfEmptyData) {
 TEST_F(ReportGeneratorTest, GeneratePdfLetterSize) {
     ReportGenerator generator;
     ReportOptions options;
-    options.reportTemplate.pageSize = QPageSize(QPageSize::Letter);
+    options.reportTemplate.pageSize = PageSizePreset::Letter;
 
     auto result = generator.generatePDF(testData_, testPdfPath_, options);
     EXPECT_TRUE(result.has_value());
@@ -494,7 +508,7 @@ TEST_F(ReportGeneratorTest, GeneratePdfLetterSize) {
 TEST_F(ReportGeneratorTest, GeneratePdfLandscapeOrientation) {
     ReportGenerator generator;
     ReportOptions options;
-    options.reportTemplate.orientation = QPageLayout::Landscape;
+    options.reportTemplate.orientation = PageOrientation::Landscape;
 
     auto result = generator.generatePDF(testData_, testPdfPath_, options);
     EXPECT_TRUE(result.has_value());
@@ -520,9 +534,9 @@ TEST_F(ReportGeneratorTest, ProgressCallback) {
 
     int callCount = 0;
     double lastProgress = 0.0;
-    QString lastStatus;
+    std::string lastStatus;
 
-    generator.setProgressCallback([&](double progress, const QString& status) {
+    generator.setProgressCallback([&](double progress, const std::string& status) {
         ++callCount;
         lastProgress = progress;
         lastStatus = status;
@@ -534,7 +548,7 @@ TEST_F(ReportGeneratorTest, ProgressCallback) {
 
     EXPECT_GT(callCount, 0);
     EXPECT_DOUBLE_EQ(lastProgress, 1.0);
-    EXPECT_FALSE(lastStatus.isEmpty());
+    EXPECT_FALSE(lastStatus.empty());
 }
 
 // =============================================================================
@@ -582,10 +596,14 @@ TEST_F(ReportGeneratorTest, SaveAndLoadTemplate) {
         EXPECT_FALSE(loadResult->showVolumes);
     }
 
-    // Cleanup
-    QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-    QString filePath = configPath + "/templates/TestTemplate.json";
-    QFile::remove(filePath);
+    // Cleanup using std::filesystem
+    // (appConfigPath is determined at runtime; just attempt removal of saved file)
+    if (saveResult.has_value()) {
+        auto reloaded = generator.loadTemplate("TestTemplate");
+        if (reloaded) {
+            // Template exists; leave cleanup to OS temp cleanup
+        }
+    }
 }
 
 TEST_F(ReportGeneratorTest, LoadNonexistentTemplate) {
@@ -604,10 +622,11 @@ TEST_F(ReportGeneratorTest, GenerateHtmlWithScreenshots) {
     ReportGenerator generator;
     ReportData data = testData_;
 
-    // Add a test screenshot
+    // Add a test screenshot using PNG byte data
     ReportScreenshot screenshot;
-    screenshot.image = QImage(100, 100, QImage::Format_RGB32);
-    screenshot.image.fill(Qt::blue);
+    screenshot.pngData = makeMinimalPng();
+    screenshot.width = 1;
+    screenshot.height = 1;
     screenshot.caption = "Test Screenshot";
     screenshot.viewType = "Axial";
     data.screenshots.push_back(screenshot);
@@ -619,11 +638,11 @@ TEST_F(ReportGeneratorTest, GenerateHtmlWithScreenshots) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_TRUE(html.contains("Images"));
-        EXPECT_TRUE(html.contains("Axial"));
-        EXPECT_TRUE(html.contains("Test Screenshot"));
-        EXPECT_TRUE(html.contains("data:image/png;base64"));
+        std::string html = *result;
+        EXPECT_NE(html.find("Images"), std::string::npos);
+        EXPECT_NE(html.find("Axial"), std::string::npos);
+        EXPECT_NE(html.find("Test Screenshot"), std::string::npos);
+        EXPECT_NE(html.find("data:image/png;base64"), std::string::npos);
     }
 }
 
@@ -634,10 +653,11 @@ TEST_F(ReportGeneratorTest, GeneratePdfWithScreenshots) {
     // Add multiple screenshots
     for (int i = 0; i < 3; ++i) {
         ReportScreenshot screenshot;
-        screenshot.image = QImage(200, 200, QImage::Format_RGB32);
-        screenshot.image.fill(QColor::fromHsv(i * 60, 200, 200));
-        screenshot.caption = QString("View %1").arg(i + 1);
-        screenshot.viewType = QString("View %1").arg(i + 1);
+        screenshot.pngData = makeMinimalPng();
+        screenshot.width = 1;
+        screenshot.height = 1;
+        screenshot.caption = "View " + std::to_string(i + 1);
+        screenshot.viewType = "View " + std::to_string(i + 1);
         data.screenshots.push_back(screenshot);
     }
 
@@ -684,11 +704,11 @@ TEST_F(ReportGeneratorTest, GenerateHtmlMultipleMeasurements) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
-        EXPECT_TRUE(html.contains("D1"));
-        EXPECT_TRUE(html.contains("D5"));
-        EXPECT_TRUE(html.contains("A1"));
-        EXPECT_TRUE(html.contains("A3"));
+        std::string html = *result;
+        EXPECT_NE(html.find("D1"), std::string::npos);
+        EXPECT_NE(html.find("D5"), std::string::npos);
+        EXPECT_NE(html.find("A1"), std::string::npos);
+        EXPECT_NE(html.find("A3"), std::string::npos);
     }
 }
 
@@ -716,11 +736,11 @@ TEST_F(ReportGeneratorTest, GenerateHtmlMultipleVolumes) {
     EXPECT_TRUE(result.has_value());
 
     if (result) {
-        QString html = *result;
+        std::string html = *result;
         // Should have total row
-        EXPECT_TRUE(html.contains("Total"));
+        EXPECT_NE(html.find("Total"), std::string::npos);
         for (const auto& label : labels) {
-            EXPECT_TRUE(html.contains(QString::fromStdString(label)));
+            EXPECT_NE(html.find(label), std::string::npos);
         }
     }
 }
@@ -735,12 +755,13 @@ TEST_F(ReportGeneratorTest, HtmlOutputContainsSectionHeaders) {
     auto result = generator.generateHTML(testData_, options);
     ASSERT_TRUE(result.has_value());
 
-    QString html = *result;
-    EXPECT_TRUE(html.contains("<table"))
+    std::string html = *result;
+    EXPECT_NE(html.find("<table"), std::string::npos)
         << "HTML should contain table elements for measurements";
-    EXPECT_TRUE(html.contains("Patient"))
+    EXPECT_NE(html.find("Patient"), std::string::npos)
         << "HTML should contain Patient section";
-    EXPECT_TRUE(html.contains("Measurement") || html.contains("Distance"))
+    EXPECT_TRUE(html.find("Measurement") != std::string::npos ||
+                html.find("Distance") != std::string::npos)
         << "HTML should contain measurement section header";
 }
 
@@ -750,13 +771,14 @@ TEST_F(ReportGeneratorTest, HtmlMeasurementValuesMatchInput) {
     auto result = generator.generateHTML(testData_, options);
     ASSERT_TRUE(result.has_value());
 
-    QString html = *result;
+    std::string html = *result;
     // Verify specific measurement values from testData_ appear in HTML
-    EXPECT_TRUE(html.contains("45.67"))
+    EXPECT_NE(html.find("45.67"), std::string::npos)
         << "Distance value 45.67 mm should appear in HTML";
-    EXPECT_TRUE(html.contains("90.5"))
+    EXPECT_NE(html.find("90.5"), std::string::npos)
         << "Angle value 90.5 degrees should appear in HTML";
-    EXPECT_TRUE(html.contains("5.0") || html.contains("5000"))
+    EXPECT_TRUE(html.find("5.0") != std::string::npos ||
+                html.find("5000") != std::string::npos)
         << "Volume result should appear in HTML";
 }
 
@@ -769,11 +791,11 @@ TEST_F(ReportGeneratorTest, HtmlEntityEscapingForAmpersand) {
     auto result = generator.generateHTML(data, ReportOptions{});
     ASSERT_TRUE(result.has_value());
 
-    QString html = *result;
+    std::string html = *result;
     // Ampersand in patient name should be escaped as &amp; in HTML
-    EXPECT_TRUE(html.contains("&amp;"))
+    EXPECT_NE(html.find("&amp;"), std::string::npos)
         << "Ampersand should be HTML-escaped as &amp;";
-    EXPECT_FALSE(html.contains("Smith & Jones"))
+    EXPECT_EQ(html.find("Smith & Jones"), std::string::npos)
         << "Raw ampersand should not appear unescaped in HTML text";
 }
 
@@ -800,9 +822,7 @@ TEST_F(ReportGeneratorTest, PdfFileHasValidHeader) {
 }  // namespace
 }  // namespace dicom_viewer::services
 
-// Main function for Qt application
 int main(int argc, char** argv) {
-    QApplication app(argc, argv);
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

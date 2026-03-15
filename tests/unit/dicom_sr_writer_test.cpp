@@ -432,7 +432,7 @@ TEST_F(DicomSRWriterTest, ProgressCallbackCalled) {
     DicomSRWriter writer;
 
     std::vector<double> progressValues;
-    writer.setProgressCallback([&progressValues](double progress, const QString&) {
+    writer.setProgressCallback([&progressValues](double progress, const std::string&) {
         progressValues.push_back(progress);
     });
 
