@@ -30,9 +30,6 @@
 #include "services/export/mesh_exporter.hpp"
 #include "services/export/data_exporter.hpp"
 
-#include <QString>
-#include <QFileInfo>
-
 #include <vtkImageData.h>
 #include <vtkPolyData.h>
 #include <vtkMarchingCubes.h>
@@ -293,11 +290,11 @@ class MeshExporter::Impl {
 public:
     ProgressCallback progressCallback;
 
-    void reportProgress(double progress, const QString& status) const {
+    void reportProgress(double progress, const std::string& status) const {
         if (progressCallback) {
             progressCallback(progress, status);
         }
-        LOG_DEBUG(std::format("{}: {:.1f}%", status.toStdString(), progress * 100.0));
+        LOG_DEBUG(std::format("{}: {:.1f}%", status, progress * 100.0));
     }
 
     std::expected<void, ExportError> writeSTL(
@@ -535,7 +532,7 @@ std::expected<std::vector<MeshExportResult>, ExportError> MeshExporter::exportAl
         uint8_t labelId = labels[i];
         double progress = static_cast<double>(i) / static_cast<double>(labels.size());
         impl_->reportProgress(progress,
-            QString("Exporting label %1 of %2...").arg(i + 1).arg(labels.size()));
+            std::format("Exporting label {} of {}...", i + 1, labels.size()));
 
         std::string filename = "label_" + std::to_string(labelId) + extension;
         auto outputPath = outputDirectory / filename;

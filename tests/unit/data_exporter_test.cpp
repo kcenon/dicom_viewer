@@ -30,9 +30,6 @@
 #include "services/export/data_exporter.hpp"
 
 #include <gtest/gtest.h>
-#include <QApplication>
-#include <QFile>
-#include <QTextStream>
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -140,12 +137,12 @@ protected:
     }
 
     std::string readFile(const std::filesystem::path& path) {
-        QFile file(QString::fromStdString(path.string()));
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        std::ifstream file(path);
+        if (!file.is_open()) {
             return "";
         }
-        QTextStream stream(&file);
-        return stream.readAll().toStdString();
+        return std::string((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
     }
 
     std::filesystem::path testDir_;
@@ -207,7 +204,7 @@ TEST_F(DataExporterTest, ExportOptionsDefaultValues) {
     EXPECT_TRUE(options.includeMetadata);
     EXPECT_TRUE(options.includeTimestamp);
     EXPECT_EQ(options.csvDelimiter, ',');
-    EXPECT_EQ(options.dateFormat, "yyyy-MM-ddTHH:mm:ss");
+    EXPECT_EQ(options.dateFormat, "%Y-%m-%dT%H:%M:%S");
     EXPECT_TRUE(options.selectedColumns.empty());
     EXPECT_TRUE(options.includeUtf8Bom);
 }
@@ -648,10 +645,10 @@ TEST_F(DataExporterTest, ProgressCallback) {
     bool progressCalled = false;
     double lastProgress = -1.0;
 
-    exporter.setProgressCallback([&](double progress, const QString& status) {
+    exporter.setProgressCallback([&](double progress, const std::string& status) {
         progressCalled = true;
         lastProgress = progress;
-        EXPECT_FALSE(status.isEmpty());
+        EXPECT_FALSE(status.empty());
     });
 
     auto result = exporter.exportDistancesToCSV(
@@ -685,7 +682,7 @@ TEST_F(DataExporterTest, ExportWithUnicodeLabels) {
 
     ASSERT_TRUE(result.has_value());
 
-    // Read raw bytes to verify BOM (QTextStream-based readFile strips BOM)
+    // Read raw bytes to verify BOM (text-mode readFile may strip BOM)
     std::ifstream rawFile(outputPath, std::ios::binary);
     ASSERT_TRUE(rawFile.is_open());
     char bom[3] = {};
@@ -862,9 +859,6 @@ TEST_F(DataExporterTest, CsvContainsUtf8BOM) {
 }  // namespace dicom_viewer::services
 
 int main(int argc, char** argv) {
-    // Initialize Qt application for QFile operations
-    QApplication app(argc, argv);
-
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

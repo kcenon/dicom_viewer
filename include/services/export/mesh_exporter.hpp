@@ -53,7 +53,6 @@
 
 class vtkImageData;
 class vtkPolyData;
-class QString;
 
 namespace dicom_viewer::services {
 
@@ -164,8 +163,8 @@ struct MeshStatistics {
  * MeshExporter exporter;
  *
  * // Set progress callback
- * exporter.setProgressCallback([](double progress, const QString& status) {
- *     qDebug() << status << ":" << progress * 100 << "%";
+ * exporter.setProgressCallback([](double progress, const std::string& status) {
+ *     std::cout << status << ": " << progress * 100 << "%" << std::endl;
  * });
  *
  * // Export from segmentation label map
@@ -202,7 +201,7 @@ struct MeshStatistics {
  */
 class MeshExporter {
 public:
-    using ProgressCallback = std::function<void(double progress, const QString& status)>;
+    using ProgressCallback = std::function<void(double progress, const std::string& status)>;
     using LabelMapType = vtkSmartPointer<vtkImageData>;
     using ImageType = vtkSmartPointer<vtkImageData>;
 
