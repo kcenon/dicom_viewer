@@ -13,6 +13,8 @@ export function TopBar() {
   const setLayout = useViewportStore((s) => s.setLayout)
   const isSidePanelOpen = useUiStore((s) => s.isSidePanelOpen)
   const toggleSidePanel = useUiStore((s) => s.toggleSidePanel)
+  const openPacsConfig = useUiStore((s) => s.openPacsConfig)
+  const openSettings = useUiStore((s) => s.openSettings)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
 
@@ -65,6 +67,14 @@ export function TopBar() {
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
+
+      {/* Config / Settings */}
+      <button onClick={openPacsConfig} style={buttonStyle} title="PACS Configuration">
+        PACS
+      </button>
+      <button onClick={openSettings} style={buttonStyle} title="Settings">
+        ⚙
+      </button>
 
       {/* User info */}
       {user !== null && (
