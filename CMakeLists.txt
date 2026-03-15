@@ -779,9 +779,7 @@ target_link_libraries(pacs_service PUBLIC
     fmt::fmt
 )
 
-if(NOT DICOM_VIEWER_SERVER_ONLY)
-    target_link_libraries(pacs_service PUBLIC Qt6::Core)
-endif()
+target_link_libraries(pacs_service PUBLIC nlohmann_json::nlohmann_json)
 
 if(TARGET pacs::encoding)
     target_link_libraries(pacs_service PUBLIC pacs::encoding)

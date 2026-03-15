@@ -31,14 +31,13 @@
  * @file pacs_config_manager.hpp
  * @brief PACS server configuration persistence and management
  * @details Manages CRUD operations for PACS server configurations using
- *          Qt QSettings for persistence. Inherits QObject for
- *          signal/slot integration with the UI layer. Each
- *          configuration is identified by a unique QUuid.
+ *          nlohmann::json for persistence. Plain C++ class with
+ *          std::function callbacks for change notifications. Each
+ *          configuration is identified by a unique UUID v4 string.
  *
  * ## Thread Safety
- * - QSettings operations must be called from the main (UI) thread
- * - Configuration reads are safe after initial load
- * - Signal emissions follow Qt thread affinity rules
+ * - Not thread-safe; all operations must be called from a single thread.
+ * - Callbacks are invoked synchronously on the calling thread.
  *
  * @author kcenon
  * @since 1.0.0
@@ -48,41 +47,36 @@
 
 #include "pacs_config.hpp"
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
-#include <QObject>
-#include <QString>
-#include <QUuid>
-
 namespace dicom_viewer::services {
 
 /**
- * @brief Manager for PACS server configurations with persistence
+ * @brief Manager for PACS server configurations with JSON persistence
  *
  * Provides CRUD operations for PACS server configurations and
- * persists them using Qt QSettings. Supports multiple server profiles.
+ * persists them to a JSON file. Supports multiple server profiles.
  *
  * @trace SRS-FR-038
  */
-class PacsConfigManager : public QObject {
-    Q_OBJECT
-
+class PacsConfigManager {
 public:
     /**
      * @brief Extended configuration with persistence metadata
      */
     struct ServerEntry {
-        /// Unique identifier for this server entry
-        QUuid id;
+        /// Unique identifier for this server entry (UUID v4 string)
+        std::string id;
 
         /// Server configuration
         PacsServerConfig config;
 
         /// Display name for UI
-        QString displayName;
+        std::string displayName;
 
         /// Whether this is the default server
         bool isDefault = false;
@@ -91,16 +85,24 @@ public:
          * @brief Validate the server entry
          */
         [[nodiscard]] bool isValid() const {
-            return !id.isNull() && config.isValid() && !displayName.isEmpty();
+            return !id.empty() && config.isValid() && !displayName.empty();
         }
     };
 
-    explicit PacsConfigManager(QObject* parent = nullptr);
-    ~PacsConfigManager() override;
+    /// Callback type for single-server events (receives the affected server ID)
+    using ServerCallback = std::function<void(const std::string& id)>;
+
+    /// Callback type for the servers-loaded event
+    using ServersLoadedCallback = std::function<void()>;
+
+    explicit PacsConfigManager();
+    ~PacsConfigManager();
 
     // Non-copyable
     PacsConfigManager(const PacsConfigManager&) = delete;
     PacsConfigManager& operator=(const PacsConfigManager&) = delete;
+
+    // ---- CRUD ---------------------------------------------------------------
 
     /**
      * @brief Get all configured servers
@@ -112,7 +114,7 @@ public:
      * @param id Server unique identifier
      * @return Server entry if found
      */
-    [[nodiscard]] std::optional<ServerEntry> getServer(const QUuid& id) const;
+    [[nodiscard]] std::optional<ServerEntry> getServer(const std::string& id) const;
 
     /**
      * @brief Get the default server
@@ -126,7 +128,7 @@ public:
      * @param config Server configuration
      * @return ID of the newly created entry
      */
-    QUuid addServer(const QString& displayName, const PacsServerConfig& config);
+    std::string addServer(const std::string& displayName, const PacsServerConfig& config);
 
     /**
      * @brief Update an existing server configuration
@@ -135,7 +137,7 @@ public:
      * @param config New configuration
      * @return true if update was successful
      */
-    bool updateServer(const QUuid& id, const QString& displayName,
+    bool updateServer(const std::string& id, const std::string& displayName,
                       const PacsServerConfig& config);
 
     /**
@@ -143,14 +145,16 @@ public:
      * @param id Server ID to remove
      * @return true if removal was successful
      */
-    bool removeServer(const QUuid& id);
+    bool removeServer(const std::string& id);
 
     /**
      * @brief Set a server as the default
-     * @param id Server ID to set as default (null to clear default)
+     * @param id Server ID to set as default (empty string to clear default)
      * @return true if successful
      */
-    bool setDefaultServer(const QUuid& id);
+    bool setDefaultServer(const std::string& id);
+
+    // ---- Persistence --------------------------------------------------------
 
     /**
      * @brief Save all configurations to persistent storage
@@ -162,6 +166,8 @@ public:
      */
     void load();
 
+    // ---- Metadata -----------------------------------------------------------
+
     /**
      * @brief Get the number of configured servers
      */
@@ -172,21 +178,22 @@ public:
      */
     [[nodiscard]] bool isEmpty() const;
 
-signals:
-    /// Emitted when a server is added
-    void serverAdded(const QUuid& id);
+    // ---- Change callbacks ---------------------------------------------------
 
-    /// Emitted when a server is updated
-    void serverUpdated(const QUuid& id);
+    /** Called when a server is added. */
+    void setOnServerAdded(ServerCallback cb);
 
-    /// Emitted when a server is removed
-    void serverRemoved(const QUuid& id);
+    /** Called when a server is updated. */
+    void setOnServerUpdated(ServerCallback cb);
 
-    /// Emitted when the default server changes
-    void defaultServerChanged(const QUuid& id);
+    /** Called when a server is removed. */
+    void setOnServerRemoved(ServerCallback cb);
 
-    /// Emitted when servers are loaded from storage
-    void serversLoaded();
+    /** Called when the default server changes. */
+    void setOnDefaultServerChanged(ServerCallback cb);
+
+    /** Called when servers are loaded from storage. */
+    void setOnServersLoaded(ServersLoadedCallback cb);
 
 private:
     class Impl;

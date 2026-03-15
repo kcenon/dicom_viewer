@@ -193,7 +193,7 @@ MainWindow::MainWindow(QWidget* parent)
     setMinimumSize(1280, 720);
 
     // Initialize PACS config manager
-    impl_->pacsConfigManager = new services::PacsConfigManager(this);
+    impl_->pacsConfigManager = new services::PacsConfigManager();
 
     // Initialize Storage SCP
     impl_->storageScp = std::make_unique<services::DicomStoreSCP>();
