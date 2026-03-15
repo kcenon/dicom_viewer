@@ -29,7 +29,7 @@ export interface BinaryFrame {
   channelId: number
   width: number
   height: number
-  imageData: Uint8Array
+  imageData: Uint8Array<ArrayBuffer>
 }
 
 export interface InputEvent {
