@@ -44,8 +44,8 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <QDialog>
-#include <QUuid>
 
 namespace dicom_viewer::services {
 class PacsConfigManager;
@@ -76,7 +76,7 @@ public:
     /**
      * @brief Get the currently selected server ID
      */
-    [[nodiscard]] QUuid selectedServerId() const;
+    [[nodiscard]] std::string selectedServerId() const;
 
 private slots:
     void onAddServer();

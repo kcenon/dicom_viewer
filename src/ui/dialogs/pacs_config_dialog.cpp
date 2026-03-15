@@ -59,7 +59,7 @@ public:
     QPushButton* testButton = nullptr;
     QPushButton* setDefaultButton = nullptr;
 
-    QUuid selectedId;
+    std::string selectedId;
 };
 
 PacsConfigDialog::PacsConfigDialog(services::PacsConfigManager* manager,
@@ -75,7 +75,15 @@ PacsConfigDialog::PacsConfigDialog(services::PacsConfigManager* manager,
     refreshServerList();
 }
 
-PacsConfigDialog::~PacsConfigDialog() = default;
+PacsConfigDialog::~PacsConfigDialog() {
+    // Clear callbacks to prevent dangling references after dialog destruction
+    if (impl_->manager) {
+        impl_->manager->setOnServerAdded(nullptr);
+        impl_->manager->setOnServerUpdated(nullptr);
+        impl_->manager->setOnServerRemoved(nullptr);
+        impl_->manager->setOnDefaultServerChanged(nullptr);
+    }
+}
 
 void PacsConfigDialog::setupUI()
 {
@@ -145,14 +153,11 @@ void PacsConfigDialog::setupConnections()
     connect(impl_->serverTable, &QTableWidget::cellDoubleClicked,
             this, &PacsConfigDialog::onEditServer);
 
-    connect(impl_->manager, &services::PacsConfigManager::serverAdded,
-            this, &PacsConfigDialog::refreshServerList);
-    connect(impl_->manager, &services::PacsConfigManager::serverUpdated,
-            this, &PacsConfigDialog::refreshServerList);
-    connect(impl_->manager, &services::PacsConfigManager::serverRemoved,
-            this, &PacsConfigDialog::refreshServerList);
-    connect(impl_->manager, &services::PacsConfigManager::defaultServerChanged,
-            this, &PacsConfigDialog::refreshServerList);
+    auto refresh = [this](const std::string&) { refreshServerList(); };
+    impl_->manager->setOnServerAdded(refresh);
+    impl_->manager->setOnServerUpdated(refresh);
+    impl_->manager->setOnServerRemoved(refresh);
+    impl_->manager->setOnDefaultServerChanged(refresh);
 }
 
 void PacsConfigDialog::refreshServerList()
@@ -165,8 +170,10 @@ void PacsConfigDialog::refreshServerList()
     for (int i = 0; i < static_cast<int>(servers.size()); ++i) {
         const auto& entry = servers[static_cast<size_t>(i)];
 
-        auto nameItem = new QTableWidgetItem(entry.displayName);
-        nameItem->setData(Qt::UserRole, entry.id.toString());
+        auto nameItem = new QTableWidgetItem(
+            QString::fromStdString(entry.displayName));
+        nameItem->setData(Qt::UserRole,
+                          QString::fromStdString(entry.id));
 
         impl_->serverTable->setItem(i, 0, nameItem);
         impl_->serverTable->setItem(i, 1, new QTableWidgetItem(
@@ -186,24 +193,24 @@ void PacsConfigDialog::onServerSelectionChanged()
 {
     auto selected = impl_->serverTable->selectedItems();
     if (!selected.isEmpty()) {
-        QString idStr = selected.first()->data(Qt::UserRole).toString();
-        impl_->selectedId = QUuid::fromString(idStr);
+        impl_->selectedId =
+            selected.first()->data(Qt::UserRole).toString().toStdString();
     } else {
-        impl_->selectedId = QUuid();
+        impl_->selectedId.clear();
     }
     updateButtonStates();
 }
 
 void PacsConfigDialog::updateButtonStates()
 {
-    bool hasSelection = !impl_->selectedId.isNull();
+    bool hasSelection = !impl_->selectedId.empty();
     impl_->editButton->setEnabled(hasSelection);
     impl_->removeButton->setEnabled(hasSelection);
     impl_->testButton->setEnabled(hasSelection);
     impl_->setDefaultButton->setEnabled(hasSelection);
 }
 
-QUuid PacsConfigDialog::selectedServerId() const
+std::string PacsConfigDialog::selectedServerId() const
 {
     return impl_->selectedId;
 }
@@ -330,7 +337,7 @@ void PacsConfigDialog::onAddServer()
             config.description = dialog.description().toStdString();
         }
 
-        impl_->manager->addServer(dialog.displayName(), config);
+        impl_->manager->addServer(dialog.displayName().toStdString(), config);
     }
 }
 
@@ -342,7 +349,7 @@ void PacsConfigDialog::onEditServer()
     }
 
     ServerEditDialog dialog(tr("Edit PACS Server"), this);
-    dialog.setDisplayName(entry->displayName);
+    dialog.setDisplayName(QString::fromStdString(entry->displayName));
     dialog.setHostname(QString::fromStdString(entry->config.hostname));
     dialog.setPort(entry->config.port);
     dialog.setCalledAeTitle(QString::fromStdString(entry->config.calledAeTitle));
@@ -363,7 +370,7 @@ void PacsConfigDialog::onEditServer()
             config.description = std::nullopt;
         }
 
-        impl_->manager->updateServer(impl_->selectedId, dialog.displayName(), config);
+        impl_->manager->updateServer(impl_->selectedId, dialog.displayName().toStdString(), config);
     }
 }
 
@@ -376,12 +383,13 @@ void PacsConfigDialog::onRemoveServer()
 
     auto result = QMessageBox::question(
         this, tr("Confirm Removal"),
-        tr("Are you sure you want to remove '%1'?").arg(entry->displayName),
+        tr("Are you sure you want to remove '%1'?").arg(
+            QString::fromStdString(entry->displayName)),
         QMessageBox::Yes | QMessageBox::No);
 
     if (result == QMessageBox::Yes) {
         impl_->manager->removeServer(impl_->selectedId);
-        impl_->selectedId = QUuid();
+        impl_->selectedId.clear();
     }
 }
 
@@ -405,7 +413,7 @@ void PacsConfigDialog::onTestConnection()
             tr("Connection successful!\n\n"
                "Server: %1\n"
                "Latency: %2 ms")
-                .arg(entry->displayName)
+                .arg(QString::fromStdString(entry->displayName))
                 .arg(result->latency.count()));
     } else {
         QMessageBox::warning(
@@ -413,7 +421,7 @@ void PacsConfigDialog::onTestConnection()
             tr("Connection failed!\n\n"
                "Server: %1\n"
                "Error: %2")
-                .arg(entry->displayName)
+                .arg(QString::fromStdString(entry->displayName))
                 .arg(QString::fromStdString(result.error().toString())));
     }
 }

@@ -29,97 +29,127 @@
 
 #include "services/pacs_config_manager.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
-#include <QSettings>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <random>
+#include <sstream>
+
+using nlohmann::json;
 
 namespace dicom_viewer::services {
 
 namespace {
-constexpr const char* SETTINGS_GROUP = "PacsServers";
-constexpr const char* SETTINGS_DEFAULT_KEY = "defaultServer";
-constexpr const char* SETTINGS_SERVERS_KEY = "servers";
+
+constexpr const char* CONFIG_FILE = "config/pacs_servers.json";
+
+/// Generate a RFC 4122 v4 UUID string.
+std::string generateUuidV4() {
+    static std::mt19937_64 rng{std::random_device{}()};
+    static std::uniform_int_distribution<uint32_t> dist(0, 15);
+    static std::uniform_int_distribution<uint32_t> dist8(8, 11);
+
+    std::ostringstream ss;
+    ss << std::hex;
+    for (int i = 0; i < 8;  ++i) ss << dist(rng);
+    ss << '-';
+    for (int i = 0; i < 4;  ++i) ss << dist(rng);
+    ss << "-4";
+    for (int i = 0; i < 3;  ++i) ss << dist(rng);
+    ss << '-';
+    ss << dist8(rng);
+    for (int i = 0; i < 3;  ++i) ss << dist(rng);
+    ss << '-';
+    for (int i = 0; i < 12; ++i) ss << dist(rng);
+    return ss.str();
+}
+
 } // namespace
 
 class PacsConfigManager::Impl {
 public:
     std::vector<ServerEntry> servers;
-    QUuid defaultServerId;
+    std::string defaultServerId;
 
-    void saveToSettings() {
-        QSettings settings("DicomViewer", "DicomViewer");
-        settings.beginGroup(SETTINGS_GROUP);
+    ServerCallback onServerAdded;
+    ServerCallback onServerUpdated;
+    ServerCallback onServerRemoved;
+    ServerCallback onDefaultServerChanged;
+    ServersLoadedCallback onServersLoaded;
 
-        // Clear existing entries
-        settings.remove("");
+    void saveToFile() {
+        std::filesystem::create_directories(
+            std::filesystem::path(CONFIG_FILE).parent_path());
 
-        // Save default server ID
-        settings.setValue(SETTINGS_DEFAULT_KEY, defaultServerId.toString());
+        json root;
+        root["defaultServer"] = defaultServerId;
+        root["servers"] = json::array();
 
-        // Save server count
-        settings.beginWriteArray(SETTINGS_SERVERS_KEY);
-        for (int i = 0; i < static_cast<int>(servers.size()); ++i) {
-            settings.setArrayIndex(i);
-            const auto& entry = servers[static_cast<size_t>(i)];
-
-            settings.setValue("id", entry.id.toString());
-            settings.setValue("displayName", entry.displayName);
-            settings.setValue("hostname", QString::fromStdString(entry.config.hostname));
-            settings.setValue("port", entry.config.port);
-            settings.setValue("calledAeTitle",
-                              QString::fromStdString(entry.config.calledAeTitle));
-            settings.setValue("callingAeTitle",
-                              QString::fromStdString(entry.config.callingAeTitle));
-            settings.setValue("connectionTimeout",
-                              static_cast<int>(entry.config.connectionTimeout.count()));
-            settings.setValue("dimseTimeout",
-                              static_cast<int>(entry.config.dimseTimeout.count()));
-            settings.setValue("maxPduSize", entry.config.maxPduSize);
-
+        for (const auto& entry : servers) {
+            json j;
+            j["id"]              = entry.id;
+            j["displayName"]     = entry.displayName;
+            j["hostname"]        = entry.config.hostname;
+            j["port"]            = entry.config.port;
+            j["calledAeTitle"]   = entry.config.calledAeTitle;
+            j["callingAeTitle"]  = entry.config.callingAeTitle;
+            j["connectionTimeout"] =
+                static_cast<int>(entry.config.connectionTimeout.count());
+            j["dimseTimeout"]    =
+                static_cast<int>(entry.config.dimseTimeout.count());
+            j["maxPduSize"]      = entry.config.maxPduSize;
             if (entry.config.description) {
-                settings.setValue("description",
-                                  QString::fromStdString(*entry.config.description));
+                j["description"] = *entry.config.description;
             }
+            root["servers"].push_back(j);
         }
-        settings.endArray();
 
-        settings.endGroup();
-        settings.sync();
+        std::ofstream out(CONFIG_FILE);
+        out << root.dump(2);
     }
 
-    void loadFromSettings() {
-        QSettings settings("DicomViewer", "DicomViewer");
-        settings.beginGroup(SETTINGS_GROUP);
-
+    void loadFromFile() {
         servers.clear();
 
-        // Load default server ID
-        QString defaultIdStr = settings.value(SETTINGS_DEFAULT_KEY).toString();
-        defaultServerId = QUuid::fromString(defaultIdStr);
+        std::ifstream in(CONFIG_FILE);
+        if (!in) {
+            return; // No file yet — start empty
+        }
 
-        // Load servers
-        int size = settings.beginReadArray(SETTINGS_SERVERS_KEY);
-        for (int i = 0; i < size; ++i) {
-            settings.setArrayIndex(i);
+        json root;
+        try {
+            root = json::parse(in);
+        } catch (...) {
+            return; // Corrupt file — start empty
+        }
 
+        defaultServerId = root.value("defaultServer", std::string{});
+
+        for (const auto& j : root.value("servers", json::array())) {
             ServerEntry entry;
-            entry.id = QUuid::fromString(settings.value("id").toString());
-            entry.displayName = settings.value("displayName").toString();
+            entry.id          = j.value("id", std::string{});
+            entry.displayName = j.value("displayName", std::string{});
 
-            entry.config.hostname = settings.value("hostname").toString().toStdString();
-            entry.config.port = settings.value("port", 104).toUInt();
+            entry.config.hostname =
+                j.value("hostname", std::string{});
+            entry.config.port =
+                j.value("port", static_cast<uint16_t>(104));
             entry.config.calledAeTitle =
-                settings.value("calledAeTitle").toString().toStdString();
+                j.value("calledAeTitle", std::string{});
             entry.config.callingAeTitle =
-                settings.value("callingAeTitle", "DICOM_VIEWER").toString().toStdString();
+                j.value("callingAeTitle", std::string{"DICOM_VIEWER"});
             entry.config.connectionTimeout =
-                std::chrono::seconds(settings.value("connectionTimeout", 30).toInt());
+                std::chrono::seconds(j.value("connectionTimeout", 30));
             entry.config.dimseTimeout =
-                std::chrono::seconds(settings.value("dimseTimeout", 30).toInt());
-            entry.config.maxPduSize = settings.value("maxPduSize", 16384).toUInt();
+                std::chrono::seconds(j.value("dimseTimeout", 30));
+            entry.config.maxPduSize =
+                j.value("maxPduSize", static_cast<uint32_t>(16384));
 
-            QString description = settings.value("description").toString();
-            if (!description.isEmpty()) {
-                entry.config.description = description.toStdString();
+            if (j.contains("description") && j["description"].is_string()) {
+                entry.config.description = j["description"].get<std::string>();
             }
 
             entry.isDefault = (entry.id == defaultServerId);
@@ -128,12 +158,9 @@ public:
                 servers.push_back(std::move(entry));
             }
         }
-        settings.endArray();
-
-        settings.endGroup();
     }
 
-    std::optional<size_t> findServerIndex(const QUuid& id) const {
+    std::optional<size_t> findServerIndex(const std::string& id) const {
         auto it = std::find_if(servers.begin(), servers.end(),
                                [&id](const ServerEntry& entry) {
                                    return entry.id == id;
@@ -145,9 +172,10 @@ public:
     }
 };
 
-PacsConfigManager::PacsConfigManager(QObject* parent)
-    : QObject(parent)
-    , impl_(std::make_unique<Impl>())
+// ---- PacsConfigManager public interface ------------------------------------
+
+PacsConfigManager::PacsConfigManager()
+    : impl_(std::make_unique<Impl>())
 {
     load();
 }
@@ -161,7 +189,7 @@ std::vector<PacsConfigManager::ServerEntry> PacsConfigManager::getAllServers() c
 }
 
 std::optional<PacsConfigManager::ServerEntry>
-PacsConfigManager::getServer(const QUuid& id) const {
+PacsConfigManager::getServer(const std::string& id) const {
     auto index = impl_->findServerIndex(id);
     if (index) {
         return impl_->servers[*index];
@@ -170,19 +198,19 @@ PacsConfigManager::getServer(const QUuid& id) const {
 }
 
 std::optional<PacsConfigManager::ServerEntry> PacsConfigManager::getDefaultServer() const {
-    if (impl_->defaultServerId.isNull()) {
+    if (impl_->defaultServerId.empty()) {
         return std::nullopt;
     }
     return getServer(impl_->defaultServerId);
 }
 
-QUuid PacsConfigManager::addServer(const QString& displayName,
-                                    const PacsServerConfig& config) {
+std::string PacsConfigManager::addServer(const std::string& displayName,
+                                          const PacsServerConfig& config) {
     ServerEntry entry;
-    entry.id = QUuid::createUuid();
+    entry.id          = generateUuidV4();
     entry.displayName = displayName;
-    entry.config = config;
-    entry.isDefault = impl_->servers.empty();
+    entry.config      = config;
+    entry.isDefault   = impl_->servers.empty();
 
     if (entry.isDefault) {
         impl_->defaultServerId = entry.id;
@@ -191,15 +219,16 @@ QUuid PacsConfigManager::addServer(const QString& displayName,
     impl_->servers.push_back(entry);
     save();
 
-    emit serverAdded(entry.id);
-    if (entry.isDefault) {
-        emit defaultServerChanged(entry.id);
+    if (impl_->onServerAdded) impl_->onServerAdded(entry.id);
+    if (entry.isDefault && impl_->onDefaultServerChanged) {
+        impl_->onDefaultServerChanged(entry.id);
     }
 
     return entry.id;
 }
 
-bool PacsConfigManager::updateServer(const QUuid& id, const QString& displayName,
+bool PacsConfigManager::updateServer(const std::string& id,
+                                      const std::string& displayName,
                                       const PacsServerConfig& config) {
     auto index = impl_->findServerIndex(id);
     if (!index) {
@@ -208,15 +237,15 @@ bool PacsConfigManager::updateServer(const QUuid& id, const QString& displayName
 
     auto& entry = impl_->servers[*index];
     entry.displayName = displayName;
-    entry.config = config;
+    entry.config      = config;
 
     save();
-    emit serverUpdated(id);
+    if (impl_->onServerUpdated) impl_->onServerUpdated(id);
 
     return true;
 }
 
-bool PacsConfigManager::removeServer(const QUuid& id) {
+bool PacsConfigManager::removeServer(const std::string& id) {
     auto index = impl_->findServerIndex(id);
     if (!index) {
         return false;
@@ -231,28 +260,33 @@ bool PacsConfigManager::removeServer(const QUuid& id) {
         if (!impl_->servers.empty()) {
             impl_->defaultServerId = impl_->servers.front().id;
             impl_->servers.front().isDefault = true;
-            emit defaultServerChanged(impl_->defaultServerId);
+            if (impl_->onDefaultServerChanged) {
+                impl_->onDefaultServerChanged(impl_->defaultServerId);
+            }
         } else {
-            impl_->defaultServerId = QUuid();
-            emit defaultServerChanged(QUuid());
+            impl_->defaultServerId.clear();
+            if (impl_->onDefaultServerChanged) {
+                impl_->onDefaultServerChanged(std::string{});
+            }
         }
     }
 
     save();
-    emit serverRemoved(id);
+    if (impl_->onServerRemoved) impl_->onServerRemoved(id);
 
     return true;
 }
 
-bool PacsConfigManager::setDefaultServer(const QUuid& id) {
-    if (id.isNull()) {
-        // Clear default
+bool PacsConfigManager::setDefaultServer(const std::string& id) {
+    if (id.empty()) {
         for (auto& entry : impl_->servers) {
             entry.isDefault = false;
         }
-        impl_->defaultServerId = QUuid();
+        impl_->defaultServerId.clear();
         save();
-        emit defaultServerChanged(QUuid());
+        if (impl_->onDefaultServerChanged) {
+            impl_->onDefaultServerChanged(std::string{});
+        }
         return true;
     }
 
@@ -267,18 +301,18 @@ bool PacsConfigManager::setDefaultServer(const QUuid& id) {
     impl_->defaultServerId = id;
 
     save();
-    emit defaultServerChanged(id);
+    if (impl_->onDefaultServerChanged) impl_->onDefaultServerChanged(id);
 
     return true;
 }
 
 void PacsConfigManager::save() {
-    impl_->saveToSettings();
+    impl_->saveToFile();
 }
 
 void PacsConfigManager::load() {
-    impl_->loadFromSettings();
-    emit serversLoaded();
+    impl_->loadFromFile();
+    if (impl_->onServersLoaded) impl_->onServersLoaded();
 }
 
 int PacsConfigManager::count() const {
@@ -287,6 +321,26 @@ int PacsConfigManager::count() const {
 
 bool PacsConfigManager::isEmpty() const {
     return impl_->servers.empty();
+}
+
+void PacsConfigManager::setOnServerAdded(ServerCallback cb) {
+    impl_->onServerAdded = std::move(cb);
+}
+
+void PacsConfigManager::setOnServerUpdated(ServerCallback cb) {
+    impl_->onServerUpdated = std::move(cb);
+}
+
+void PacsConfigManager::setOnServerRemoved(ServerCallback cb) {
+    impl_->onServerRemoved = std::move(cb);
+}
+
+void PacsConfigManager::setOnDefaultServerChanged(ServerCallback cb) {
+    impl_->onDefaultServerChanged = std::move(cb);
+}
+
+void PacsConfigManager::setOnServersLoaded(ServersLoadedCallback cb) {
+    impl_->onServersLoaded = std::move(cb);
 }
 
 } // namespace dicom_viewer::services
