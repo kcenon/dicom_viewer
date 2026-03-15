@@ -28,18 +28,16 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /**
- * @file auth_routes.hpp
- * @brief Authentication REST API routes (login, refresh, logout, emergency access)
- * @details Registers public login/refresh routes, the authenticated logout route,
- *          and the HIPAA break-glass emergency access route.
+ * @file cardiac_routes.hpp
+ * @brief Cardiac analysis REST API routes (calcium scoring, phase detection, cine)
+ * @details All routes require Clinician role.
  *
- * ## Routes
- * | Method | Path                              | Auth      |
- * |--------|-----------------------------------|-----------|
- * | POST   | /api/v1/auth/login                | Public    |
- * | POST   | /api/v1/auth/refresh              | Public    |
- * | POST   | /api/v1/auth/logout               | Bearer    |
- * | POST   | /api/v1/auth/emergency-access     | Clinician |
+ * ## Routes (all under /api/v1/sessions/{id}/cardiac/)
+ * | Method | Path                                            | Min Role  |
+ * |--------|-------------------------------------------------|-----------|
+ * | POST   | /api/v1/sessions/{id}/cardiac/analyze           | Clinician |
+ * | GET    | /api/v1/sessions/{id}/cardiac/results           | Clinician |
+ * | POST   | /api/v1/sessions/{id}/cardiac/cine/phase        | Clinician |
  *
  * @author kcenon
  * @since 1.0.0
@@ -52,22 +50,19 @@
 #include <string>
 
 namespace dicom_viewer::services {
-class AuthProvider;
-class AuditService;
+class RenderSessionManager;
 } // namespace dicom_viewer::services
 
 namespace dicom_viewer::server {
 
 /**
- * @brief Register authentication routes on the Crow application.
- * @param app    Crow application with JwtMiddleware (non-owning)
- * @param auth   AuthProvider for credential validation (may be nullptr)
- * @param audit  AuditService for ATNA event logging (may be nullptr)
+ * @brief Register cardiac analysis routes on the Crow application.
+ * @param app        Crow application with JwtMiddleware (non-owning)
+ * @param sessions   RenderSessionManager (may be nullptr)
  * @param corsOrigin CORS allowed-origin header value
  */
-void registerAuthRoutes(routes::App* app,
-                        services::AuthProvider* auth,
-                        services::AuditService* audit,
-                        const std::string& corsOrigin);
+void registerCardiacRoutes(routes::App* app,
+                            services::RenderSessionManager* sessions,
+                            const std::string& corsOrigin);
 
 } // namespace dicom_viewer::server

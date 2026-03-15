@@ -28,18 +28,17 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /**
- * @file auth_routes.hpp
- * @brief Authentication REST API routes (login, refresh, logout, emergency access)
- * @details Registers public login/refresh routes, the authenticated logout route,
- *          and the HIPAA break-glass emergency access route.
+ * @file pacs_routes.hpp
+ * @brief DICOM PACS integration REST API routes (C-ECHO, C-FIND, C-MOVE)
+ * @details All PACS routes require Clinician role and delegate to
+ *          DicomEchoSCU, DicomFindSCU, and DicomMoveSCU services.
  *
  * ## Routes
- * | Method | Path                              | Auth      |
- * |--------|-----------------------------------|-----------|
- * | POST   | /api/v1/auth/login                | Public    |
- * | POST   | /api/v1/auth/refresh              | Public    |
- * | POST   | /api/v1/auth/logout               | Bearer    |
- * | POST   | /api/v1/auth/emergency-access     | Clinician |
+ * | Method | Path                                    | Min Role  |
+ * |--------|-----------------------------------------|-----------|
+ * | POST   | /api/v1/pacs/servers/{id}/echo          | Clinician |
+ * | POST   | /api/v1/pacs/query                      | Clinician |
+ * | POST   | /api/v1/pacs/retrieve                   | Clinician |
  *
  * @author kcenon
  * @since 1.0.0
@@ -52,21 +51,27 @@
 #include <string>
 
 namespace dicom_viewer::services {
-class AuthProvider;
+class DicomEchoSCU;
+class DicomFindSCU;
+class DicomMoveSCU;
 class AuditService;
 } // namespace dicom_viewer::services
 
 namespace dicom_viewer::server {
 
 /**
- * @brief Register authentication routes on the Crow application.
- * @param app    Crow application with JwtMiddleware (non-owning)
- * @param auth   AuthProvider for credential validation (may be nullptr)
- * @param audit  AuditService for ATNA event logging (may be nullptr)
+ * @brief Register PACS integration routes on the Crow application.
+ * @param app        Crow application with JwtMiddleware (non-owning)
+ * @param echo       C-ECHO SCU service (may be nullptr)
+ * @param finder     C-FIND SCU service (may be nullptr)
+ * @param mover      C-MOVE SCU service (may be nullptr)
+ * @param audit      AuditService for ATNA logging (may be nullptr)
  * @param corsOrigin CORS allowed-origin header value
  */
-void registerAuthRoutes(routes::App* app,
-                        services::AuthProvider* auth,
+void registerPacsRoutes(routes::App* app,
+                        services::DicomEchoSCU* echo,
+                        services::DicomFindSCU* finder,
+                        services::DicomMoveSCU* mover,
                         services::AuditService* audit,
                         const std::string& corsOrigin);
 

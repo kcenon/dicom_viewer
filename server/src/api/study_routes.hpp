@@ -28,18 +28,19 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /**
- * @file auth_routes.hpp
- * @brief Authentication REST API routes (login, refresh, logout, emergency access)
- * @details Registers public login/refresh routes, the authenticated logout route,
- *          and the HIPAA break-glass emergency access route.
+ * @file study_routes.hpp
+ * @brief DICOM study upload and listing REST API routes
+ * @details Registers routes for DICOM file upload with magic-byte validation,
+ *          study listing, and series listing for a given study UID.
+ *          Study-load-into-session is also registered here.
  *
  * ## Routes
- * | Method | Path                              | Auth      |
- * |--------|-----------------------------------|-----------|
- * | POST   | /api/v1/auth/login                | Public    |
- * | POST   | /api/v1/auth/refresh              | Public    |
- * | POST   | /api/v1/auth/logout               | Bearer    |
- * | POST   | /api/v1/auth/emergency-access     | Clinician |
+ * | Method | Path                                    | Min Role  |
+ * |--------|-----------------------------------------|-----------|
+ * | POST   | /api/v1/studies/upload                  | Clinician |
+ * | GET    | /api/v1/studies                         | Viewer    |
+ * | GET    | /api/v1/studies/{uid}/series            | Viewer    |
+ * | POST   | /api/v1/sessions/{id}/load              | Clinician |
  *
  * @author kcenon
  * @since 1.0.0
@@ -52,22 +53,24 @@
 #include <string>
 
 namespace dicom_viewer::services {
-class AuthProvider;
+class RenderSessionManager;
 class AuditService;
 } // namespace dicom_viewer::services
 
 namespace dicom_viewer::server {
 
 /**
- * @brief Register authentication routes on the Crow application.
- * @param app    Crow application with JwtMiddleware (non-owning)
- * @param auth   AuthProvider for credential validation (may be nullptr)
- * @param audit  AuditService for ATNA event logging (may be nullptr)
+ * @brief Register DICOM study management routes on the Crow application.
+ * @param app        Crow application with JwtMiddleware (non-owning)
+ * @param sessions   RenderSessionManager for session-load endpoint (may be nullptr)
+ * @param audit      AuditService for ePHI event logging (may be nullptr)
+ * @param uploadDir  Local directory for incoming DICOM uploads
  * @param corsOrigin CORS allowed-origin header value
  */
-void registerAuthRoutes(routes::App* app,
-                        services::AuthProvider* auth,
-                        services::AuditService* audit,
-                        const std::string& corsOrigin);
+void registerStudyRoutes(routes::App* app,
+                         services::RenderSessionManager* sessions,
+                         services::AuditService* audit,
+                         const std::string& uploadDir,
+                         const std::string& corsOrigin);
 
 } // namespace dicom_viewer::server
