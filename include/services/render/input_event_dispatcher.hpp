@@ -160,6 +160,28 @@ public:
      */
     void setMaxQueueDepth(uint32_t depth);
 
+    /**
+     * @brief Register a VTK interactor for a specific viewport channel
+     * @param channelId Channel ID (0=3D, 1=Axial, 2=Sagittal, 3=Coronal)
+     * @param interactor Interactor to associate with this channel (nullptr removes)
+     *
+     * When interactors are registered, processAll() with no interactor argument
+     * uses these registrations to route events by InputEvent::channelId.
+     */
+    void registerInteractor(uint8_t channelId,
+                            vtkRenderWindowInteractor* interactor);
+
+    /**
+     * @brief Process all queued events using registered channel interactors
+     * @param clientWidth Client canvas width in pixels
+     * @param clientHeight Client canvas height in pixels
+     * @return Number of events processed
+     *
+     * Requires prior calls to registerInteractor(). Events whose channelId
+     * has no registered interactor are dropped silently.
+     */
+    size_t processAll(uint32_t clientWidth, uint32_t clientHeight);
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;

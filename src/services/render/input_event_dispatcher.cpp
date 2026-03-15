@@ -161,6 +161,40 @@ public:
         return queue.size();
     }
 
+    void registerChannel(uint8_t channelId, vtkRenderWindowInteractor* interactor)
+    {
+        std::lock_guard<std::mutex> lock(channelMutex);
+        if (interactor) {
+            channelInteractors[channelId] = interactor;
+        } else {
+            channelInteractors.erase(channelId);
+        }
+    }
+
+    size_t processAllByChannel(uint32_t clientWidth, uint32_t clientHeight)
+    {
+        auto events = drainQueue();
+        size_t processed = 0;
+        for (const auto& event : events) {
+            vtkRenderWindowInteractor* interactor = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(channelMutex);
+                auto it = channelInteractors.find(event.channelId);
+                if (it != channelInteractors.end()) {
+                    interactor = it->second;
+                }
+            }
+            if (interactor
+                && dispatchSingle(interactor, event, clientWidth, clientHeight)) {
+                ++processed;
+            }
+        }
+        return processed;
+    }
+
+    mutable std::mutex channelMutex;
+    std::unordered_map<uint8_t, vtkRenderWindowInteractor*> channelInteractors;
+
     uint32_t maxQueueDepth;
     size_t dispatched = 0;
     size_t dropped = 0;
@@ -348,6 +382,20 @@ void InputEventDispatcher::setMaxQueueDepth(uint32_t depth)
 {
     if (!impl_) return;
     impl_->maxQueueDepth = depth;
+}
+
+void InputEventDispatcher::registerInteractor(
+    uint8_t channelId, vtkRenderWindowInteractor* interactor)
+{
+    if (!impl_) return;
+    impl_->registerChannel(channelId, interactor);
+}
+
+size_t InputEventDispatcher::processAll(
+    uint32_t clientWidth, uint32_t clientHeight)
+{
+    if (!impl_) return 0;
+    return impl_->processAllByChannel(clientWidth, clientHeight);
 }
 
 } // namespace dicom_viewer::services

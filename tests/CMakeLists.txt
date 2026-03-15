@@ -2191,6 +2191,24 @@ target_include_directories(input_event_dispatcher_test PRIVATE
 
 gtest_discover_tests(input_event_dispatcher_test DISCOVERY_TIMEOUT 60)
 
+# Integration tests for WebSocket v2 multiplex streaming
+add_executable(websocket_multiplex_test
+    integration/websocket_multiplex_test.cpp
+)
+
+target_link_libraries(websocket_multiplex_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+    ${VTK_LIBRARIES}
+)
+
+target_include_directories(websocket_multiplex_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(websocket_multiplex_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for SessionTokenValidator
 add_executable(session_token_validator_test
     unit/session_token_validator_test.cpp

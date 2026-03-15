@@ -128,6 +128,18 @@ TEST_F(WebSocketFrameStreamerTest, PushFrameWithNoClients) {
     EXPECT_EQ(sent, 0u); // No clients connected
 }
 
+TEST_F(WebSocketFrameStreamerTest, PushFrameV2WithChannelAndType) {
+    WebSocketStreamConfig config;
+    config.port = 19880;
+    config.concurrency = 1;
+    streamer.start(config);
+
+    std::vector<uint8_t> frameData = {0xFF, 0xD8, 0xFF, 0xD9};
+    // v2: push with explicit channelId and frameType
+    size_t sent = streamer.pushFrame("session-1", frameData, 64, 48, 1, 1, 0x00);
+    EXPECT_EQ(sent, 0u); // No clients, but call should not crash
+}
+
 // =============================================================================
 // Input event callback
 // =============================================================================
@@ -153,6 +165,37 @@ TEST_F(WebSocketFrameStreamerTest, DefaultConfig) {
     EXPECT_EQ(config.maxConnections, 16u);
     EXPECT_EQ(config.pingIntervalSeconds, 30u);
     EXPECT_EQ(config.connectionTimeoutSeconds, 90u);
+    EXPECT_TRUE(config.allowedOrigins.empty());
+    EXPECT_EQ(config.maxMessageSizeBytes, 65536u);
+}
+
+TEST_F(WebSocketFrameStreamerTest, AllowedOriginsConfigured) {
+    WebSocketStreamConfig config;
+    config.allowedOrigins = {"https://example.com", "https://viewer.hospital.org"};
+    EXPECT_EQ(config.allowedOrigins.size(), 2u);
+    EXPECT_EQ(config.allowedOrigins[0], "https://example.com");
+}
+
+TEST_F(WebSocketFrameStreamerTest, MessageSizeLimitConfigured) {
+    WebSocketStreamConfig config;
+    config.maxMessageSizeBytes = 1024;
+    EXPECT_EQ(config.maxMessageSizeBytes, 1024u);
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+TEST_F(WebSocketFrameStreamerTest, ViewportChannelValues) {
+    EXPECT_EQ(static_cast<uint8_t>(ViewportChannel::Volume3D), 0u);
+    EXPECT_EQ(static_cast<uint8_t>(ViewportChannel::AxialMPR), 1u);
+    EXPECT_EQ(static_cast<uint8_t>(ViewportChannel::SagittalMPR), 2u);
+    EXPECT_EQ(static_cast<uint8_t>(ViewportChannel::CoronalMPR), 3u);
+}
+
+TEST_F(WebSocketFrameStreamerTest, FrameTypeValues) {
+    EXPECT_EQ(static_cast<uint8_t>(FrameType::Full), 0x00u);
+    EXPECT_EQ(static_cast<uint8_t>(FrameType::Delta), 0x01u);
 }
 
 // =============================================================================
@@ -168,4 +211,14 @@ TEST_F(WebSocketFrameStreamerTest, InputEventDefaults) {
     EXPECT_EQ(event.buttons, 0);
     EXPECT_EQ(event.keyCode, 0);
     EXPECT_EQ(event.timestamp, 0u);
+    EXPECT_EQ(event.channelId, 0u);
+}
+
+TEST_F(WebSocketFrameStreamerTest, InputEventChannelIdField) {
+    InputEvent event;
+    event.channelId = static_cast<uint8_t>(ViewportChannel::AxialMPR);
+    EXPECT_EQ(event.channelId, 1u);
+
+    event.channelId = static_cast<uint8_t>(ViewportChannel::CoronalMPR);
+    EXPECT_EQ(event.channelId, 3u);
 }
