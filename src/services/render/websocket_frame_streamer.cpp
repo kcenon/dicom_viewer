@@ -81,6 +81,31 @@ public:
                 }
                 std::string sessionId = urlPath.substr(pos + 1);
 
+                // Origin header validation (CSRF protection)
+                {
+                    std::lock_guard lock(mutex_);
+                    if (!config_.allowedOrigins.empty()) {
+                        auto originHeader = req.get_header_value("Origin");
+                        bool originAllowed = false;
+                        for (const auto& allowed : config_.allowedOrigins) {
+                            if (originHeader == allowed) {
+                                originAllowed = true;
+                                break;
+                            }
+                        }
+                        if (!originAllowed) {
+                            AuditService* audit = auditService_.load();
+                            if (audit) {
+                                audit->auditSecurityAlert(
+                                    "anonymous",
+                                    "WebSocket connection rejected: disallowed Origin '"
+                                        + originHeader + "' for session " + sessionId);
+                            }
+                            return false;
+                        }
+                    }
+                }
+
                 // Token validation (if validator is set)
                 SessionTokenValidator* validator = tokenValidator_.load();
                 if (validator) {
@@ -197,11 +222,13 @@ public:
     size_t pushFrame(const std::string& sessionId,
                      const std::vector<uint8_t>& frameData,
                      uint32_t width, uint32_t height,
-                     uint32_t frameSeq)
+                     uint32_t frameSeq,
+                     uint8_t channelId,
+                     uint8_t frameType)
     {
-        // Build binary frame header
+        // Build v2 binary frame
         std::string binaryFrame = buildBinaryFrame(
-            sessionId, frameData, width, height, frameSeq);
+            sessionId, frameData, width, height, frameSeq, channelId, frameType);
 
         std::lock_guard lock(mutex_);
         auto it = sessions_.find(sessionId);
@@ -263,11 +290,31 @@ private:
         }
     }
 
-    void onMessage(crow::websocket::connection& /*conn*/,
+    void onMessage(crow::websocket::connection& conn,
                    const std::string& message, bool isBinary)
     {
         if (isBinary) {
             return; // Server only accepts text (JSON) from clients
+        }
+
+        // Enforce message size limit
+        {
+            std::lock_guard lock(mutex_);
+            if (config_.maxMessageSizeBytes > 0
+                && message.size() > config_.maxMessageSizeBytes) {
+                AuditService* audit = auditService_.load();
+                if (audit) {
+                    auto it = connectionSessions_.find(&conn);
+                    std::string sid = (it != connectionSessions_.end())
+                                          ? it->second
+                                          : "unknown";
+                    audit->auditSecurityAlert(
+                        "anonymous",
+                        "WebSocket message size limit exceeded for session " + sid
+                            + ": " + std::to_string(message.size()) + " bytes");
+                }
+                return;
+            }
         }
 
         InputEventCallback cb;
@@ -295,6 +342,7 @@ private:
             event.ctrlKey = json.value("ctrl", false);
             event.altKey = json.value("alt", false);
             event.keySym = json.value("key", std::string{});
+            event.channelId = json.value("channel_id", uint8_t{0});
 
             cb(event);
         } catch (const nlohmann::json::exception&) {
@@ -336,21 +384,27 @@ private:
     static std::string buildBinaryFrame(
         const std::string& sessionId,
         const std::vector<uint8_t>& frameData,
-        uint32_t width, uint32_t height, uint32_t frameSeq)
+        uint32_t width, uint32_t height, uint32_t frameSeq,
+        uint8_t channelId, uint8_t frameType)
     {
-        // Header: session_id_len(4) + session_id(N) + frame_seq(4)
-        //         + width(4) + height(4) + data(M)
+        // v2 header: version(1) + session_id_len(4) + session_id(N)
+        //            + channel_id(1) + frame_seq(4) + frame_type(1)
+        //            + width(4) + height(4) + data(M)
+        static constexpr uint8_t kVersion = 0x02;
         uint32_t sidLen = static_cast<uint32_t>(sessionId.size());
-        size_t totalSize = 4 + sidLen + 4 + 4 + 4 + frameData.size();
+        size_t totalSize = 1 + 4 + sidLen + 1 + 4 + 1 + 4 + 4 + frameData.size();
 
         std::string frame(totalSize, '\0');
         char* ptr = frame.data();
 
-        std::memcpy(ptr, &sidLen, 4);       ptr += 4;
-        std::memcpy(ptr, sessionId.data(), sidLen); ptr += sidLen;
-        std::memcpy(ptr, &frameSeq, 4);     ptr += 4;
-        std::memcpy(ptr, &width, 4);        ptr += 4;
-        std::memcpy(ptr, &height, 4);       ptr += 4;
+        std::memcpy(ptr, &kVersion, 1);                     ptr += 1;
+        std::memcpy(ptr, &sidLen, 4);                       ptr += 4;
+        std::memcpy(ptr, sessionId.data(), sidLen);         ptr += sidLen;
+        std::memcpy(ptr, &channelId, 1);                    ptr += 1;
+        std::memcpy(ptr, &frameSeq, 4);                     ptr += 4;
+        std::memcpy(ptr, &frameType, 1);                    ptr += 1;
+        std::memcpy(ptr, &width, 4);                        ptr += 4;
+        std::memcpy(ptr, &height, 4);                       ptr += 4;
         std::memcpy(ptr, frameData.data(), frameData.size());
 
         return frame;
@@ -428,10 +482,12 @@ size_t WebSocketFrameStreamer::connectionCount() const
 size_t WebSocketFrameStreamer::pushFrame(
     const std::string& sessionId,
     const std::vector<uint8_t>& frameData,
-    uint32_t width, uint32_t height, uint32_t frameSeq)
+    uint32_t width, uint32_t height, uint32_t frameSeq,
+    uint8_t channelId, uint8_t frameType)
 {
     if (!impl_) return 0;
-    return impl_->pushFrame(sessionId, frameData, width, height, frameSeq);
+    return impl_->pushFrame(
+        sessionId, frameData, width, height, frameSeq, channelId, frameType);
 }
 
 void WebSocketFrameStreamer::setInputEventCallback(InputEventCallback callback)

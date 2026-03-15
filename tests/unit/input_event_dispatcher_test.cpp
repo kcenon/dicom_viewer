@@ -416,4 +416,72 @@ TEST_F(InputEventDispatcherTest, InputEventExtendedDefaults) {
     EXPECT_FALSE(event.ctrlKey);
     EXPECT_FALSE(event.altKey);
     EXPECT_TRUE(event.keySym.empty());
+    EXPECT_EQ(event.channelId, 0u);
+}
+
+// =============================================================================
+// Channel-based interactor routing
+// =============================================================================
+
+TEST_F(InputEventDispatcherTest, RegisterInteractorAndProcessByChannel) {
+    dispatcher.registerInteractor(0, interactor);
+
+    InputEvent event = makeMouseEvent("mouse_move", 320, 240);
+    event.channelId = 0;
+    dispatcher.enqueue(event);
+
+    size_t processed = dispatcher.processAll(640, 480);
+    EXPECT_EQ(processed, 1u);
+    EXPECT_EQ(dispatcher.dispatchedCount(), 1u);
+}
+
+TEST_F(InputEventDispatcherTest, UnregisteredChannelDropsEvent) {
+    // Channel 1 has no interactor — event should be skipped
+    InputEvent event = makeMouseEvent("mouse_move", 320, 240);
+    event.channelId = 1;
+    dispatcher.enqueue(event);
+
+    size_t processed = dispatcher.processAll(640, 480);
+    EXPECT_EQ(processed, 0u);
+}
+
+TEST_F(InputEventDispatcherTest, MultiChannelRoutesCorrectly) {
+    // Create a second VTK render window/interactor for channel 1
+    auto renderWindow2 = vtkSmartPointer<vtkRenderWindow>::New();
+    renderWindow2->SetOffScreenRendering(1);
+    renderWindow2->SetSize(512, 512);
+    auto interactor2 = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+    interactor2->SetRenderWindow(renderWindow2);
+
+    dispatcher.registerInteractor(0, interactor);
+    dispatcher.registerInteractor(1, interactor2);
+
+    InputEvent e0 = makeMouseEvent("mouse_move", 100, 100);
+    e0.channelId = 0;
+    InputEvent e1 = makeMouseEvent("mouse_move", 200, 200);
+    e1.channelId = 1;
+    InputEvent e2 = makeMouseEvent("mouse_move", 300, 300);
+    e2.channelId = 0;
+
+    dispatcher.enqueue(e0);
+    dispatcher.enqueue(e1);
+    dispatcher.enqueue(e2);
+
+    size_t processed = dispatcher.processAll(640, 480);
+    EXPECT_EQ(processed, 3u);
+    EXPECT_EQ(dispatcher.dispatchedCount(), 3u);
+}
+
+TEST_F(InputEventDispatcherTest, RemoveInteractorByRegisteringNull) {
+    dispatcher.registerInteractor(0, interactor);
+
+    // Remove channel 0
+    dispatcher.registerInteractor(0, nullptr);
+
+    InputEvent event = makeMouseEvent("mouse_move", 320, 240);
+    event.channelId = 0;
+    dispatcher.enqueue(event);
+
+    size_t processed = dispatcher.processAll(640, 480);
+    EXPECT_EQ(processed, 0u);
 }

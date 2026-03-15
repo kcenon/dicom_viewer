@@ -42,17 +42,27 @@
  *
  * ## Wire Protocol
  *
- * Server → Client (binary frame):
+ * Server → Client (v2 binary frame):
+ * ```
+ * [1 byte: version=0x02][4 bytes: session_id_len][N bytes: session_id]
+ * [1 byte: channel_id][4 bytes: frame_seq][1 byte: frame_type]
+ * [4 bytes: width][4 bytes: height][M bytes: encoded image data]
+ * ```
+ *
+ * Server → Client (v1 binary frame, legacy):
  * ```
  * [4 bytes: session_id_len][N bytes: session_id][4 bytes: frame_seq]
  * [4 bytes: width][4 bytes: height][M bytes: encoded image data]
  * ```
+ * Note: v1 is detected by the absence of a leading 0x02 version byte.
  *
  * Client → Server (text frame, JSON):
  * ```json
- * {"session_id":"abc","type":"mouse_move","x":512,"y":384,
+ * {"session_id":"abc","channel_id":0,"type":"mouse_move","x":512,"y":384,
  *  "buttons":1,"modifiers":[],"ts":1709600000123}
  * ```
+ *
+ * Channel mapping: 0=3D Volume, 1=Axial MPR, 2=Sagittal MPR, 3=Coronal MPR
  *
  * ## Thread Safety
  * - start()/stop() must be called from one thread
@@ -77,6 +87,24 @@ class AuditService;
 class SessionTokenValidator;
 
 /**
+ * @brief Viewport channel identifier for multiplex streaming
+ */
+enum class ViewportChannel : uint8_t {
+    Volume3D    = 0,  ///< 3D volume rendering viewport
+    AxialMPR    = 1,  ///< Axial MPR viewport
+    SagittalMPR = 2,  ///< Sagittal MPR viewport
+    CoronalMPR  = 3,  ///< Coronal MPR viewport
+};
+
+/**
+ * @brief Frame type for v2 binary protocol
+ */
+enum class FrameType : uint8_t {
+    Full  = 0x00,  ///< Full frame (complete image)
+    Delta = 0x01,  ///< Delta frame (incremental update)
+};
+
+/**
  * @brief Configuration for the WebSocket frame streaming server
  */
 struct WebSocketStreamConfig {
@@ -94,6 +122,14 @@ struct WebSocketStreamConfig {
 
     /// Connection timeout in seconds (no pong received)
     uint32_t connectionTimeoutSeconds = 90;
+
+    /// Allowed WebSocket Origin headers (empty = allow all origins)
+    /// When non-empty, connections from origins not in this list are rejected.
+    std::vector<std::string> allowedOrigins;
+
+    /// Maximum size of incoming client messages in bytes (0 = unlimited)
+    /// Messages exceeding this limit are dropped with an audit log entry.
+    uint32_t maxMessageSizeBytes = 65536; // 64 KB
 };
 
 /**
@@ -112,6 +148,7 @@ struct InputEvent {
     bool ctrlKey = false;
     bool altKey = false;
     std::string keySym;     ///< Key symbol string (e.g., "ArrowUp", "Escape")
+    uint8_t channelId = 0;  ///< Viewport channel (0=3D, 1=Axial, 2=Sagittal, 3=Coronal)
 };
 
 /**
@@ -166,18 +203,22 @@ public:
     [[nodiscard]] size_t connectionCount() const;
 
     /**
-     * @brief Push an encoded frame to all clients connected to a session
+     * @brief Push an encoded frame to all clients connected to a session (v2 protocol)
      * @param sessionId Target render session ID
      * @param frameData Encoded image data (JPEG/PNG bytes)
      * @param width Frame width in pixels
      * @param height Frame height in pixels
      * @param frameSeq Monotonically increasing frame sequence number
+     * @param channelId Viewport channel (0=3D Volume, 1=Axial, 2=Sagittal, 3=Coronal)
+     * @param frameType Frame type (0x00=Full, 0x01=Delta)
      * @return Number of clients the frame was sent to
      */
     size_t pushFrame(const std::string& sessionId,
                      const std::vector<uint8_t>& frameData,
                      uint32_t width, uint32_t height,
-                     uint32_t frameSeq);
+                     uint32_t frameSeq,
+                     uint8_t channelId = 0,
+                     uint8_t frameType = 0x00);
 
     /**
      * @brief Set callback for received input events
