@@ -1,5 +1,6 @@
 import { useSessionStore } from '@/stores/sessionStore'
 import { AuthProvider } from '@/components/auth/AuthProvider'
+import { AppLayout } from '@/components/layout/AppLayout'
 
 function App() {
   const connectionStatus = useSessionStore((s) => s.connectionStatus)
@@ -7,7 +8,7 @@ function App() {
   return (
     <AuthProvider>
       <div data-testid="app-root" data-status={connectionStatus}>
-        {/* Layout components will be added in issue #520 */}
+        <AppLayout />
       </div>
     </AuthProvider>
   )
