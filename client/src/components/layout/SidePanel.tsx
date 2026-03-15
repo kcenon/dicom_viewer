@@ -1,9 +1,11 @@
 // SidePanel is a collapsible dock housing tabbed tool panels.
-// Actual panel content (PatientBrowser, SegmentationPanel, etc.) will be
-// added in issue #521. Placeholder tabs are rendered here.
 
 import { useUiStore } from '@/stores/uiStore'
-import type { ReactNode } from 'react'
+import { PatientBrowser } from '@/components/panels/PatientBrowser'
+import { SegmentationPanel } from '@/components/panels/SegmentationPanel'
+import { FlowToolPanel } from '@/components/panels/FlowToolPanel'
+import { OverlayControlPanel } from '@/components/panels/OverlayControlPanel'
+import { ReportPanel } from '@/components/panels/ReportPanel'
 
 type ActivePanel = NonNullable<ReturnType<typeof useUiStore.getState>['activePanel']>
 
@@ -16,11 +18,23 @@ const PANEL_TABS: { id: ActivePanel; label: string }[] = [
   { id: 'report', label: 'Report' },
 ]
 
-interface Props {
-  children?: ReactNode
+function ActivePanelContent({ activePanel }: { activePanel: ActivePanel }) {
+  switch (activePanel) {
+    case 'patientBrowser': return <PatientBrowser />
+    case 'segmentation': return <SegmentationPanel />
+    case 'flow': return <FlowToolPanel />
+    case 'overlay': return <OverlayControlPanel />
+    case 'report': return <ReportPanel />
+    case 'measurement':
+      return (
+        <div style={{ color: '#555', fontSize: '12px', textAlign: 'center', marginTop: '8px' }}>
+          Use the viewport tools to add measurements
+        </div>
+      )
+  }
 }
 
-export function SidePanel({ children }: Props) {
+export function SidePanel() {
   const isSidePanelOpen = useUiStore((s) => s.isSidePanelOpen)
   const activePanel = useUiStore((s) => s.activePanel)
   const setActivePanel = useUiStore((s) => s.setActivePanel)
@@ -81,9 +95,11 @@ export function SidePanel({ children }: Props) {
           fontSize: '13px',
         }}
       >
-        {children ?? (
+        {activePanel !== null ? (
+          <ActivePanelContent activePanel={activePanel} />
+        ) : (
           <div style={{ textAlign: 'center', marginTop: '24px', color: '#555' }}>
-            {activePanel !== null ? activePanel : 'Select a panel'}
+            Select a panel
           </div>
         )}
       </div>

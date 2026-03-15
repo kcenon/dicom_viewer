@@ -16,12 +16,18 @@ interface UiState {
   activePanel: ActivePanel
   isStatusBarVisible: boolean
   isToolBarVisible: boolean
+  isPacsConfigOpen: boolean
+  isSettingsOpen: boolean
   setTheme: (theme: Theme) => void
   setSidePanelOpen: (open: boolean) => void
   setActivePanel: (panel: ActivePanel) => void
   toggleSidePanel: () => void
   setStatusBarVisible: (visible: boolean) => void
   setToolBarVisible: (visible: boolean) => void
+  openPacsConfig: () => void
+  closePacsConfig: () => void
+  openSettings: () => void
+  closeSettings: () => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -30,6 +36,8 @@ export const useUiStore = create<UiState>((set) => ({
   activePanel: 'patientBrowser',
   isStatusBarVisible: true,
   isToolBarVisible: true,
+  isPacsConfigOpen: false,
+  isSettingsOpen: false,
 
   setTheme: (theme) => set({ theme }),
 
@@ -44,4 +52,9 @@ export const useUiStore = create<UiState>((set) => ({
   setStatusBarVisible: (isStatusBarVisible) => set({ isStatusBarVisible }),
 
   setToolBarVisible: (isToolBarVisible) => set({ isToolBarVisible }),
+
+  openPacsConfig: () => set({ isPacsConfigOpen: true }),
+  closePacsConfig: () => set({ isPacsConfigOpen: false }),
+  openSettings: () => set({ isSettingsOpen: true }),
+  closeSettings: () => set({ isSettingsOpen: false }),
 }))
