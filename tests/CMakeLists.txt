@@ -2314,3 +2314,39 @@ target_include_directories(rbac_middleware_test PRIVATE
 )
 
 gtest_discover_tests(rbac_middleware_test)
+
+# Integration tests for Redis session store (requires Docker)
+add_executable(redis_session_store_integration_test
+    integration/redis_session_store_test.cpp
+)
+
+target_link_libraries(redis_session_store_integration_test PRIVATE
+    store_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(redis_session_store_integration_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(redis_session_store_integration_test DISCOVERY_TIMEOUT 120)
+
+# Integration tests for PostgreSQL audit sink (requires Docker)
+add_executable(postgres_audit_sink_integration_test
+    integration/postgres_audit_sink_test.cpp
+)
+
+target_link_libraries(postgres_audit_sink_integration_test PRIVATE
+    store_service
+    pacs_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(postgres_audit_sink_integration_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${PACS_SYSTEM_INCLUDE_DIR}
+)
+
+gtest_discover_tests(postgres_audit_sink_integration_test DISCOVERY_TIMEOUT 120)
