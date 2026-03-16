@@ -64,6 +64,7 @@
 namespace dicom_viewer::services {
 
 class AdaptiveQualityController;
+class ISessionStore;
 class RenderSession;
 class SessionTokenValidator;
 enum class TokenValidationResult;
@@ -210,6 +211,13 @@ public:
      * @brief Get all active session IDs
      */
     [[nodiscard]] std::vector<std::string> activeSessionIds() const;
+
+    /**
+     * @brief Set an external session store for metadata persistence
+     * @param store Non-owning pointer to a session store (caller owns)
+     * @details If not set, session metadata is not persisted externally.
+     */
+    void setSessionStore(ISessionStore* store);
 
     /**
      * @brief Get the manager configuration

@@ -36,6 +36,7 @@ endif()
 
 target_link_libraries(dicom_viewer_server PRIVATE
     render_service
+    store_service
     pacs_service
     spdlog::spdlog
     fmt::fmt

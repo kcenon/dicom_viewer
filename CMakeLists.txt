@@ -651,6 +651,7 @@ set(ASIO_INCLUDE_DIR "${PACS_SYSTEM_BUILD_DIR}/_deps/asio-src/asio/include")
 target_link_libraries(render_service PUBLIC
     dicom_viewer_core
     coordinate_service
+    store_service
     ${VTK_LIBRARIES}
     jwt-cpp::jwt-cpp
     OpenSSL::SSL
@@ -749,6 +750,35 @@ target_link_libraries(segmentation_service PUBLIC
     ${VTK_LIBRARIES}
     nlohmann_json::nlohmann_json
 )
+
+# Session/audit store service (Redis, PostgreSQL)
+find_package(hiredis CONFIG QUIET)
+
+set(STORE_SERVICE_SOURCES
+    src/services/store/in_memory_session_store.cpp
+)
+
+if(hiredis_FOUND)
+    list(APPEND STORE_SERVICE_SOURCES src/services/store/redis_session_store.cpp)
+endif()
+
+add_library(store_service STATIC ${STORE_SERVICE_SOURCES})
+
+target_include_directories(store_service PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(store_service PUBLIC
+    spdlog::spdlog
+)
+
+if(hiredis_FOUND)
+    target_link_libraries(store_service PUBLIC hiredis::hiredis)
+    target_compile_definitions(store_service PUBLIC DICOM_VIEWER_HAS_HIREDIS=1)
+    message(STATUS "  hiredis: found (Redis session store enabled)")
+else()
+    message(STATUS "  hiredis: not found (Redis session store disabled)")
+endif()
 
 add_library(pacs_service STATIC
     src/services/pacs/dicom_echo_scu.cpp

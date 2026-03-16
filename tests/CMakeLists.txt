@@ -20,6 +20,23 @@ target_include_directories(auth_provider_test PRIVATE
 
 gtest_discover_tests(auth_provider_test)
 
+# Unit tests for session store (InMemorySessionStore)
+add_executable(session_store_test
+    unit/session_store_test.cpp
+)
+
+target_link_libraries(session_store_test PRIVATE
+    store_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(session_store_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(session_store_test)
+
 # Unit tests for series assembly
 add_executable(series_assembly_test
     unit/series_assembly_test.cpp
