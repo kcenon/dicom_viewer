@@ -37,6 +37,25 @@ target_include_directories(session_store_test PRIVATE
 
 gtest_discover_tests(session_store_test)
 
+# Unit tests for PostgreSQL audit sink (IAuditSink contract tests)
+add_executable(postgres_audit_sink_test
+    unit/postgres_audit_sink_test.cpp
+)
+
+target_link_libraries(postgres_audit_sink_test PRIVATE
+    store_service
+    pacs_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(postgres_audit_sink_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${PACS_SYSTEM_INCLUDE_DIR}
+)
+
+gtest_discover_tests(postgres_audit_sink_test)
+
 # Unit tests for series assembly
 add_executable(series_assembly_test
     unit/series_assembly_test.cpp

@@ -57,6 +57,9 @@
 #ifdef DICOM_VIEWER_HAS_HIREDIS
 #include "services/store/redis_session_store.hpp"
 #endif
+#ifdef DICOM_VIEWER_HAS_LIBPQ
+#include "services/store/postgres_audit_sink.hpp"
+#endif
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -84,6 +87,11 @@ struct ServerArgs {
     std::string redisHost;
     uint16_t redisPort = 6379;
     std::string redisPassword;
+    std::string pgHost;
+    uint16_t pgPort = 5432;
+    std::string pgDatabase = "dicom_viewer";
+    std::string pgUser = "dicom_viewer";
+    std::string pgPassword;
 };
 
 // ---- Signal handling ----
@@ -110,6 +118,11 @@ static void printHelp(const char* programName) {
               << "  --redis-host <host>    Redis host for session persistence (optional)\n"
               << "  --redis-port <port>    Redis port (default: 6379)\n"
               << "  --redis-password <pw>  Redis AUTH password (optional)\n"
+              << "  --pg-host <host>       PostgreSQL host for audit log persistence (optional)\n"
+              << "  --pg-port <port>       PostgreSQL port (default: 5432)\n"
+              << "  --pg-database <name>   PostgreSQL database name (default: dicom_viewer)\n"
+              << "  --pg-user <user>       PostgreSQL user (default: dicom_viewer)\n"
+              << "  --pg-password <pw>     PostgreSQL password (optional)\n"
               << "  --help, -h             Show this help message\n\n"
               << "Examples:\n"
               << "  " << programName << " --port 8080 --ws-port 8081\n"
@@ -144,6 +157,16 @@ static ServerArgs parseArgs(int argc, char* argv[]) {
             args.redisPort = static_cast<uint16_t>(std::stoi(nextArg()));
         } else if (arg == "--redis-password") {
             args.redisPassword = nextArg();
+        } else if (arg == "--pg-host") {
+            args.pgHost = nextArg();
+        } else if (arg == "--pg-port") {
+            args.pgPort = static_cast<uint16_t>(std::stoi(nextArg()));
+        } else if (arg == "--pg-database") {
+            args.pgDatabase = nextArg();
+        } else if (arg == "--pg-user") {
+            args.pgUser = nextArg();
+        } else if (arg == "--pg-password") {
+            args.pgPassword = nextArg();
         } else {
             std::cerr << "Warning: unknown argument '" << arg << "'\n";
         }
@@ -237,6 +260,26 @@ int main(int argc, char* argv[]) {
 
     // Audit service (disabled by default — enable via deployment.yaml)
     auto auditService = std::make_unique<dicom_viewer::services::AuditService>();
+
+    // PostgreSQL audit sink (if configured)
+#ifdef DICOM_VIEWER_HAS_LIBPQ
+    if (!args.pgHost.empty()) {
+        dicom_viewer::services::PostgresConfig pgCfg;
+        pgCfg.host = args.pgHost;
+        pgCfg.port = args.pgPort;
+        pgCfg.database = args.pgDatabase;
+        pgCfg.user = args.pgUser;
+        pgCfg.password = args.pgPassword;
+        auto pgSink = std::make_unique<dicom_viewer::services::PostgresAuditSink>(pgCfg);
+        if (pgSink->isConnected()) {
+            spdlog::info("Audit sink: PostgreSQL ({}:{}/{})",
+                         args.pgHost, args.pgPort, args.pgDatabase);
+            auditService->setAuditSink(std::move(pgSink));
+        } else {
+            spdlog::warn("PostgreSQL connection failed, audit events logged via spdlog only");
+        }
+    }
+#endif
 
     // Frame encoder
     auto frameEncoder = std::make_unique<dicom_viewer::services::FrameEncoder>();
