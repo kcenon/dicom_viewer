@@ -751,6 +751,19 @@ target_link_libraries(segmentation_service PUBLIC
     nlohmann_json::nlohmann_json
 )
 
+# Deployment configuration loader
+add_library(config_service STATIC
+    src/services/config/deployment_config.cpp
+)
+
+target_include_directories(config_service PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(config_service PUBLIC
+    spdlog::spdlog
+)
+
 # Session/audit store service (Redis, PostgreSQL)
 find_package(hiredis CONFIG QUIET)
 find_package(PostgreSQL QUIET)

@@ -53,6 +53,7 @@
 #include "services/render/offscreen_render_context.hpp"
 #include "services/render/session_token_validator.hpp"
 #include "services/audit_service.hpp"
+#include "services/config/deployment_config.hpp"
 #include "services/store/session_store.hpp"
 #ifdef DICOM_VIEWER_HAS_HIREDIS
 #include "services/store/redis_session_store.hpp"
@@ -246,22 +247,46 @@ int main(int argc, char* argv[]) {
     // 2. VTK headless validation (non-fatal — warn and continue)
     validateVtkHeadless();
 
-    // 3. Service instantiation
+    // 3. Load deployment config (if --config provided, overrides CLI args)
+
+    std::optional<dicom_viewer::services::DeploymentConfig> deployCfg;
+    if (!args.configPath.empty()) {
+        auto result = dicom_viewer::services::loadDeploymentConfig(args.configPath);
+        if (result) {
+            deployCfg = std::move(*result);
+            spdlog::info("Deployment config loaded from '{}'", args.configPath);
+
+            // Override CLI args with deployment.yaml values
+            if (args.restPort == 8080) args.restPort = deployCfg->server.restPort;
+            if (args.wsPort == 8081) args.wsPort = deployCfg->server.wsPort;
+            if (args.logLevel == "info") args.logLevel = deployCfg->server.logLevel;
+            if (args.maxSessions == 8) args.maxSessions = deployCfg->server.maxSessions;
+            if (args.redisHost.empty()) args.redisHost = deployCfg->redis.host;
+            if (args.redisPort == 6379) args.redisPort = deployCfg->redis.port;
+            if (args.redisPassword.empty()) args.redisPassword = deployCfg->redis.password;
+            if (args.pgHost.empty()) args.pgHost = deployCfg->postgres.host;
+            if (args.pgPort == 5432) args.pgPort = deployCfg->postgres.port;
+            if (args.pgDatabase == "dicom_viewer") args.pgDatabase = deployCfg->postgres.database;
+            if (args.pgUser == "dicom_viewer") args.pgUser = deployCfg->postgres.user;
+            if (args.pgPassword.empty()) args.pgPassword = deployCfg->postgres.password;
+        } else {
+            spdlog::error("Failed to load deployment config: {}",
+                         dicom_viewer::services::toString(result.error()));
+            return EXIT_FAILURE;
+        }
+    }
+
+    // 4. Service instantiation
 
     // JWT token validator (ephemeral keys for dev, key files for production)
     dicom_viewer::services::SessionTokenConfig tokenCfg;
     tokenCfg.allowEphemeralKeys = true;
-    if (!args.configPath.empty()) {
-        // TODO: load JWT key paths from deployment.yaml (#508)
-        spdlog::info("Config path provided: {} (deployment.yaml loader pending #508)",
-                     args.configPath);
-    }
     auto tokenValidator = std::make_unique<dicom_viewer::services::SessionTokenValidator>(tokenCfg);
 
     // Audit service (disabled by default — enable via deployment.yaml)
     auto auditService = std::make_unique<dicom_viewer::services::AuditService>();
 
-    // PostgreSQL audit sink (if configured)
+    // PostgreSQL audit sink (if configured via CLI or deployment.yaml)
 #ifdef DICOM_VIEWER_HAS_LIBPQ
     if (!args.pgHost.empty()) {
         dicom_viewer::services::PostgresConfig pgCfg;
@@ -270,6 +295,7 @@ int main(int argc, char* argv[]) {
         pgCfg.database = args.pgDatabase;
         pgCfg.user = args.pgUser;
         pgCfg.password = args.pgPassword;
+        if (deployCfg) pgCfg.sslMode = deployCfg->postgres.sslMode;
         auto pgSink = std::make_unique<dicom_viewer::services::PostgresAuditSink>(pgCfg);
         if (pgSink->isConnected()) {
             spdlog::info("Audit sink: PostgreSQL ({}:{}/{})",
@@ -287,7 +313,7 @@ int main(int argc, char* argv[]) {
     // Input event dispatcher
     auto inputDispatcher = std::make_unique<dicom_viewer::services::InputEventDispatcher>();
 
-    // Session store (Redis if configured, otherwise in-memory)
+    // Session store (Redis if configured via CLI or deployment.yaml, otherwise in-memory)
     std::unique_ptr<dicom_viewer::services::ISessionStore> sessionStore;
 #ifdef DICOM_VIEWER_HAS_HIREDIS
     if (!args.redisHost.empty()) {

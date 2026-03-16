@@ -1,0 +1,49 @@
+# deployment.yaml — On-Premise Configuration
+# Hospital data center with AD/LDAP, local filesystem, and hospital-issued TLS
+
+server:
+  rest_port: 8080
+  ws_port: 8081
+  log_level: info
+  max_sessions: 8
+
+idp:
+  type: ldap
+  ldap_url: ldaps://ad.hospital.local:636
+  bind_dn: CN=steamliner-svc,OU=Services,DC=hospital,DC=local
+  bind_password_env: IDP_BIND_PASSWORD
+  base_dn: DC=hospital,DC=local
+  group_base_dn: OU=Groups,DC=hospital,DC=local
+  group_attribute: member
+  role_map_path: /etc/steamliner/role_map.json
+  private_key_path: /etc/steamliner/jwt.key
+  ca_cert_path: /etc/ssl/certs/hospital-ca.crt
+  max_concurrent_sessions: 3
+
+redis:
+  host: redis
+  port: 6379
+  password_env: REDIS_PASSWORD
+  database: 0
+  max_memory_mb: 256
+
+postgres:
+  host: postgres
+  port: 5432
+  database: dicom_viewer
+  user: dicom_viewer
+  password_env: POSTGRES_PASSWORD
+  ssl_mode: require
+
+tls:
+  cert_path: /etc/nginx/ssl/hospital-cert.pem
+  key_path: /etc/nginx/ssl/hospital-key.pem
+  ca_path: /etc/ssl/certs/hospital-ca.crt
+
+storage:
+  type: filesystem
+  base_path: /data/dicom
+
+audit:
+  sink_type: postgresql
+  file_path: /var/log/dicom_viewer/audit.log
