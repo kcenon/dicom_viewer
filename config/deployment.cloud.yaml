@@ -1,0 +1,46 @@
+# deployment.yaml — Cloud Configuration (AWS)
+# AWS deployment with Cognito OIDC, S3 storage, ACM TLS, CloudWatch audit
+
+server:
+  rest_port: 8080
+  ws_port: 8081
+  log_level: info
+  max_sessions: 16
+
+idp:
+  type: cognito
+  cognito_user_pool_id_env: COGNITO_USER_POOL_ID
+  cognito_client_id_env: COGNITO_CLIENT_ID
+  cognito_region: us-east-1
+  jwks_url_env: COGNITO_JWKS_URL
+  role_map_path: /etc/steamliner/role_map.json
+  max_concurrent_sessions: 3
+
+redis:
+  host: redis.internal
+  port: 6379
+  password_env: REDIS_PASSWORD
+  database: 0
+  max_memory_mb: 512
+
+postgres:
+  host: aurora-cluster.internal
+  port: 5432
+  database: dicom_viewer
+  user: dicom_viewer
+  password_env: POSTGRES_PASSWORD
+  ssl_mode: require
+
+tls:
+  cert_path: /etc/nginx/ssl/acm-cert.pem
+  key_path: /etc/nginx/ssl/acm-key.pem
+
+storage:
+  type: s3
+  s3_bucket_env: DICOM_S3_BUCKET
+  s3_region: us-east-1
+
+audit:
+  sink_type: cloudwatch
+  cloudwatch_group: /dicom-viewer/audit
+  cloudwatch_stream_env: AUDIT_STREAM_NAME

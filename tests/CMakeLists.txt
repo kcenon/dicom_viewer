@@ -37,6 +37,23 @@ target_include_directories(session_store_test PRIVATE
 
 gtest_discover_tests(session_store_test)
 
+# Unit tests for deployment config loader
+add_executable(deployment_config_test
+    unit/deployment_config_test.cpp
+)
+
+target_link_libraries(deployment_config_test PRIVATE
+    config_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(deployment_config_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(deployment_config_test)
+
 # Unit tests for PostgreSQL audit sink (IAuditSink contract tests)
 add_executable(postgres_audit_sink_test
     unit/postgres_audit_sink_test.cpp
