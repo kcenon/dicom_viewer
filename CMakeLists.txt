@@ -640,6 +640,7 @@ add_library(render_service STATIC
     src/services/render/adaptive_quality_controller.cpp
     src/services/render/dirty_region_tracker.cpp
     src/services/render/session_token_validator.cpp
+    src/services/render/gpu_memory_budget_manager.cpp
 )
 
 # Crow WebSocket framework (header-only)
@@ -654,6 +655,7 @@ target_link_libraries(render_service PUBLIC
     jwt-cpp::jwt-cpp
     OpenSSL::SSL
     OpenSSL::Crypto
+    ${CMAKE_DL_LIBS}
 )
 
 if(EXISTS "${CROW_INCLUDE_DIR}/crow.h" AND EXISTS "${ASIO_INCLUDE_DIR}/asio.hpp")

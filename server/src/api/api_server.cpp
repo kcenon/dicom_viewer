@@ -87,6 +87,10 @@ public:
         auth_ = auth;
     }
 
+    void setGpuBudgetManager(services::GpuMemoryBudgetManager* gpuBudget) {
+        gpuBudget_ = gpuBudget;
+    }
+
     void setPacsServices(services::DicomEchoSCU* echo,
                          services::DicomFindSCU* finder,
                          services::DicomMoveSCU* mover) {
@@ -170,7 +174,7 @@ private:
         registerFlowRoutes(app_.get(), sessions_, config_.corsOrigin);
         registerCardiacRoutes(app_.get(), sessions_, config_.corsOrigin);
         registerExportRoutes(app_.get(), sessions_, audit_, config_.exportDir, config_.corsOrigin);
-        registerHealthRoutes(app_.get(), config_.corsOrigin);
+        registerHealthRoutes(app_.get(), gpuBudget_, config_.corsOrigin);
 
         // ---- Catch-all 404 ----
         CROW_CATCHALL_ROUTE((*app_))([this](crow::response& res) {
@@ -193,6 +197,7 @@ private:
     services::DicomEchoSCU* echo_ = nullptr;
     services::DicomFindSCU* finder_ = nullptr;
     services::DicomMoveSCU* mover_ = nullptr;
+    services::GpuMemoryBudgetManager* gpuBudget_ = nullptr;
 };
 
 // ---- ApiServer public interface ----
@@ -216,6 +221,10 @@ uint16_t ApiServer::port() const { return impl_->port(); }
 
 void ApiServer::setAuthProvider(services::AuthProvider* auth) {
     impl_->setAuthProvider(auth);
+}
+
+void ApiServer::setGpuBudgetManager(services::GpuMemoryBudgetManager* gpuBudget) {
+    impl_->setGpuBudgetManager(gpuBudget);
 }
 
 void ApiServer::setPacsServices(services::DicomEchoSCU* echo,

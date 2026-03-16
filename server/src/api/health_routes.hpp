@@ -38,9 +38,6 @@
  * |--------|--------------------|--------|
  * | GET    | /api/v1/health/gpu | Public |
  *
- * @note GPU budget metrics are stubbed until GpuBudgetManager is
- *       implemented in issue #503.
- *
  * @author kcenon
  * @since 1.0.0
  */
@@ -51,13 +48,20 @@
 
 #include <string>
 
+namespace dicom_viewer::services {
+class GpuMemoryBudgetManager;
+} // namespace dicom_viewer::services
+
 namespace dicom_viewer::server {
 
 /**
  * @brief Register extended health check routes on the Crow application.
  * @param app        Crow application with JwtMiddleware (non-owning)
+ * @param gpuBudget  GPU memory budget manager (non-owning, may be nullptr)
  * @param corsOrigin CORS allowed-origin header value
  */
-void registerHealthRoutes(routes::App* app, const std::string& corsOrigin);
+void registerHealthRoutes(routes::App* app,
+                          services::GpuMemoryBudgetManager* gpuBudget,
+                          const std::string& corsOrigin);
 
 } // namespace dicom_viewer::server
