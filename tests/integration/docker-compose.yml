@@ -1,0 +1,32 @@
+# Docker Compose for integration tests
+# Usage:
+#   cp tests/integration/.env.test.example tests/integration/.env.test
+#   docker compose -f tests/integration/docker-compose.yml --env-file tests/integration/.env.test up -d
+# Teardown:
+#   docker compose -f tests/integration/docker-compose.yml down -v
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${TEST_REDIS_PORT:-6399}:6379"
+    command: redis-server --requirepass ${TEST_REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${TEST_REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "${TEST_PG_PORT:-5499}:5432"
+    environment:
+      POSTGRES_DB: ${TEST_PG_DATABASE:-dicom_viewer_test}
+      POSTGRES_USER: ${TEST_PG_USER:-test_user}
+      POSTGRES_PASSWORD: ${TEST_PG_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TEST_PG_USER:-test_user} -d ${TEST_PG_DATABASE:-dicom_viewer_test}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
