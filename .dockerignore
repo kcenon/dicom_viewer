@@ -1,0 +1,32 @@
+# Build artifacts
+build/
+client/node_modules/
+client/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Tests
+tests/data/
+
+# Local config
+.env
+.env.*
+!.env.example
+.claude/
+CLAUDE.md
+CLAUDE.local.md
