@@ -753,10 +753,16 @@ target_link_libraries(segmentation_service PUBLIC
 
 # Session/audit store service (Redis, PostgreSQL)
 find_package(hiredis CONFIG QUIET)
-add_library(store_service STATIC
+
+set(STORE_SERVICE_SOURCES
     src/services/store/in_memory_session_store.cpp
-    src/services/store/redis_session_store.cpp
 )
+
+if(hiredis_FOUND)
+    list(APPEND STORE_SERVICE_SOURCES src/services/store/redis_session_store.cpp)
+endif()
+
+add_library(store_service STATIC ${STORE_SERVICE_SOURCES})
 
 target_include_directories(store_service PUBLIC
     ${CMAKE_SOURCE_DIR}/include
@@ -768,9 +774,10 @@ target_link_libraries(store_service PUBLIC
 
 if(hiredis_FOUND)
     target_link_libraries(store_service PUBLIC hiredis::hiredis)
+    target_compile_definitions(store_service PUBLIC DICOM_VIEWER_HAS_HIREDIS=1)
     message(STATUS "  hiredis: found (Redis session store enabled)")
 else()
-    message(STATUS "  hiredis: not found (Redis session store will fail at runtime)")
+    message(STATUS "  hiredis: not found (Redis session store disabled)")
 endif()
 
 add_library(pacs_service STATIC

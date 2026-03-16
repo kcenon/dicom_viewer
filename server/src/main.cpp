@@ -54,7 +54,9 @@
 #include "services/render/session_token_validator.hpp"
 #include "services/audit_service.hpp"
 #include "services/store/session_store.hpp"
+#ifdef DICOM_VIEWER_HAS_HIREDIS
 #include "services/store/redis_session_store.hpp"
+#endif
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -244,6 +246,7 @@ int main(int argc, char* argv[]) {
 
     // Session store (Redis if configured, otherwise in-memory)
     std::unique_ptr<dicom_viewer::services::ISessionStore> sessionStore;
+#ifdef DICOM_VIEWER_HAS_HIREDIS
     if (!args.redisHost.empty()) {
         dicom_viewer::services::RedisConfig redisCfg;
         redisCfg.host = args.redisHost;
@@ -257,8 +260,10 @@ int main(int argc, char* argv[]) {
             spdlog::warn("Redis connection failed, falling back to in-memory session store");
             sessionStore = std::make_unique<dicom_viewer::services::InMemorySessionStore>();
         }
-    } else {
-        spdlog::info("Session store: in-memory (no --redis-host specified)");
+    } else
+#endif
+    {
+        spdlog::info("Session store: in-memory");
         sessionStore = std::make_unique<dicom_viewer::services::InMemorySessionStore>();
     }
 
