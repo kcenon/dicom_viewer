@@ -11,7 +11,8 @@
         "nlohmann-json",
         "gtest",
         "jwt-cpp",
-        "hiredis"
+        "hiredis",
+        "libpq"
     ],
     "builtin-baseline": "84bab45d415d22042bd0b9081aea57f362da3f35"
 }
