@@ -753,6 +753,7 @@ target_link_libraries(segmentation_service PUBLIC
 
 # Session/audit store service (Redis, PostgreSQL)
 find_package(hiredis CONFIG QUIET)
+find_package(PostgreSQL QUIET)
 
 set(STORE_SERVICE_SOURCES
     src/services/store/in_memory_session_store.cpp
@@ -760,6 +761,10 @@ set(STORE_SERVICE_SOURCES
 
 if(hiredis_FOUND)
     list(APPEND STORE_SERVICE_SOURCES src/services/store/redis_session_store.cpp)
+endif()
+
+if(PostgreSQL_FOUND)
+    list(APPEND STORE_SERVICE_SOURCES src/services/store/postgres_audit_sink.cpp)
 endif()
 
 add_library(store_service STATIC ${STORE_SERVICE_SOURCES})
@@ -778,6 +783,15 @@ if(hiredis_FOUND)
     message(STATUS "  hiredis: found (Redis session store enabled)")
 else()
     message(STATUS "  hiredis: not found (Redis session store disabled)")
+endif()
+
+if(PostgreSQL_FOUND)
+    target_include_directories(store_service PRIVATE ${PostgreSQL_INCLUDE_DIRS})
+    target_link_libraries(store_service PUBLIC PostgreSQL::PostgreSQL)
+    target_compile_definitions(store_service PUBLIC DICOM_VIEWER_HAS_LIBPQ=1)
+    message(STATUS "  libpq: found (PostgreSQL audit sink enabled)")
+else()
+    message(STATUS "  libpq: not found (PostgreSQL audit sink disabled)")
 endif()
 
 add_library(pacs_service STATIC
