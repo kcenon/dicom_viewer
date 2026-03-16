@@ -29,6 +29,8 @@
 
 #include "health_routes.hpp"
 
+#include "services/render/gpu_memory_budget_manager.hpp"
+
 #include <nlohmann/json.hpp>
 
 namespace dicom_viewer::server {
@@ -36,19 +38,34 @@ namespace dicom_viewer::server {
 using routes::addCorsHeaders;
 using nlohmann::json;
 
-void registerHealthRoutes(routes::App* app, const std::string& corsOrigin) {
+void registerHealthRoutes(routes::App* app,
+                          services::GpuMemoryBudgetManager* gpuBudget,
+                          const std::string& corsOrigin) {
     // GET /api/v1/health/gpu — GPU memory budget metrics
-    // Stub implementation until GpuBudgetManager is available (#503).
     CROW_ROUTE(*app, "/api/v1/health/gpu")(
-        [corsOrigin](const crow::request& /*req*/, crow::response& res) {
+        [corsOrigin, gpuBudget](const crow::request& /*req*/, crow::response& res) {
             addCorsHeaders(res, corsOrigin);
 
             json resp;
-            resp["available"] = false;
-            resp["budgetMb"]  = 0;
-            resp["usedMb"]    = 0;
-            resp["gpuCount"]  = 0;
-            resp["note"]      = "GPU Budget Manager not yet available (see issue #503)";
+
+            if (gpuBudget) {
+                auto m = gpuBudget->metrics();
+                resp["available"]      = m.available;
+                resp["gpuName"]        = m.gpuName;
+                resp["totalMb"]        = m.totalBytes / (1024 * 1024);
+                resp["usedMb"]         = m.usedBytes / (1024 * 1024);
+                resp["freeMb"]         = m.freeBytes / (1024 * 1024);
+                resp["utilization"]    = m.utilizationPercent;
+                resp["activeSessions"] = m.activeSessionCount;
+            } else {
+                resp["available"]      = false;
+                resp["gpuName"]        = "";
+                resp["totalMb"]        = 0;
+                resp["usedMb"]         = 0;
+                resp["freeMb"]         = 0;
+                resp["utilization"]    = 0.0;
+                resp["activeSessions"] = 0;
+            }
 
             res.code = 200;
             res.body = resp.dump();

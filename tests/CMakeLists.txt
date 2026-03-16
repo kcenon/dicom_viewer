@@ -2156,6 +2156,23 @@ target_include_directories(adaptive_quality_controller_test PRIVATE
 
 gtest_discover_tests(adaptive_quality_controller_test DISCOVERY_TIMEOUT 60)
 
+# Unit tests for GpuMemoryBudgetManager
+add_executable(gpu_memory_budget_manager_test
+    unit/gpu_memory_budget_manager_test.cpp
+)
+
+target_link_libraries(gpu_memory_budget_manager_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(gpu_memory_budget_manager_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(gpu_memory_budget_manager_test DISCOVERY_TIMEOUT 60)
+
 # Unit tests for WebSocketFrameStreamer
 add_executable(websocket_frame_streamer_test
     unit/websocket_frame_streamer_test.cpp

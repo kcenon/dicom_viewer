@@ -78,6 +78,7 @@
 
 namespace dicom_viewer::services {
 class AuthProvider;
+class GpuMemoryBudgetManager;
 class RenderSessionManager;
 class SessionTokenValidator;
 class AuditService;
@@ -151,6 +152,12 @@ public:
      * @note If nullptr, auth routes return 503 Service Unavailable
      */
     void setAuthProvider(services::AuthProvider* auth);
+
+    /**
+     * @brief Inject the GPU memory budget manager for health routes
+     * @param gpuBudget GpuMemoryBudgetManager instance (non-owning, may be nullptr)
+     */
+    void setGpuBudgetManager(services::GpuMemoryBudgetManager* gpuBudget);
 
     /**
      * @brief Inject PACS SCU services for PACS integration routes
