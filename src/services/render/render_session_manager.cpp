@@ -31,6 +31,9 @@
 #include "services/render/adaptive_quality_controller.hpp"
 #include "services/render/render_session.hpp"
 #include "services/render/session_token_validator.hpp"
+#include "services/store/session_store.hpp"
+
+#include <spdlog/spdlog.h>
 
 #include <atomic>
 #include <chrono>
@@ -56,6 +59,8 @@ public:
     };
 
     explicit Impl(const RenderSessionManagerConfig& config) : config_(config) {}
+
+    void setSessionStore(ISessionStore* store) { sessionStore_ = store; }
 
     ~Impl() { stopLoop(); }
 
@@ -83,13 +88,35 @@ public:
         entry.height = h;
 
         sessions_.emplace(sessionId, std::move(entry));
+
+        // Persist metadata to external store (best-effort)
+        if (sessionStore_) {
+            SessionMetadata meta;
+            meta.sessionId = sessionId;
+            meta.width = w;
+            meta.height = h;
+            meta.createdAt = std::chrono::system_clock::now();
+            meta.lastActive = meta.createdAt;
+            if (!sessionStore_->saveSession(meta)) {
+                spdlog::warn("Failed to persist session {} to store", sessionId);
+            }
+        }
+
         return true;
     }
 
     bool destroySession(const std::string& sessionId)
     {
         std::lock_guard lock(mutex_);
-        return sessions_.erase(sessionId) > 0;
+        bool removed = sessions_.erase(sessionId) > 0;
+
+        if (removed && sessionStore_) {
+            if (!sessionStore_->removeSession(sessionId)) {
+                spdlog::warn("Failed to remove session {} from store", sessionId);
+            }
+        }
+
+        return removed;
     }
 
     bool hasSession(const std::string& sessionId) const
@@ -114,6 +141,9 @@ public:
         auto it = sessions_.find(sessionId);
         if (it != sessions_.end()) {
             it->second.lastActive = std::chrono::steady_clock::now();
+            if (sessionStore_) {
+                sessionStore_->touchSession(sessionId);
+            }
         }
     }
 
@@ -196,6 +226,9 @@ public:
 
         for (auto it = sessions_.begin(); it != sessions_.end(); ) {
             if ((now - it->second.lastActive) > timeout) {
+                if (sessionStore_) {
+                    sessionStore_->removeSession(it->first);
+                }
                 it = sessions_.erase(it);
                 ++removed;
             } else {
@@ -294,6 +327,7 @@ private:
 
     RenderSessionManagerConfig config_;
     SessionTokenValidator tokenValidator_;
+    ISessionStore* sessionStore_ = nullptr;
 
     mutable std::mutex mutex_;
     std::unordered_map<std::string, SessionEntry> sessions_;
@@ -358,6 +392,11 @@ AdaptiveQualityController* RenderSessionManager::getQualityController(
     const std::string& sessionId)
 {
     return impl_->getQualityController(sessionId);
+}
+
+void RenderSessionManager::setSessionStore(ISessionStore* store)
+{
+    impl_->setSessionStore(store);
 }
 
 void RenderSessionManager::setFrameReadyCallback(FrameReadyCallback callback)

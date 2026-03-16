@@ -53,6 +53,8 @@
 #include "services/render/offscreen_render_context.hpp"
 #include "services/render/session_token_validator.hpp"
 #include "services/audit_service.hpp"
+#include "services/store/session_store.hpp"
+#include "services/store/redis_session_store.hpp"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -77,6 +79,9 @@ struct ServerArgs {
     uint32_t maxSessions = 8;
     std::string logLevel = "info";
     bool helpRequested = false;
+    std::string redisHost;
+    uint16_t redisPort = 6379;
+    std::string redisPassword;
 };
 
 // ---- Signal handling ----
@@ -100,6 +105,9 @@ static void printHelp(const char* programName) {
               << "  --config <path>        Path to deployment.yaml\n"
               << "  --max-sessions <n>     Maximum concurrent render sessions (default: 8)\n"
               << "  --log-level <level>    Log level: trace|debug|info|warn|error (default: info)\n"
+              << "  --redis-host <host>    Redis host for session persistence (optional)\n"
+              << "  --redis-port <port>    Redis port (default: 6379)\n"
+              << "  --redis-password <pw>  Redis AUTH password (optional)\n"
               << "  --help, -h             Show this help message\n\n"
               << "Examples:\n"
               << "  " << programName << " --port 8080 --ws-port 8081\n"
@@ -128,6 +136,12 @@ static ServerArgs parseArgs(int argc, char* argv[]) {
             args.maxSessions = static_cast<uint32_t>(std::stoi(nextArg()));
         } else if (arg == "--log-level") {
             args.logLevel = nextArg();
+        } else if (arg == "--redis-host") {
+            args.redisHost = nextArg();
+        } else if (arg == "--redis-port") {
+            args.redisPort = static_cast<uint16_t>(std::stoi(nextArg()));
+        } else if (arg == "--redis-password") {
+            args.redisPassword = nextArg();
         } else {
             std::cerr << "Warning: unknown argument '" << arg << "'\n";
         }
@@ -228,10 +242,31 @@ int main(int argc, char* argv[]) {
     // Input event dispatcher
     auto inputDispatcher = std::make_unique<dicom_viewer::services::InputEventDispatcher>();
 
+    // Session store (Redis if configured, otherwise in-memory)
+    std::unique_ptr<dicom_viewer::services::ISessionStore> sessionStore;
+    if (!args.redisHost.empty()) {
+        dicom_viewer::services::RedisConfig redisCfg;
+        redisCfg.host = args.redisHost;
+        redisCfg.port = args.redisPort;
+        redisCfg.password = args.redisPassword;
+        auto redisStore = std::make_unique<dicom_viewer::services::RedisSessionStore>(redisCfg);
+        if (redisStore->isConnected()) {
+            spdlog::info("Session store: Redis ({}:{})", args.redisHost, args.redisPort);
+            sessionStore = std::move(redisStore);
+        } else {
+            spdlog::warn("Redis connection failed, falling back to in-memory session store");
+            sessionStore = std::make_unique<dicom_viewer::services::InMemorySessionStore>();
+        }
+    } else {
+        spdlog::info("Session store: in-memory (no --redis-host specified)");
+        sessionStore = std::make_unique<dicom_viewer::services::InMemorySessionStore>();
+    }
+
     // Render session manager
     dicom_viewer::services::RenderSessionManagerConfig sessionCfg;
     sessionCfg.maxSessions = args.maxSessions;
     auto sessionManager = std::make_unique<dicom_viewer::services::RenderSessionManager>(sessionCfg);
+    sessionManager->setSessionStore(sessionStore.get());
 
     // WebSocket frame streamer
     auto wsStreamer = std::make_unique<dicom_viewer::services::WebSocketFrameStreamer>();
