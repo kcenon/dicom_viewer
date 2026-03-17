@@ -633,7 +633,7 @@ target_link_libraries(render_service PUBLIC
 )
 
 if(EXISTS "${CROW_INCLUDE_DIR}/crow.h" AND EXISTS "${ASIO_INCLUDE_DIR}/asio.hpp")
-    target_include_directories(render_service PRIVATE
+    target_include_directories(render_service PUBLIC
         ${CROW_INCLUDE_DIR}
         ${ASIO_INCLUDE_DIR}
     )
@@ -659,7 +659,7 @@ else()
     set(CROW_ENABLE_SSL OFF CACHE BOOL "" FORCE)
     set(CROW_ENABLE_COMPRESSION OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(asio_standalone Crow)
-    target_include_directories(render_service PRIVATE
+    target_include_directories(render_service PUBLIC
         ${asio_standalone_SOURCE_DIR}/asio/include
         ${crow_SOURCE_DIR}/include
     )

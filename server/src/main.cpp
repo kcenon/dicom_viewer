@@ -232,7 +232,7 @@ static bool validateVtkHeadless() {
 // ---- Main ----
 
 int main(int argc, char* argv[]) {
-    const ServerArgs args = parseArgs(argc, argv);
+    ServerArgs args = parseArgs(argc, argv);
 
     if (args.helpRequested) {
         printHelp(argv[0]);
