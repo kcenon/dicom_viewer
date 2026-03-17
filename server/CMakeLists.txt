@@ -1,5 +1,4 @@
-# Server-only build configuration
-# Included by root CMakeLists.txt when DICOM_VIEWER_SERVER_ONLY=ON
+# Server build configuration (primary build target)
 cmake_minimum_required(VERSION 3.20)
 
 # Collect server source files
@@ -19,10 +18,10 @@ set(SERVER_SOURCES
     src/api/study_routes.cpp
 )
 
-# Headless server executable
-add_executable(dicom_viewer_server ${SERVER_SOURCES})
+# Server executable
+add_executable(dicom_viewer ${SERVER_SOURCES})
 
-target_include_directories(dicom_viewer_server PRIVATE
+target_include_directories(dicom_viewer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/include
     ${PACS_SYSTEM_INCLUDE_DIR}
@@ -31,10 +30,10 @@ target_include_directories(dicom_viewer_server PRIVATE
 # Inherit Crow + Asio include paths from render_service
 get_target_property(RENDER_INCLUDES render_service INTERFACE_INCLUDE_DIRECTORIES)
 if(RENDER_INCLUDES)
-    target_include_directories(dicom_viewer_server PRIVATE ${RENDER_INCLUDES})
+    target_include_directories(dicom_viewer PRIVATE ${RENDER_INCLUDES})
 endif()
 
-target_link_libraries(dicom_viewer_server PRIVATE
+target_link_libraries(dicom_viewer PRIVATE
     render_service
     config_service
     store_service
@@ -47,15 +46,15 @@ target_link_libraries(dicom_viewer_server PRIVATE
 )
 
 if(TARGET jwt-cpp::jwt-cpp)
-    target_link_libraries(dicom_viewer_server PRIVATE jwt-cpp::jwt-cpp)
+    target_link_libraries(dicom_viewer PRIVATE jwt-cpp::jwt-cpp)
 endif()
 
-# VTK module autoinit (server mode: no GUISupportQt)
+# VTK module autoinit
 vtk_module_autoinit(
-    TARGETS dicom_viewer_server render_service
+    TARGETS dicom_viewer render_service
     MODULES ${VTK_LIBRARIES}
 )
 
-install(TARGETS dicom_viewer_server
+install(TARGETS dicom_viewer
     RUNTIME DESTINATION bin
 )

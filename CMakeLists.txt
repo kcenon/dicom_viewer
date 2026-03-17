@@ -37,23 +37,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # Options
 option(BUILD_TESTS "Build unit tests" ON)
 option(BUILD_DOCS "Build documentation" OFF)
-option(DICOM_VIEWER_SERVER_ONLY "Build headless server without Qt UI" OFF)
-
-# Find required packages
-if(NOT DICOM_VIEWER_SERVER_ONLY)
-    find_package(Qt6 REQUIRED COMPONENTS
-        Core
-        Concurrent
-        Widgets
-        Gui
-        OpenGL
-        OpenGLWidgets
-        PrintSupport
-        Test
-        WebSockets
-    )
-endif()
-
 set(VTK_REQUIRED_COMPONENTS
     CommonCore
     CommonDataModel
@@ -73,9 +56,6 @@ set(VTK_REQUIRED_COMPONENTS
     RenderingOpenGL2
     RenderingVolumeOpenGL2
 )
-if(NOT DICOM_VIEWER_SERVER_ONLY)
-    list(APPEND VTK_REQUIRED_COMPONENTS GUISupportQt)
-endif()
 find_package(VTK REQUIRED COMPONENTS ${VTK_REQUIRED_COMPONENTS})
 
 find_package(ITK REQUIRED COMPONENTS
@@ -545,13 +525,6 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/include
 )
 
-# Qt automatic processing
-if(NOT DICOM_VIEWER_SERVER_ONLY)
-    set(CMAKE_AUTOMOC ON)
-    set(CMAKE_AUTORCC ON)
-    set(CMAKE_AUTOUIC ON)
-endif()
-
 # Find FFTW for ITK's FFT operations (required by N4 bias correction and other filters)
 find_library(FFTW3_LIBRARY fftw3)
 find_library(FFTW3_THREADS_LIBRARY fftw3_threads)
@@ -917,15 +890,6 @@ target_link_libraries(export_service PUBLIC
     ${VTK_LIBRARIES}
 )
 
-if(NOT DICOM_VIEWER_SERVER_ONLY)
-    target_link_libraries(export_service PUBLIC
-        Qt6::Core
-        Qt6::Widgets
-        Qt6::Gui
-        Qt6::PrintSupport
-    )
-endif()
-
 # Flow analysis service (4D Flow MRI)
 add_library(flow_service STATIC
     src/services/flow/flow_dicom_parser.cpp
@@ -978,107 +942,8 @@ target_link_libraries(cardiac_service PUBLIC
     ${VTK_LIBRARIES}
 )
 
-if(NOT DICOM_VIEWER_SERVER_ONLY)
-    # UI library
-    add_library(dicom_viewer_ui STATIC
-        src/ui/main_window.cpp
-        src/ui/widgets/viewport_widget.cpp
-        src/ui/widgets/viewport_layout_manager.cpp
-        src/ui/widgets/mpr_widget.cpp
-        src/ui/widgets/mpr_view_widget.cpp
-        src/ui/widgets/dr_viewer.cpp
-        src/ui/widgets/phase_slider_widget.cpp
-        src/ui/widgets/sp_mode_toggle.cpp
-        src/ui/panels/patient_browser.cpp
-        src/ui/panels/tools_panel.cpp
-        src/ui/panels/statistics_panel.cpp
-        src/ui/panels/segmentation_panel.cpp
-        src/ui/panels/overlay_control_panel.cpp
-        src/ui/panels/flow_tool_panel.cpp
-        src/ui/display_3d_controller.cpp
-        src/ui/dialogs/settings_dialog.cpp
-        src/ui/dialogs/pacs_config_dialog.cpp
-        src/ui/dialogs/quantification_window.cpp
-        src/ui/dialogs/mask_wizard.cpp
-        src/ui/dialogs/video_export_dialog.cpp
-        src/ui/mask_wizard_controller.cpp
-        src/ui/drop_handler.cpp
-        src/ui/widgets/flow_graph_widget.cpp
-        src/ui/widgets/workflow_tab_bar.cpp
-        src/ui/panels/workflow_panel.cpp
-        src/ui/panels/report_panel.cpp
-        src/ui/intro_page.cpp
-        src/ui/widgets/remote_viewport_widget.cpp
-        # Headers with Q_OBJECT for AUTOMOC
-        include/ui/main_window.hpp
-        include/ui/intro_page.hpp
-        include/ui/viewport_widget.hpp
-        include/ui/viewport_layout_manager.hpp
-        include/ui/mpr_view_widget.hpp
-        include/ui/dr_viewer.hpp
-        include/ui/widgets/phase_slider_widget.hpp
-        include/ui/widgets/sp_mode_toggle.hpp
-        include/ui/panels/patient_browser.hpp
-        include/ui/panels/tools_panel.hpp
-        include/ui/panels/statistics_panel.hpp
-        include/ui/panels/segmentation_panel.hpp
-        include/ui/panels/overlay_control_panel.hpp
-        include/ui/panels/flow_tool_panel.hpp
-        include/ui/dialogs/settings_dialog.hpp
-        include/ui/dialogs/pacs_config_dialog.hpp
-        include/ui/quantification_window.hpp
-        include/ui/dialogs/mask_wizard.hpp
-        include/ui/dialogs/video_export_dialog.hpp
-        include/ui/mask_wizard_controller.hpp
-        include/ui/drop_handler.hpp
-        include/ui/widgets/flow_graph_widget.hpp
-        include/ui/widgets/workflow_tab_bar.hpp
-        include/ui/panels/workflow_panel.hpp
-        include/ui/panels/report_panel.hpp
-        include/ui/widgets/remote_viewport_widget.hpp
-    )
-
-    target_link_libraries(dicom_viewer_ui PUBLIC
-        render_service
-        measurement_service
-        segmentation_service
-        pacs_service
-        export_service
-        flow_service
-        Qt6::Core
-        Qt6::Concurrent
-        Qt6::Widgets
-        Qt6::Gui
-        Qt6::OpenGL
-        Qt6::OpenGLWidgets
-        Qt6::WebSockets
-        VTK::GUISupportQt
-    )
-
-    # Desktop application
-    add_executable(dicom_viewer
-        src/app/main.cpp
-    )
-
-    target_link_libraries(dicom_viewer PRIVATE
-        dicom_viewer_ui
-    )
-
-    # VTK module autoinit (desktop mode: includes GUISupportQt targets)
-    vtk_module_autoinit(
-        TARGETS dicom_viewer dicom_viewer_ui render_service
-        MODULES ${VTK_LIBRARIES}
-    )
-
-    install(TARGETS dicom_viewer
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-    )
-else()
-    # Headless server build — delegate to server/CMakeLists.txt
-    add_subdirectory(server)
-endif()
+# Server build — delegate to server/CMakeLists.txt
+add_subdirectory(server)
 
 # Tests
 if(BUILD_TESTS)
@@ -1092,7 +957,7 @@ message(STATUS "=== dicom_viewer Build Configuration ===")
 message(STATUS "Version: ${PROJECT_VERSION}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
-message(STATUS "Build mode: ${DICOM_VIEWER_SERVER_ONLY}")
+message(STATUS "Build mode: server-only")
 message(STATUS "")
 message(STATUS "DICOM Network Library:")
 message(STATUS "  pacs_system: Found and enabled")

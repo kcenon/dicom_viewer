@@ -142,7 +142,7 @@ Write-Host ""
 
 if (-not $SkipDeps) {
     Write-Host "--- Installing system dependencies via vcpkg ---"
-    Write-Host "  Note: First-time build of Qt6, VTK, and ITK may take a very long time."
+    Write-Host "  Note: First-time build of VTK and ITK may take a very long time."
     Write-Host ""
 
     foreach ($pkg in $VcpkgPackages) {

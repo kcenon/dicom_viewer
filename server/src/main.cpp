@@ -191,7 +191,7 @@ static void initializeLogging(const std::string& logLevel) {
     consoleSink->set_level(level);
 
     // Rotating file sink (10 MB per file, 3 rotations)
-    const std::filesystem::path logDir = std::filesystem::temp_directory_path() / "dicom_viewer_server";
+    const std::filesystem::path logDir = std::filesystem::temp_directory_path() / "dicom_viewer";
     std::filesystem::create_directories(logDir);
     auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
         (logDir / "server.log").string(), 10 * 1024 * 1024, 3);
@@ -241,7 +241,7 @@ int main(int argc, char* argv[]) {
 
     // 1. Logging
     initializeLogging(args.logLevel);
-    spdlog::info("dicom_viewer_server starting (REST:{} WS:{} maxSessions:{})",
+    spdlog::info("dicom_viewer starting (REST:{} WS:{} maxSessions:{})",
                  args.restPort, args.wsPort, args.maxSessions);
 
     // 2. VTK headless validation (non-fatal — warn and continue)
@@ -420,6 +420,6 @@ int main(int argc, char* argv[]) {
     wsStreamer->stop();
     apiServer->stop();
 
-    spdlog::info("dicom_viewer_server stopped cleanly");
+    spdlog::info("dicom_viewer stopped cleanly");
     return EXIT_SUCCESS;
 }
