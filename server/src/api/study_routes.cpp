@@ -67,7 +67,7 @@ void registerStudyRoutes(routes::App* app,
                          const std::string& uploadDir,
                          const std::string& corsOrigin) {
     // POST /api/v1/studies/upload — Upload a DICOM file (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/studies/upload")
+    CROW_ROUTE((*app), "/api/v1/studies/upload")
         .methods(crow::HTTPMethod::Post)(
         [app, audit, uploadDir, corsOrigin]
         (const crow::request& req, crow::response& res) {
@@ -143,7 +143,7 @@ void registerStudyRoutes(routes::App* app,
 
     // GET /api/v1/studies — List all studies (Viewer+)
     // Stub: returns empty list until DicomLoader storage index is available.
-    CROW_ROUTE(*app, "/api/v1/studies")
+    CROW_ROUTE((*app), "/api/v1/studies")
         .methods(crow::HTTPMethod::Get)(
         [app, corsOrigin]
         (const crow::request& req, crow::response& res) {
@@ -161,7 +161,7 @@ void registerStudyRoutes(routes::App* app,
 
     // GET /api/v1/studies/{uid}/series — List series for a study (Viewer+)
     // Stub: returns empty list until storage index is available.
-    CROW_ROUTE(*app, "/api/v1/studies/<string>/series")
+    CROW_ROUTE((*app), "/api/v1/studies/<string>/series")
         .methods(crow::HTTPMethod::Get)(
         [app, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& studyUid) {
@@ -179,7 +179,7 @@ void registerStudyRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/load — Load a study into a render session (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/load")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/load")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, audit, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {

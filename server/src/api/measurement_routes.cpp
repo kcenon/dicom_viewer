@@ -62,7 +62,7 @@ void registerMeasurementRoutes(routes::App* app,
                                 services::AuditService* audit,
                                 const std::string& corsOrigin) {
     // GET /api/v1/sessions/{id}/measurements — List all measurements (Viewer+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/measurements")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/measurements")
         .methods(crow::HTTPMethod::Get)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -86,7 +86,7 @@ void registerMeasurementRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/measurements/distance — Add distance (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/measurements/distance")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/measurements/distance")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, audit, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -138,7 +138,7 @@ void registerMeasurementRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/measurements/area — Add area (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/measurements/area")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/measurements/area")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -166,7 +166,7 @@ void registerMeasurementRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/measurements/roi-stats — ROI statistics (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/measurements/roi-stats")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/measurements/roi-stats")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -196,7 +196,7 @@ void registerMeasurementRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/measurements/volume — Volume measurement (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/measurements/volume")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/measurements/volume")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {

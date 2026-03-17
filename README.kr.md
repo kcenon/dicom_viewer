@@ -26,10 +26,14 @@
 │         │                   │                        │                 │
 │         └───────────────────┴────────────────────────┘                 │
 │                              │                                         │
-│                     ┌────────┴────────┐                                │
-│                     │      Qt6        │                                │
-│                     │   Application   │                                │
-│                     └─────────────────┘                                │
+│              ┌───────────────┴───────────────┐                         │
+│              │   Headless Rendering Server    │                         │
+│              │   REST API + WebSocket Stream  │                         │
+│              └───────────────┬───────────────┘                         │
+│                              │                                         │
+│              ┌───────────────┴───────────────┐                         │
+│              │   React Web Client (Browser)  │                         │
+│              └───────────────────────────────┘                         │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -84,7 +88,7 @@
 |-----------|------------|---------|
 | **언어** | C++ | C++23 |
 | **빌드** | CMake | 3.20+ |
-| **GUI** | Qt | 6.5+ |
+| **웹 클라이언트** | React + TypeScript | Latest |
 | **영상 처리** | ITK | 5.4+ |
 | **시각화** | VTK | 9.3+ |
 | **DICOM 네트워크** | pacs_system | Latest |
@@ -94,13 +98,16 @@
 
 ## 아키텍처
 
-DICOM Viewer는 **3-Layer 아키텍처**를 채택하여 관심사 분리와 유지보수성을 극대화합니다. UI 컴포넌트가 서비스 클래스를 직접 사용하는 구조입니다.
+DICOM Viewer는 **Server-Client 아키텍처**를 채택하여 관심사 분리와 유지보수성을 극대화합니다. 헤드리스 C++ 렌더링 서버와 React 웹 클라이언트로 구성됩니다.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Presentation Layer (Qt6)                                               │
-│  • MainWindow, ViewportWidget, PatientBrowser, ToolsPanel               │
-│  • SegmentationPanel, StatisticsPanel, PacsConfigDialog                 │
+│  Web Client Layer (React + TypeScript)                                  │
+│  • Browser-based UI via REST API + WebSocket frame streaming            │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Server API Layer (Crow REST + WebSocket)                               │
+│  • REST endpoints: auth, study, render, segmentation, measurement      │
+│  • JWT authentication (RS256), RBAC, HIPAA-compliant audit              │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  Service Layer                                                          │
 │  • Render: VolumeRenderer, SurfaceRenderer, MPRRenderer (VTK)           │
@@ -206,27 +213,22 @@ dicom_viewer/
 │   │   ├── surface_renderer.hpp    # 등위면 추출 및 렌더링
 │   │   ├── mpr_renderer.hpp        # MPR (다중 평면 재구성) 뷰
 │   │   └── dicom_*_scu.hpp        # PACS 서비스 (Echo, Find, Move, Store)
-│   └── ui/                         # UI 헤더
-│       ├── panels/                 # PatientBrowser, ToolsPanel 등
-│       └── dialogs/                # SettingsDialog, PacsConfigDialog
 ├── src/                            # 소스 코드
-│   ├── app/                        # 앱 진입점 (main.cpp)
 │   ├── core/                       # 핵심 데이터 구조
 │   │   ├── dicom/                  # DICOM 로딩 및 시리즈 조립
 │   │   ├── image/                  # 이미지 처리 및 HU 변환
 │   │   └── logging/                # spdlog 기반 로깅
-│   ├── services/                   # 서비스 레이어
-│   │   ├── render/                 # Volume/Surface/MPR/Oblique 렌더링
-│   │   ├── measurement/            # 측정 및 통계 도구
-│   │   ├── preprocessing/          # 이미지 필터 (Gaussian, N4 등)
-│   │   ├── segmentation/           # 분할 알고리즘 및 라벨 관리
-│   │   ├── pacs/                   # PACS 연결 (C-ECHO, C-FIND 등)
-│   │   ├── export/                 # 리포트 생성, 메시/데이터 내보내기
-│   │   └── coordinate/             # MPR 좌표 변환
-│   └── ui/                         # Qt UI 컴포넌트
-│       ├── widgets/                # ViewportWidget, MPRViewWidget, DRViewer
-│       ├── panels/                 # PatientBrowser, ToolsPanel 등
-│       └── dialogs/                # 설정, PACS 구성
+│   └── services/                   # 서비스 레이어
+│       ├── render/                 # Volume/Surface/MPR/Oblique 렌더링
+│       ├── measurement/            # 측정 및 통계 도구
+│       ├── preprocessing/          # 이미지 필터 (Gaussian, N4 등)
+│       ├── segmentation/           # 분할 알고리즘 및 라벨 관리
+│       ├── pacs/                   # PACS 연결 (C-ECHO, C-FIND 등)
+│       ├── export/                 # 리포트 생성, 메시/데이터 내보내기
+│       └── coordinate/             # MPR 좌표 변환
+├── server/                         # 헤드리스 렌더링 서버
+│   └── src/api/                    # REST + WebSocket 라우트 핸들러
+├── client/                         # React 웹 클라이언트
 ├── tests/                          # 테스트 스위트
 │   ├── unit/                       # 유닛 테스트 (40+ 파일)
 │   ├── integration/                # 통합 테스트
@@ -279,7 +281,7 @@ Foundation     Features          Enhancement
 - [ITK Documentation](https://itk.org/)
 - [VTK Documentation](https://vtk.org/)
 - [DICOM Standard](https://dicom.nema.org/)
-- [Qt6 Documentation](https://doc.qt.io/)
+- [React Documentation](https://react.dev/)
 
 ## 라이선스
 

@@ -383,8 +383,6 @@ add_executable(pacs_config_manager_test
 
 target_link_libraries(pacs_config_manager_test PRIVATE
     pacs_service
-    Qt6::Core
-    Qt6::Test
     GTest::gtest
     GTest::gtest_main
 )
@@ -712,12 +710,8 @@ add_executable(report_generator_test
 
 target_link_libraries(report_generator_test PRIVATE
     export_service
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::Gui
-    Qt6::PrintSupport
-    Qt6::Test
     GTest::gtest
+    GTest::gtest_main
 )
 
 target_include_directories(report_generator_test PRIVATE
@@ -733,11 +727,8 @@ add_executable(data_exporter_test
 
 target_link_libraries(data_exporter_test PRIVATE
     export_service
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::Gui
-    Qt6::Test
     GTest::gtest
+    GTest::gtest_main
 )
 
 target_include_directories(data_exporter_test PRIVATE
@@ -753,10 +744,6 @@ add_executable(measurement_serializer_test
 
 target_link_libraries(measurement_serializer_test PRIVATE
     export_service
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::Gui
-    Qt6::Test
     GTest::gtest
     GTest::gtest_main
 )
@@ -796,11 +783,8 @@ add_executable(mesh_exporter_test
 
 target_link_libraries(mesh_exporter_test PRIVATE
     export_service
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::Gui
-    Qt6::Test
     GTest::gtest
+    GTest::gtest_main
 )
 
 target_include_directories(mesh_exporter_test PRIVATE
@@ -822,11 +806,8 @@ add_executable(dicom_sr_writer_test
 target_link_libraries(dicom_sr_writer_test PRIVATE
     export_service
     pacs_service
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::Gui
-    Qt6::Test
     GTest::gtest
+    GTest::gtest_main
 )
 
 target_include_directories(dicom_sr_writer_test PRIVATE
@@ -902,32 +883,6 @@ target_include_directories(histogram_equalizer_test PRIVATE
 )
 
 gtest_discover_tests(histogram_equalizer_test DISCOVERY_TIMEOUT 60)
-
-# Unit tests for DR Viewer
-add_executable(dr_viewer_test
-    unit/dr_viewer_test.cpp
-)
-
-target_link_libraries(dr_viewer_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::Gui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(dr_viewer_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-vtk_module_autoinit(
-    TARGETS dr_viewer_test
-    MODULES ${VTK_LIBRARIES}
-)
-
-gtest_discover_tests(dr_viewer_test DISCOVERY_TIMEOUT 60)
 
 # Unit tests for Flow DICOM Parser
 add_executable(flow_dicom_parser_test
@@ -1462,43 +1417,6 @@ target_include_directories(concurrency_test PRIVATE
 
 gtest_discover_tests(concurrency_test DISCOVERY_TIMEOUT 120)
 
-# Phase slider widget tests
-find_package(Qt6 COMPONENTS Test QUIET)
-add_executable(phase_slider_widget_test
-    unit/phase_slider_widget_test.cpp
-)
-
-target_link_libraries(phase_slider_widget_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(phase_slider_widget_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(phase_slider_widget_test DISCOVERY_TIMEOUT 60)
-
-# Viewport layout manager tests
-add_executable(viewport_layout_manager_test
-    unit/viewport_layout_manager_test.cpp
-)
-
-target_link_libraries(viewport_layout_manager_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(viewport_layout_manager_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(viewport_layout_manager_test DISCOVERY_TIMEOUT 60)
-
 # Unit tests for Segmentation Command Stack and BrushStrokeCommand
 add_executable(segmentation_command_test
     unit/segmentation_command_test.cpp
@@ -1515,24 +1433,6 @@ target_include_directories(segmentation_command_test PRIVATE
 )
 
 gtest_discover_tests(segmentation_command_test DISCOVERY_TIMEOUT 60)
-
-# S/P mode toggle and phase slider integration tests
-add_executable(sp_mode_toggle_test
-    unit/sp_mode_toggle_test.cpp
-)
-
-target_link_libraries(sp_mode_toggle_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(sp_mode_toggle_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(sp_mode_toggle_test DISCOVERY_TIMEOUT 60)
 
 # Unit tests for controller undo/redo integration
 add_executable(controller_undo_redo_test
@@ -1860,42 +1760,6 @@ target_include_directories(vendor_flow_parsers_test PRIVATE
 
 gtest_discover_tests(vendor_flow_parsers_test DISCOVERY_TIMEOUT 60)
 
-# Unit tests for Overlay Control Panel
-add_executable(overlay_control_panel_test
-    unit/overlay_control_panel_test.cpp
-)
-
-target_link_libraries(overlay_control_panel_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(overlay_control_panel_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(overlay_control_panel_test DISCOVERY_TIMEOUT 60)
-
-# Unit tests for Flow Tool Panel
-add_executable(flow_tool_panel_test
-    unit/flow_tool_panel_test.cpp
-)
-
-target_link_libraries(flow_tool_panel_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(flow_tool_panel_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(flow_tool_panel_test DISCOVERY_TIMEOUT 60)
-
 # Unit tests for Hemodynamic Surface Manager
 add_executable(hemodynamic_surface_manager_test
     unit/hemodynamic_surface_manager_test.cpp
@@ -1919,29 +1783,6 @@ vtk_module_autoinit(
 
 gtest_discover_tests(hemodynamic_surface_manager_test DISCOVERY_TIMEOUT 60)
 
-# Unit tests for Display3DController
-add_executable(display_3d_controller_test
-    unit/display_3d_controller_test.cpp
-)
-
-target_link_libraries(display_3d_controller_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(display_3d_controller_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-vtk_module_autoinit(
-    TARGETS display_3d_controller_test
-    MODULES ${VTK_LIBRARIES}
-)
-
-gtest_discover_tests(display_3d_controller_test DISCOVERY_TIMEOUT 60)
-
 add_executable(asc_view_controller_test
     unit/asc_view_controller_test.cpp
 )
@@ -1963,113 +1804,6 @@ vtk_module_autoinit(
 
 gtest_discover_tests(asc_view_controller_test DISCOVERY_TIMEOUT 60)
 
-# Unit tests for QuantificationWindow
-add_executable(quantification_window_test
-    unit/quantification_window_test.cpp
-)
-
-target_link_libraries(quantification_window_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(quantification_window_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(quantification_window_test DISCOVERY_TIMEOUT 60)
-
-# Unit tests for FlowGraphWidget (QPainter-based time-series chart)
-add_executable(flow_graph_widget_test
-    unit/flow_graph_widget_test.cpp
-)
-
-target_link_libraries(flow_graph_widget_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(flow_graph_widget_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(flow_graph_widget_test DISCOVERY_TIMEOUT 60)
-
-# Unit tests for PatientBrowser (classification display)
-add_executable(patient_browser_test
-    unit/patient_browser_test.cpp
-)
-
-target_link_libraries(patient_browser_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(patient_browser_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(patient_browser_test DISCOVERY_TIMEOUT 60)
-
-# Unit tests for MaskWizard (skeleton wizard navigation)
-add_executable(mask_wizard_test
-    unit/mask_wizard_test.cpp
-)
-
-target_link_libraries(mask_wizard_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(mask_wizard_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(mask_wizard_test DISCOVERY_TIMEOUT 60)
-
-# Unit tests for DropHandler (drag-and-drop classification)
-add_executable(drop_handler_test
-    unit/drop_handler_test.cpp
-)
-
-target_link_libraries(drop_handler_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(drop_handler_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(drop_handler_test DISCOVERY_TIMEOUT 60)
-
-# Unit tests for MaskWizardController (service wiring)
-add_executable(mask_wizard_controller_test
-    unit/mask_wizard_controller_test.cpp
-)
-
-target_link_libraries(mask_wizard_controller_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-)
-
-target_include_directories(mask_wizard_controller_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(mask_wizard_controller_test DISCOVERY_TIMEOUT 60)
-
 # Unit tests for AppLogLevel conversion functions
 add_executable(app_log_level_test
     unit/app_log_level_test.cpp
@@ -2086,24 +1820,6 @@ target_include_directories(app_log_level_test PRIVATE
 )
 
 gtest_discover_tests(app_log_level_test DISCOVERY_TIMEOUT 60)
-
-# Unit tests for SettingsDialog (log level configuration)
-add_executable(settings_dialog_test
-    unit/settings_dialog_test.cpp
-)
-
-target_link_libraries(settings_dialog_test PRIVATE
-    dicom_viewer_ui
-    Qt6::Test
-    GTest::gtest
-    GTest::gtest_main
-)
-
-target_include_directories(settings_dialog_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(settings_dialog_test DISCOVERY_TIMEOUT 60)
 
 # Unit tests for OffscreenRenderContext
 add_executable(offscreen_render_context_test
@@ -2295,25 +2011,6 @@ target_include_directories(session_token_validator_test PRIVATE
 )
 
 gtest_discover_tests(session_token_validator_test DISCOVERY_TIMEOUT 60)
-
-# Unit tests for RemoteViewportWidget
-add_executable(remote_viewport_widget_test
-    unit/remote_viewport_widget_test.cpp
-)
-
-target_link_libraries(remote_viewport_widget_test PRIVATE
-    dicom_viewer_ui
-    GTest::gtest
-    GTest::gtest_main
-    Qt6::Widgets
-    Qt6::WebSockets
-)
-
-target_include_directories(remote_viewport_widget_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-gtest_discover_tests(remote_viewport_widget_test DISCOVERY_TIMEOUT 60)
 
 # Unit tests for RbacChecker (role-based access control logic)
 add_executable(rbac_middleware_test

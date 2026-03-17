@@ -39,6 +39,7 @@ namespace dicom_viewer::server {
 
 using routes::addCorsHeaders;
 using routes::requireAuth;
+using routes::requireRole;
 using nlohmann::json;
 
 namespace {
@@ -89,7 +90,7 @@ void registerAuthRoutes(routes::App* app,
                         services::AuditService* audit,
                         const std::string& corsOrigin) {
     // POST /api/v1/auth/login — Public (no JWT required; middleware skips this path)
-    CROW_ROUTE(*app, "/api/v1/auth/login")
+    CROW_ROUTE((*app), "/api/v1/auth/login")
         .methods(crow::HTTPMethod::Post)(
         [app, auth, audit, corsOrigin](const crow::request& req, crow::response& res) {
             addCorsHeaders(res, corsOrigin);
@@ -154,7 +155,7 @@ void registerAuthRoutes(routes::App* app,
         });
 
     // POST /api/v1/auth/refresh — Public (refresh token in body, not Authorization header)
-    CROW_ROUTE(*app, "/api/v1/auth/refresh")
+    CROW_ROUTE((*app), "/api/v1/auth/refresh")
         .methods(crow::HTTPMethod::Post)(
         [app, auth, corsOrigin](const crow::request& req, crow::response& res) {
             addCorsHeaders(res, corsOrigin);
@@ -203,7 +204,7 @@ void registerAuthRoutes(routes::App* app,
         });
 
     // POST /api/v1/auth/logout — Authenticated (revokes the access token)
-    CROW_ROUTE(*app, "/api/v1/auth/logout")
+    CROW_ROUTE((*app), "/api/v1/auth/logout")
         .methods(crow::HTTPMethod::Post)(
         [app, auth, audit, corsOrigin](const crow::request& req, crow::response& res) {
             addCorsHeaders(res, corsOrigin);
@@ -236,7 +237,7 @@ void registerAuthRoutes(routes::App* app,
 
     // POST /api/v1/auth/emergency-access — HIPAA break-glass (Clinician+)
     // Logs an emergency access event and confirms the clinician's identity.
-    CROW_ROUTE(*app, "/api/v1/auth/emergency-access")
+    CROW_ROUTE((*app), "/api/v1/auth/emergency-access")
         .methods(crow::HTTPMethod::Post)(
         [app, auth, audit, corsOrigin](const crow::request& req, crow::response& res) {
             addCorsHeaders(res, corsOrigin);

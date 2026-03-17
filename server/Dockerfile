@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for dicom_viewer_server
+# Multi-stage Dockerfile for dicom_viewer
 # Requires NVIDIA Container Toolkit for GPU rendering via EGL
 #
 # Build: docker build -f server/Dockerfile -t dicom-viewer-server .
@@ -63,11 +63,10 @@ RUN mkdir -p /build/itk && cd /build/itk \
     && cmake --build build -j "$(nproc)" \
     && cmake --install build
 
-# Build dicom_viewer_server
+# Build dicom_viewer
 RUN mkdir -p /build/server && cd /build/server \
     && cmake -S /src -B . -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DDICOM_VIEWER_SERVER_ONLY=ON \
         -DBUILD_TESTS=OFF \
         -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
         -DVTK_DIR=/opt/vtk/lib/cmake/vtk-9.3 \
@@ -92,7 +91,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy built artifacts
 COPY --from=builder /opt/vtk/lib /opt/vtk/lib
 COPY --from=builder /opt/itk/lib /opt/itk/lib
-COPY --from=builder /build/server/bin/dicom_viewer_server /usr/local/bin/
+COPY --from=builder /build/server/bin/dicom_viewer /usr/local/bin/
 COPY --from=builder /build/server/lib /usr/local/lib/
 
 # Library paths
@@ -108,5 +107,5 @@ EXPOSE 8080 8081
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
-ENTRYPOINT ["dicom_viewer_server"]
+ENTRYPOINT ["dicom_viewer"]
 CMD ["--port", "8080", "--ws-port", "8081"]

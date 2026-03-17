@@ -26,10 +26,14 @@
 │         │                   │                        │                 │
 │         └───────────────────┴────────────────────────┘                 │
 │                              │                                         │
-│                     ┌────────┴────────┐                                │
-│                     │      Qt6        │                                │
-│                     │   Application   │                                │
-│                     └─────────────────┘                                │
+│              ┌───────────────┴───────────────┐                         │
+│              │   Headless Rendering Server    │                         │
+│              │   REST API + WebSocket Stream  │                         │
+│              └───────────────┬───────────────┘                         │
+│                              │                                         │
+│              ┌───────────────┴───────────────┐                         │
+│              │   React Web Client (Browser)  │                         │
+│              └───────────────────────────────┘                         │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -131,7 +135,7 @@
 |-----------|------------|---------|
 | **Language** | C++ | C++23 |
 | **Build** | CMake | 3.20+ |
-| **GUI** | Qt | 6.5+ |
+| **Web Client** | React + TypeScript | Latest |
 | **Image Processing** | ITK | 5.4+ |
 | **Visualization** | VTK | 9.3+ |
 | **DICOM Network** | pacs_system | Latest |
@@ -145,10 +149,13 @@ DICOM Viewer adopts a **3-Layer Architecture** to maximize separation of concern
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Presentation Layer (Qt6)                                               │
-│  • MainWindow, ViewportWidget, PatientBrowser, ToolsPanel               │
-│  • SegmentationPanel, StatisticsPanel, FlowToolPanel, ReportPanel       │
-│  • SettingsDialog, PacsConfigDialog, QuantificationWindow               │
+│  Web Client Layer (React + TypeScript)                                  │
+│  • Browser-based UI served via REST API + WebSocket frame streaming     │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Server API Layer (Crow REST + WebSocket)                               │
+│  • REST endpoints: auth, study, render, segmentation, measurement      │
+│  • WebSocket: multiplex viewport frame streaming                        │
+│  • JWT authentication (RS256), RBAC, HIPAA-compliant audit              │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  Service Layer                                                          │
 │  • Render: VolumeRenderer, SurfaceRenderer, MPRRenderer (VTK)           │
@@ -320,7 +327,7 @@ Run `./setup.sh --help` or `./build.sh --help` for all available options.
 ### Run
 
 ```bash
-./build/dicom_viewer
+./build/bin/dicom_viewer --port 8080 --ws-port 8081
 ```
 
 ### Troubleshooting
@@ -328,7 +335,7 @@ Run `./setup.sh --help` or `./build.sh --help` for all available options.
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `pacs_system not found` | Ecosystem repos not cloned or pacs_system not built | Run `./setup.sh` |
-| `Could not find Qt6` | Qt6 not installed | `brew install qt@6` |
+| `pacs_system libraries not found` | pacs_system not built | Build pacs_system first |
 | `CMake configuration failed` | Missing dependencies or stale cache | Run `./setup.sh` then `./build.sh --clean` |
 | `Preflight checks failed` | Prerequisites missing | Follow the error message hints, or run `./setup.sh` |
 | C++ header conflicts | SDK version mismatch | `./build.sh --clean` (reconfigures with correct SDK) |
@@ -368,26 +375,24 @@ dicom_viewer/
 │       ├── panels/                 # PatientBrowser, ToolsPanel, etc.
 │       └── dialogs/                # SettingsDialog, PacsConfigDialog
 ├── src/                            # Source Code
-│   ├── app/                        # Application entry point (main.cpp)
 │   ├── core/                       # Core Data Structures
 │   │   ├── dicom/                  # DICOM loading and series assembly
 │   │   ├── image/                  # Image processing and HU conversion
 │   │   └── logging/                # spdlog-based logging
-│   ├── services/                   # Service Layer
-│   │   ├── render/                 # Volume/Surface/MPR/Oblique rendering
-│   │   ├── measurement/            # Measurement and statistics tools
-│   │   ├── preprocessing/          # Image filters (Gaussian, N4, etc.)
-│   │   ├── segmentation/           # Segmentation algorithms and label mgmt
-│   │   ├── pacs/                   # PACS connectivity (C-ECHO, C-FIND, etc.)
-│   │   ├── export/                 # Report, mesh, data, video export
-│   │   ├── flow/                   # 4D Flow MRI analysis
-│   │   ├── enhanced_dicom/         # Enhanced DICOM IOD parsing
-│   │   ├── cardiac/                # Cardiac CT/MRI analysis
-│   │   └── coordinate/             # MPR coordinate transformations
-│   └── ui/                         # Qt UI Components
-│       ├── widgets/                # ViewportWidget, MPRViewWidget, DRViewer
-│       ├── panels/                 # PatientBrowser, ToolsPanel, etc.
-│       └── dialogs/                # Settings, PACS configuration
+│   └── services/                   # Service Layer
+│       ├── render/                 # Volume/Surface/MPR/Oblique rendering
+│       ├── measurement/            # Measurement and statistics tools
+│       ├── preprocessing/          # Image filters (Gaussian, N4, etc.)
+│       ├── segmentation/           # Segmentation algorithms and label mgmt
+│       ├── pacs/                   # PACS connectivity (C-ECHO, C-FIND, etc.)
+│       ├── export/                 # Report, mesh, data, video export
+│       ├── flow/                   # 4D Flow MRI analysis
+│       ├── enhanced_dicom/         # Enhanced DICOM IOD parsing
+│       ├── cardiac/                # Cardiac CT/MRI analysis
+│       └── coordinate/             # MPR coordinate transformations
+├── server/                         # Headless Rendering Server
+│   └── src/api/                    # REST + WebSocket route handlers
+├── client/                         # React Web Client
 ├── tests/                          # Test Suite
 │   ├── unit/                       # Unit tests (40+ test files)
 │   ├── integration/                # Integration tests
@@ -442,7 +447,7 @@ Foundation     Features          Enhancement      Advanced
 - [ITK Documentation](https://itk.org/)
 - [VTK Documentation](https://vtk.org/)
 - [DICOM Standard](https://dicom.nema.org/)
-- [Qt6 Documentation](https://doc.qt.io/)
+- [React Documentation](https://react.dev/)
 
 ## License
 
