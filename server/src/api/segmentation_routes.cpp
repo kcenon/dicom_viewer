@@ -66,7 +66,7 @@ void registerSegmentationRoutes(routes::App* app,
                                  services::RenderSessionManager* sessions,
                                  const std::string& corsOrigin) {
     // POST /api/v1/sessions/{id}/segmentation/threshold (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/segmentation/threshold")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/segmentation/threshold")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -99,7 +99,7 @@ void registerSegmentationRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/segmentation/region-grow (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/segmentation/region-grow")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/segmentation/region-grow")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -134,7 +134,7 @@ void registerSegmentationRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/segmentation/brush (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/segmentation/brush")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/segmentation/brush")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -162,7 +162,7 @@ void registerSegmentationRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/segmentation/undo (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/segmentation/undo")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/segmentation/undo")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {

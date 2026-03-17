@@ -64,7 +64,7 @@ void registerExportRoutes(routes::App* app,
                            const std::string& corsOrigin) {
     // POST /api/v1/sessions/{id}/export/report — Start report generation (Clinician+)
     // Returns 202 Accepted with a job ID.
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/export/report")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/export/report")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, audit, exportDir, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -107,7 +107,7 @@ void registerExportRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/export/csv — Start CSV export (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/export/csv")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/export/csv")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, audit, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -148,7 +148,7 @@ void registerExportRoutes(routes::App* app,
     // In a full implementation this would look up a job registry.
     // Currently returns a stub "not_ready" response until the export pipeline
     // is wired to a background job queue (see issue #493).
-    CROW_ROUTE(*app, "/api/v1/export/<string>")
+    CROW_ROUTE((*app), "/api/v1/export/<string>")
         .methods(crow::HTTPMethod::Get)(
         [app, exportDir, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& jobId) {

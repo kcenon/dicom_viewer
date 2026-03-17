@@ -44,7 +44,7 @@ void registerRenderRoutes(routes::App* app,
                           services::RenderSessionManager* sessions,
                           const std::string& corsOrigin) {
     // POST /api/v1/sessions/{id}/render/preset — Apply transfer function preset (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/render/preset")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/render/preset")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -90,7 +90,7 @@ void registerRenderRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/render/window-level — Set W/L (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/render/window-level")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/render/window-level")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -139,7 +139,7 @@ void registerRenderRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/render/blend-mode — Set blend mode (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/render/blend-mode")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/render/blend-mode")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -190,7 +190,7 @@ void registerRenderRoutes(routes::App* app,
 
     // GET /api/v1/sessions/{id}/render/snapshot — Capture frame (Viewer+)
     // Returns a stub response; actual frame bytes are delivered over WebSocket.
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/render/snapshot")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/render/snapshot")
         .methods(crow::HTTPMethod::Get)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {

@@ -42,7 +42,7 @@ void registerHealthRoutes(routes::App* app,
                           services::GpuMemoryBudgetManager* gpuBudget,
                           const std::string& corsOrigin) {
     // GET /api/v1/health/gpu — GPU memory budget metrics
-    CROW_ROUTE(*app, "/api/v1/health/gpu")(
+    CROW_ROUTE((*app), "/api/v1/health/gpu")(
         [corsOrigin, gpuBudget](const crow::request& /*req*/, crow::response& res) {
             addCorsHeaders(res, corsOrigin);
 

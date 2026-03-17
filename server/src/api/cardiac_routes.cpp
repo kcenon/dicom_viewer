@@ -44,7 +44,7 @@ void registerCardiacRoutes(routes::App* app,
                             services::RenderSessionManager* sessions,
                             const std::string& corsOrigin) {
     // POST /api/v1/sessions/{id}/cardiac/analyze — Trigger cardiac analysis (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/cardiac/analyze")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/cardiac/analyze")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -82,7 +82,7 @@ void registerCardiacRoutes(routes::App* app,
         });
 
     // GET /api/v1/sessions/{id}/cardiac/results — Retrieve cardiac analysis results (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/cardiac/results")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/cardiac/results")
         .methods(crow::HTTPMethod::Get)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -109,7 +109,7 @@ void registerCardiacRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/cardiac/cine/phase — Set cine phase (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/cardiac/cine/phase")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/cardiac/cine/phase")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {

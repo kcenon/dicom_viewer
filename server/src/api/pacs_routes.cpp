@@ -74,7 +74,7 @@ void registerPacsRoutes(routes::App* app,
                         services::AuditService* audit,
                         const std::string& corsOrigin) {
     // POST /api/v1/pacs/servers/{id}/echo — C-ECHO connectivity test (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/pacs/servers/<string>/echo")
+    CROW_ROUTE((*app), "/api/v1/pacs/servers/<string>/echo")
         .methods(crow::HTTPMethod::Post)(
         [app, echo, audit, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& serverId) {
@@ -136,7 +136,7 @@ void registerPacsRoutes(routes::App* app,
         });
 
     // POST /api/v1/pacs/query — C-FIND study/series query (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/pacs/query")
+    CROW_ROUTE((*app), "/api/v1/pacs/query")
         .methods(crow::HTTPMethod::Post)(
         [app, finder, audit, corsOrigin]
         (const crow::request& req, crow::response& res) {
@@ -231,7 +231,7 @@ void registerPacsRoutes(routes::App* app,
         });
 
     // POST /api/v1/pacs/retrieve — C-MOVE image retrieval (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/pacs/retrieve")
+    CROW_ROUTE((*app), "/api/v1/pacs/retrieve")
         .methods(crow::HTTPMethod::Post)(
         [app, mover, audit, corsOrigin]
         (const crow::request& req, crow::response& res) {

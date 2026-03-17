@@ -68,7 +68,7 @@ void registerSessionRoutes(routes::App* app,
                            const std::string& wsBaseUrl,
                            const std::string& corsOrigin) {
     // POST /api/v1/sessions — Create a new render session (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions")
+    CROW_ROUTE((*app), "/api/v1/sessions")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, audit, wsBaseUrl, corsOrigin]
         (const crow::request& req, crow::response& res) {
@@ -121,7 +121,7 @@ void registerSessionRoutes(routes::App* app,
         });
 
     // DELETE /api/v1/sessions/{id} — Destroy a render session (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>")
         .methods(crow::HTTPMethod::Delete)(
         [app, sessions, audit, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -146,7 +146,7 @@ void registerSessionRoutes(routes::App* app,
         });
 
     // GET /api/v1/sessions/{id} — Query session status (Viewer+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>")
         .methods(crow::HTTPMethod::Get)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -170,7 +170,7 @@ void registerSessionRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/resize — Resize viewport (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/resize")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/resize")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -192,7 +192,7 @@ void registerSessionRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/viewport — Set viewport layout (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/viewport")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/viewport")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {

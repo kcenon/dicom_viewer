@@ -44,7 +44,7 @@ void registerFlowRoutes(routes::App* app,
                         services::RenderSessionManager* sessions,
                         const std::string& corsOrigin) {
     // POST /api/v1/sessions/{id}/flow/load — Load 4D Flow dataset (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/flow/load")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/flow/load")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -89,7 +89,7 @@ void registerFlowRoutes(routes::App* app,
         });
 
     // POST /api/v1/sessions/{id}/flow/phase — Navigate to temporal phase (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/flow/phase")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/flow/phase")
         .methods(crow::HTTPMethod::Post)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
@@ -131,7 +131,7 @@ void registerFlowRoutes(routes::App* app,
         });
 
     // GET /api/v1/sessions/{id}/flow/quantification — Flow quantification results (Clinician+)
-    CROW_ROUTE(*app, "/api/v1/sessions/<string>/flow/quantification")
+    CROW_ROUTE((*app), "/api/v1/sessions/<string>/flow/quantification")
         .methods(crow::HTTPMethod::Get)(
         [app, sessions, corsOrigin]
         (const crow::request& req, crow::response& res, const std::string& sessionId) {
