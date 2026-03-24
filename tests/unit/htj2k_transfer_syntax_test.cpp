@@ -98,7 +98,7 @@ TEST_F(Htj2kTransferSyntaxTest, SupportedTransferSyntaxesNotEmpty) {
 // --- pacs_system Transfer Syntax Registry ---
 
 TEST_F(Htj2kTransferSyntaxTest, Htj2kLosslessRegisteredInPacs) {
-    auto ts = pacs::encoding::find_transfer_syntax("1.2.840.10008.1.2.4.201");
+    auto ts = kcenon::pacs::encoding::find_transfer_syntax("1.2.840.10008.1.2.4.201");
     ASSERT_TRUE(ts.has_value())
         << "HTJ2K Lossless should be registered in pacs_system";
     EXPECT_TRUE(ts->is_encapsulated())
@@ -107,14 +107,14 @@ TEST_F(Htj2kTransferSyntaxTest, Htj2kLosslessRegisteredInPacs) {
 }
 
 TEST_F(Htj2kTransferSyntaxTest, Htj2kRpclRegisteredInPacs) {
-    auto ts = pacs::encoding::find_transfer_syntax("1.2.840.10008.1.2.4.202");
+    auto ts = kcenon::pacs::encoding::find_transfer_syntax("1.2.840.10008.1.2.4.202");
     ASSERT_TRUE(ts.has_value())
         << "HTJ2K RPCL should be registered in pacs_system";
     EXPECT_TRUE(ts->is_encapsulated());
 }
 
 TEST_F(Htj2kTransferSyntaxTest, Htj2kLossyRegisteredInPacs) {
-    auto ts = pacs::encoding::find_transfer_syntax("1.2.840.10008.1.2.4.203");
+    auto ts = kcenon::pacs::encoding::find_transfer_syntax("1.2.840.10008.1.2.4.203");
     ASSERT_TRUE(ts.has_value())
         << "HTJ2K Lossy should be registered in pacs_system";
     EXPECT_TRUE(ts->is_encapsulated());
@@ -123,7 +123,7 @@ TEST_F(Htj2kTransferSyntaxTest, Htj2kLossyRegisteredInPacs) {
 // --- HTJ2K Codec Properties ---
 
 TEST_F(Htj2kTransferSyntaxTest, CodecLosslessMode) {
-    pacs::encoding::compression::htj2k_codec codec(true, false);
+    kcenon::pacs::encoding::compression::htj2k_codec codec(true, false);
     EXPECT_TRUE(codec.is_lossless_mode());
     EXPECT_FALSE(codec.is_lossy());
     EXPECT_FALSE(codec.is_rpcl_mode());
@@ -131,7 +131,7 @@ TEST_F(Htj2kTransferSyntaxTest, CodecLosslessMode) {
 }
 
 TEST_F(Htj2kTransferSyntaxTest, CodecRpclMode) {
-    pacs::encoding::compression::htj2k_codec codec(true, true);
+    kcenon::pacs::encoding::compression::htj2k_codec codec(true, true);
     EXPECT_TRUE(codec.is_lossless_mode());
     EXPECT_FALSE(codec.is_lossy());
     EXPECT_TRUE(codec.is_rpcl_mode());
@@ -139,58 +139,58 @@ TEST_F(Htj2kTransferSyntaxTest, CodecRpclMode) {
 }
 
 TEST_F(Htj2kTransferSyntaxTest, CodecLossyMode) {
-    pacs::encoding::compression::htj2k_codec codec(false, false);
+    kcenon::pacs::encoding::compression::htj2k_codec codec(false, false);
     EXPECT_FALSE(codec.is_lossless_mode());
     EXPECT_TRUE(codec.is_lossy());
     EXPECT_EQ(codec.transfer_syntax_uid(), "1.2.840.10008.1.2.4.203");
 }
 
 TEST_F(Htj2kTransferSyntaxTest, CodecDefaultCompressionRatio) {
-    pacs::encoding::compression::htj2k_codec codec;
+    kcenon::pacs::encoding::compression::htj2k_codec codec;
     EXPECT_FLOAT_EQ(codec.compression_ratio(),
-                    pacs::encoding::compression::htj2k_codec::kDefaultCompressionRatio);
+                    kcenon::pacs::encoding::compression::htj2k_codec::kDefaultCompressionRatio);
 }
 
 TEST_F(Htj2kTransferSyntaxTest, CodecDefaultResolutionLevels) {
-    pacs::encoding::compression::htj2k_codec codec;
+    kcenon::pacs::encoding::compression::htj2k_codec codec;
     EXPECT_EQ(codec.resolution_levels(),
-              pacs::encoding::compression::htj2k_codec::kDefaultResolutionLevels);
+              kcenon::pacs::encoding::compression::htj2k_codec::kDefaultResolutionLevels);
 }
 
 TEST_F(Htj2kTransferSyntaxTest, CodecCustomCompressionRatio) {
-    pacs::encoding::compression::htj2k_codec codec(false, false, 10.0f);
+    kcenon::pacs::encoding::compression::htj2k_codec codec(false, false, 10.0f);
     EXPECT_FLOAT_EQ(codec.compression_ratio(), 10.0f);
 }
 
 TEST_F(Htj2kTransferSyntaxTest, CodecNameNotEmpty) {
-    pacs::encoding::compression::htj2k_codec codec;
+    kcenon::pacs::encoding::compression::htj2k_codec codec;
     EXPECT_FALSE(codec.name().empty());
 }
 
 // --- Codec Factory ---
 
 TEST_F(Htj2kTransferSyntaxTest, CodecFactoryCreatesHtj2kLossless) {
-    auto codec = pacs::encoding::compression::codec_factory::create("1.2.840.10008.1.2.4.201");
+    auto codec = kcenon::pacs::encoding::compression::codec_factory::create("1.2.840.10008.1.2.4.201");
     EXPECT_NE(codec, nullptr)
         << "Codec factory should create HTJ2K Lossless codec";
 }
 
 TEST_F(Htj2kTransferSyntaxTest, CodecFactoryCreatesHtj2kRpcl) {
-    auto codec = pacs::encoding::compression::codec_factory::create("1.2.840.10008.1.2.4.202");
+    auto codec = kcenon::pacs::encoding::compression::codec_factory::create("1.2.840.10008.1.2.4.202");
     EXPECT_NE(codec, nullptr)
         << "Codec factory should create HTJ2K RPCL codec";
 }
 
 TEST_F(Htj2kTransferSyntaxTest, CodecFactoryCreatesHtj2kLossy) {
-    auto codec = pacs::encoding::compression::codec_factory::create("1.2.840.10008.1.2.4.203");
+    auto codec = kcenon::pacs::encoding::compression::codec_factory::create("1.2.840.10008.1.2.4.203");
     EXPECT_NE(codec, nullptr)
         << "Codec factory should create HTJ2K Lossy codec";
 }
 
 TEST_F(Htj2kTransferSyntaxTest, CodecFactoryReportsHtj2kSupported) {
-    EXPECT_TRUE(pacs::encoding::compression::codec_factory::is_supported("1.2.840.10008.1.2.4.201"));
-    EXPECT_TRUE(pacs::encoding::compression::codec_factory::is_supported("1.2.840.10008.1.2.4.202"));
-    EXPECT_TRUE(pacs::encoding::compression::codec_factory::is_supported("1.2.840.10008.1.2.4.203"));
+    EXPECT_TRUE(kcenon::pacs::encoding::compression::codec_factory::is_supported("1.2.840.10008.1.2.4.201"));
+    EXPECT_TRUE(kcenon::pacs::encoding::compression::codec_factory::is_supported("1.2.840.10008.1.2.4.202"));
+    EXPECT_TRUE(kcenon::pacs::encoding::compression::codec_factory::is_supported("1.2.840.10008.1.2.4.203"));
 }
 
 // --- SOP Classes Still Correct ---

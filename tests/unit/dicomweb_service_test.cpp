@@ -238,7 +238,7 @@ TEST_F(DicomWebServiceTest, MoveAssignment) {
 // --- pacs::web Types ---
 
 TEST_F(DicomWebServiceTest, PacsRestServerConfigDefaults) {
-    pacs::web::rest_server_config config;
+    kcenon::pacs::web::rest_server_config config;
     EXPECT_EQ(config.port, 8080);
     EXPECT_EQ(config.concurrency, 4u);
     EXPECT_TRUE(config.enable_cors);
@@ -246,23 +246,23 @@ TEST_F(DicomWebServiceTest, PacsRestServerConfigDefaults) {
 }
 
 TEST_F(DicomWebServiceTest, PacsHttpStatusValues) {
-    EXPECT_EQ(static_cast<uint16_t>(pacs::web::http_status::ok), 200);
-    EXPECT_EQ(static_cast<uint16_t>(pacs::web::http_status::not_found), 404);
-    EXPECT_EQ(static_cast<uint16_t>(pacs::web::http_status::internal_server_error), 500);
+    EXPECT_EQ(static_cast<uint16_t>(kcenon::pacs::web::http_status::ok), 200);
+    EXPECT_EQ(static_cast<uint16_t>(kcenon::pacs::web::http_status::not_found), 404);
+    EXPECT_EQ(static_cast<uint16_t>(kcenon::pacs::web::http_status::internal_server_error), 500);
 }
 
 TEST_F(DicomWebServiceTest, PacsJsonHelpers) {
-    auto errorJson = pacs::web::make_error_json("NOT_FOUND", "Resource not found");
+    auto errorJson = kcenon::pacs::web::make_error_json("NOT_FOUND", "Resource not found");
     EXPECT_FALSE(errorJson.empty());
     EXPECT_NE(errorJson.find("NOT_FOUND"), std::string::npos);
 
-    auto successJson = pacs::web::make_success_json("Operation completed");
+    auto successJson = kcenon::pacs::web::make_success_json("Operation completed");
     EXPECT_FALSE(successJson.empty());
     EXPECT_NE(successJson.find("success"), std::string::npos);
 }
 
 TEST_F(DicomWebServiceTest, PacsJsonEscape) {
-    auto escaped = pacs::web::json_escape("hello \"world\"");
+    auto escaped = kcenon::pacs::web::json_escape("hello \"world\"");
     EXPECT_NE(escaped.find("\\\""), std::string::npos);
     EXPECT_EQ(escaped.find("\"world\""), std::string::npos);
 }

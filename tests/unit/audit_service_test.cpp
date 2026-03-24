@@ -291,17 +291,17 @@ TEST_F(AuditServiceTest, TransportProtocolValues) {
 // --- pacs_system ATNA Audit Logger ---
 
 TEST_F(AuditServiceTest, PacsAuditLoggerBuildApplicationActivity) {
-    auto msg = pacs::security::atna_audit_logger::build_application_activity(
+    auto msg = kcenon::pacs::security::atna_audit_logger::build_application_activity(
         "TEST_SOURCE", "test_app", true);
     EXPECT_FALSE(msg.active_participants.empty())
         << "Application activity message should have participants";
-    EXPECT_EQ(msg.event_outcome, pacs::security::atna_event_outcome::success);
+    EXPECT_EQ(msg.event_outcome, kcenon::pacs::security::atna_event_outcome::success);
 }
 
 TEST_F(AuditServiceTest, PacsAuditLoggerToXmlNotEmpty) {
-    auto msg = pacs::security::atna_audit_logger::build_application_activity(
+    auto msg = kcenon::pacs::security::atna_audit_logger::build_application_activity(
         "TEST_SOURCE", "test_app", true);
-    auto xml = pacs::security::atna_audit_logger::to_xml(msg);
+    auto xml = kcenon::pacs::security::atna_audit_logger::to_xml(msg);
     EXPECT_FALSE(xml.empty())
         << "XML serialization should produce non-empty output";
     EXPECT_NE(xml.find("AuditMessage"), std::string::npos)
@@ -309,7 +309,7 @@ TEST_F(AuditServiceTest, PacsAuditLoggerToXmlNotEmpty) {
 }
 
 TEST_F(AuditServiceTest, PacsAuditLoggerBuildQuery) {
-    auto msg = pacs::security::atna_audit_logger::build_query(
+    auto msg = kcenon::pacs::security::atna_audit_logger::build_query(
         "TEST_SOURCE", "CALLING_AE", "192.168.1.1", "STUDY", "PAT001");
     EXPECT_FALSE(msg.active_participants.empty());
     EXPECT_FALSE(msg.participant_objects.empty())
@@ -317,7 +317,7 @@ TEST_F(AuditServiceTest, PacsAuditLoggerBuildQuery) {
 }
 
 TEST_F(AuditServiceTest, PacsAuditLoggerBuildInstancesTransferred) {
-    auto msg = pacs::security::atna_audit_logger::build_dicom_instances_transferred(
+    auto msg = kcenon::pacs::security::atna_audit_logger::build_dicom_instances_transferred(
         "TEST_SOURCE", "SRC_AE", "10.0.0.1", "DST_AE", "10.0.0.2",
         "1.2.3.4.5", "PAT001", true);
     EXPECT_GE(msg.active_participants.size(), 2u)
@@ -325,15 +325,15 @@ TEST_F(AuditServiceTest, PacsAuditLoggerBuildInstancesTransferred) {
 }
 
 TEST_F(AuditServiceTest, PacsAuditLoggerBuildSecurityAlert) {
-    auto msg = pacs::security::atna_audit_logger::build_security_alert(
+    auto msg = kcenon::pacs::security::atna_audit_logger::build_security_alert(
         "TEST_SOURCE", "USER01", "192.168.1.1", "Unauthorized access attempt");
-    EXPECT_EQ(msg.event_outcome, pacs::security::atna_event_outcome::serious_failure);
+    EXPECT_EQ(msg.event_outcome, kcenon::pacs::security::atna_event_outcome::serious_failure);
 }
 
 // --- ATNA Config Defaults ---
 
 TEST_F(AuditServiceTest, PacsDefaultAtnaConfig) {
-    auto config = pacs::security::make_default_atna_config();
+    auto config = kcenon::pacs::security::make_default_atna_config();
     EXPECT_FALSE(config.enabled)
         << "Default ATNA config should be disabled";
     EXPECT_FALSE(config.audit_source_id.empty());

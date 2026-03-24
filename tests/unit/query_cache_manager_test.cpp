@@ -360,17 +360,17 @@ TEST_F(QueryCacheManagerTest, BuildKeyNotEmpty) {
 // --- pacs_system Cache Integration ---
 
 TEST_F(QueryCacheManagerTest, PacsQueryCacheDirectConstruction) {
-    pacs::services::cache::query_cache_config config;
+    kcenon::pacs::services::cache::query_cache_config config;
     config.max_entries = 10;
     config.ttl = std::chrono::seconds{60};
 
-    pacs::services::cache::query_cache cache(config);
+    kcenon::pacs::services::cache::query_cache cache(config);
     EXPECT_EQ(cache.max_size(), 10u);
     EXPECT_TRUE(cache.empty());
 }
 
 TEST_F(QueryCacheManagerTest, PacsQueryCacheBuildKey) {
-    auto key = pacs::services::cache::query_cache::build_key("STUDY", {
+    auto key = kcenon::pacs::services::cache::query_cache::build_key("STUDY", {
         {"PatientID", "12345"}
     });
     EXPECT_FALSE(key.empty());
