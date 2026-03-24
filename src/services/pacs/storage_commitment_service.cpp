@@ -41,7 +41,7 @@ namespace dicom_viewer::services {
 
 namespace {
 
-CommitmentStatus mapStatus(const pacs::services::commitment_result& result) {
+CommitmentStatus mapStatus(const kcenon::pacs::services::commitment_result& result) {
     if (result.failed_references.empty() && !result.success_references.empty()) {
         return CommitmentStatus::Committed;
     }
@@ -52,25 +52,25 @@ CommitmentStatus mapStatus(const pacs::services::commitment_result& result) {
 }
 
 CommitmentFailureReason mapFailureReason(
-    pacs::services::commitment_failure_reason reason) {
+    kcenon::pacs::services::commitment_failure_reason reason) {
     switch (reason) {
-    case pacs::services::commitment_failure_reason::processing_failure:
+    case kcenon::pacs::services::commitment_failure_reason::processing_failure:
         return CommitmentFailureReason::ProcessingFailure;
-    case pacs::services::commitment_failure_reason::no_such_object_instance:
+    case kcenon::pacs::services::commitment_failure_reason::no_such_object_instance:
         return CommitmentFailureReason::NoSuchObjectInstance;
-    case pacs::services::commitment_failure_reason::resource_limitation:
+    case kcenon::pacs::services::commitment_failure_reason::resource_limitation:
         return CommitmentFailureReason::ResourceLimitation;
-    case pacs::services::commitment_failure_reason::referenced_sop_class_not_supported:
+    case kcenon::pacs::services::commitment_failure_reason::referenced_sop_class_not_supported:
         return CommitmentFailureReason::ReferencedSopClassNotSupported;
-    case pacs::services::commitment_failure_reason::class_instance_conflict:
+    case kcenon::pacs::services::commitment_failure_reason::class_instance_conflict:
         return CommitmentFailureReason::ClassInstanceConflict;
-    case pacs::services::commitment_failure_reason::duplicate_transaction_uid:
+    case kcenon::pacs::services::commitment_failure_reason::duplicate_transaction_uid:
         return CommitmentFailureReason::DuplicateTransactionUid;
     }
     return CommitmentFailureReason::ProcessingFailure;
 }
 
-CommitmentResult convertResult(const pacs::services::commitment_result& pacsResult) {
+CommitmentResult convertResult(const kcenon::pacs::services::commitment_result& pacsResult) {
     CommitmentResult result;
     result.transactionUid = pacsResult.transaction_uid;
     result.status = mapStatus(pacsResult);
@@ -93,10 +93,10 @@ CommitmentResult convertResult(const pacs::services::commitment_result& pacsResu
 
 class StorageCommitmentService::Impl {
 public:
-    Impl() : scu_(std::make_unique<pacs::services::storage_commitment_scu>()) {
+    Impl() : scu_(std::make_unique<kcenon::pacs::services::storage_commitment_scu>()) {
         scu_->set_commitment_callback(
             [this](const std::string& transactionUid,
-                   const pacs::services::commitment_result& result) {
+                   const kcenon::pacs::services::commitment_result& result) {
                 handleCommitmentResult(transactionUid, result);
             });
     }
@@ -122,7 +122,7 @@ public:
         std::string transactionUid = generateTransactionUid();
 
         // Convert references to pacs_system types
-        std::vector<pacs::services::sop_reference> pacsRefs;
+        std::vector<kcenon::pacs::services::sop_reference> pacsRefs;
         pacsRefs.reserve(instances.size());
         for (const auto& inst : instances) {
             pacsRefs.push_back({inst.sopClassUid, inst.sopInstanceUid});
@@ -182,7 +182,7 @@ public:
     }
 
 private:
-    std::unique_ptr<pacs::services::storage_commitment_scu> scu_;
+    std::unique_ptr<kcenon::pacs::services::storage_commitment_scu> scu_;
 
     mutable std::mutex resultsMutex_;
     std::map<std::string, CommitmentResult> results_;
@@ -193,7 +193,7 @@ private:
     uint64_t uidCounter_{0};
 
     void handleCommitmentResult(const std::string& transactionUid,
-                                const pacs::services::commitment_result& pacsResult) {
+                                const kcenon::pacs::services::commitment_result& pacsResult) {
         auto result = convertResult(pacsResult);
 
         spdlog::info("Storage commitment result for {}: {} succeeded, {} failed",

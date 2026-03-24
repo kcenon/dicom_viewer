@@ -40,8 +40,8 @@ namespace dicom_viewer::services {
 
 namespace {
 
-pacs::web::rest_server_config toRestConfig(const DicomWebConfig& config) {
-    pacs::web::rest_server_config rc;
+kcenon::pacs::web::rest_server_config toRestConfig(const DicomWebConfig& config) {
+    kcenon::pacs::web::rest_server_config rc;
     rc.bind_address = config.bindAddress;
     rc.port = config.port;
     rc.concurrency = config.concurrency;
@@ -89,7 +89,7 @@ public:
         auto rc = toRestConfig(config);
 
         try {
-            server_ = std::make_unique<pacs::web::rest_server>(rc);
+            server_ = std::make_unique<kcenon::pacs::web::rest_server>(rc);
         } catch (const std::exception& e) {
             server_.reset();
             return std::unexpected(PacsErrorInfo{
@@ -162,7 +162,7 @@ public:
 
 private:
     DicomWebConfig config_;
-    std::unique_ptr<pacs::web::rest_server> server_;
+    std::unique_ptr<kcenon::pacs::web::rest_server> server_;
     mutable std::mutex mutex_;
 };
 

@@ -93,22 +93,22 @@ const char* getSopClassUid(QueryRoot root) {
 
 // Additional tag definitions not in pacs_system
 namespace local_tags {
-inline constexpr pacs::core::dicom_tag body_part_examined{0x0018, 0x0015};
+inline constexpr kcenon::pacs::core::dicom_tag body_part_examined{0x0018, 0x0015};
 }
 
 /**
  * @brief Helper to safely get string from pacs_system dataset with charset decoding
  */
-std::string getStringFromDataset(const pacs::core::dicom_dataset& dataset,
-                                  pacs::core::dicom_tag tag) {
-    return pacs::encoding::get_decoded_string(dataset, tag);
+std::string getStringFromDataset(const kcenon::pacs::core::dicom_dataset& dataset,
+                                  kcenon::pacs::core::dicom_tag tag) {
+    return kcenon::pacs::encoding::get_decoded_string(dataset, tag);
 }
 
 /**
  * @brief Helper to safely get integer from pacs_system dataset
  */
-int32_t getIntFromDataset(const pacs::core::dicom_dataset& dataset,
-                           pacs::core::dicom_tag tag) {
+int32_t getIntFromDataset(const kcenon::pacs::core::dicom_dataset& dataset,
+                           kcenon::pacs::core::dicom_tag tag) {
     auto value = dataset.get_numeric<int32_t>(tag);
     if (value) {
         return *value;
@@ -129,63 +129,63 @@ int32_t getIntFromDataset(const pacs::core::dicom_dataset& dataset,
 /**
  * @brief Parse a patient result from pacs_system dataset
  */
-PatientResult parsePatientResult(const pacs::core::dicom_dataset& dataset) {
+PatientResult parsePatientResult(const kcenon::pacs::core::dicom_dataset& dataset) {
     PatientResult result;
-    result.patientId = getStringFromDataset(dataset, pacs::core::tags::patient_id);
-    result.patientName = getStringFromDataset(dataset, pacs::core::tags::patient_name);
-    result.patientBirthDate = getStringFromDataset(dataset, pacs::core::tags::patient_birth_date);
-    result.patientSex = getStringFromDataset(dataset, pacs::core::tags::patient_sex);
-    result.numberOfStudies = getIntFromDataset(dataset, pacs::core::tags::number_of_patient_related_studies);
+    result.patientId = getStringFromDataset(dataset, kcenon::pacs::core::tags::patient_id);
+    result.patientName = getStringFromDataset(dataset, kcenon::pacs::core::tags::patient_name);
+    result.patientBirthDate = getStringFromDataset(dataset, kcenon::pacs::core::tags::patient_birth_date);
+    result.patientSex = getStringFromDataset(dataset, kcenon::pacs::core::tags::patient_sex);
+    result.numberOfStudies = getIntFromDataset(dataset, kcenon::pacs::core::tags::number_of_patient_related_studies);
     return result;
 }
 
 /**
  * @brief Parse a study result from pacs_system dataset
  */
-StudyResult parseStudyResult(const pacs::core::dicom_dataset& dataset) {
+StudyResult parseStudyResult(const kcenon::pacs::core::dicom_dataset& dataset) {
     StudyResult result;
-    result.studyInstanceUid = getStringFromDataset(dataset, pacs::core::tags::study_instance_uid);
-    result.studyDate = getStringFromDataset(dataset, pacs::core::tags::study_date);
-    result.studyTime = getStringFromDataset(dataset, pacs::core::tags::study_time);
-    result.studyDescription = getStringFromDataset(dataset, pacs::core::tags::study_description);
-    result.accessionNumber = getStringFromDataset(dataset, pacs::core::tags::accession_number);
-    result.referringPhysician = getStringFromDataset(dataset, pacs::core::tags::referring_physician_name);
-    result.patientId = getStringFromDataset(dataset, pacs::core::tags::patient_id);
-    result.patientName = getStringFromDataset(dataset, pacs::core::tags::patient_name);
-    result.modalitiesInStudy = getStringFromDataset(dataset, pacs::core::tags::modalities_in_study);
-    result.numberOfSeries = getIntFromDataset(dataset, pacs::core::tags::number_of_study_related_series);
-    result.numberOfInstances = getIntFromDataset(dataset, pacs::core::tags::number_of_study_related_instances);
+    result.studyInstanceUid = getStringFromDataset(dataset, kcenon::pacs::core::tags::study_instance_uid);
+    result.studyDate = getStringFromDataset(dataset, kcenon::pacs::core::tags::study_date);
+    result.studyTime = getStringFromDataset(dataset, kcenon::pacs::core::tags::study_time);
+    result.studyDescription = getStringFromDataset(dataset, kcenon::pacs::core::tags::study_description);
+    result.accessionNumber = getStringFromDataset(dataset, kcenon::pacs::core::tags::accession_number);
+    result.referringPhysician = getStringFromDataset(dataset, kcenon::pacs::core::tags::referring_physician_name);
+    result.patientId = getStringFromDataset(dataset, kcenon::pacs::core::tags::patient_id);
+    result.patientName = getStringFromDataset(dataset, kcenon::pacs::core::tags::patient_name);
+    result.modalitiesInStudy = getStringFromDataset(dataset, kcenon::pacs::core::tags::modalities_in_study);
+    result.numberOfSeries = getIntFromDataset(dataset, kcenon::pacs::core::tags::number_of_study_related_series);
+    result.numberOfInstances = getIntFromDataset(dataset, kcenon::pacs::core::tags::number_of_study_related_instances);
     return result;
 }
 
 /**
  * @brief Parse a series result from pacs_system dataset
  */
-SeriesResult parseSeriesResult(const pacs::core::dicom_dataset& dataset) {
+SeriesResult parseSeriesResult(const kcenon::pacs::core::dicom_dataset& dataset) {
     SeriesResult result;
-    result.seriesInstanceUid = getStringFromDataset(dataset, pacs::core::tags::series_instance_uid);
-    result.studyInstanceUid = getStringFromDataset(dataset, pacs::core::tags::study_instance_uid);
-    result.modality = getStringFromDataset(dataset, pacs::core::tags::modality);
-    result.seriesNumber = getIntFromDataset(dataset, pacs::core::tags::series_number);
-    result.seriesDescription = getStringFromDataset(dataset, pacs::core::tags::series_description);
-    result.seriesDate = getStringFromDataset(dataset, pacs::core::tags::series_date);
-    result.seriesTime = getStringFromDataset(dataset, pacs::core::tags::series_time);
+    result.seriesInstanceUid = getStringFromDataset(dataset, kcenon::pacs::core::tags::series_instance_uid);
+    result.studyInstanceUid = getStringFromDataset(dataset, kcenon::pacs::core::tags::study_instance_uid);
+    result.modality = getStringFromDataset(dataset, kcenon::pacs::core::tags::modality);
+    result.seriesNumber = getIntFromDataset(dataset, kcenon::pacs::core::tags::series_number);
+    result.seriesDescription = getStringFromDataset(dataset, kcenon::pacs::core::tags::series_description);
+    result.seriesDate = getStringFromDataset(dataset, kcenon::pacs::core::tags::series_date);
+    result.seriesTime = getStringFromDataset(dataset, kcenon::pacs::core::tags::series_time);
     result.bodyPartExamined = getStringFromDataset(dataset, local_tags::body_part_examined);
-    result.numberOfInstances = getIntFromDataset(dataset, pacs::core::tags::number_of_series_related_instances);
+    result.numberOfInstances = getIntFromDataset(dataset, kcenon::pacs::core::tags::number_of_series_related_instances);
     return result;
 }
 
 /**
  * @brief Parse an image result from pacs_system dataset
  */
-ImageResult parseImageResult(const pacs::core::dicom_dataset& dataset) {
+ImageResult parseImageResult(const kcenon::pacs::core::dicom_dataset& dataset) {
     ImageResult result;
-    result.sopInstanceUid = getStringFromDataset(dataset, pacs::core::tags::sop_instance_uid);
-    result.sopClassUid = getStringFromDataset(dataset, pacs::core::tags::sop_class_uid);
-    result.seriesInstanceUid = getStringFromDataset(dataset, pacs::core::tags::series_instance_uid);
-    result.instanceNumber = getIntFromDataset(dataset, pacs::core::tags::instance_number);
-    result.contentDate = getStringFromDataset(dataset, pacs::core::tags::content_date);
-    result.contentTime = getStringFromDataset(dataset, pacs::core::tags::content_time);
+    result.sopInstanceUid = getStringFromDataset(dataset, kcenon::pacs::core::tags::sop_instance_uid);
+    result.sopClassUid = getStringFromDataset(dataset, kcenon::pacs::core::tags::sop_class_uid);
+    result.seriesInstanceUid = getStringFromDataset(dataset, kcenon::pacs::core::tags::series_instance_uid);
+    result.instanceNumber = getIntFromDataset(dataset, kcenon::pacs::core::tags::instance_number);
+    result.contentDate = getStringFromDataset(dataset, kcenon::pacs::core::tags::content_date);
+    result.contentTime = getStringFromDataset(dataset, kcenon::pacs::core::tags::content_time);
     return result;
 }
 
@@ -242,7 +242,7 @@ private:
         FindResult findResult;
 
         // Build association configuration
-        pacs::network::association_config assocConfig;
+        kcenon::pacs::network::association_config assocConfig;
         assocConfig.calling_ae_title = config.callingAeTitle;
         assocConfig.called_ae_title = config.calledAeTitle;
         assocConfig.max_pdu_length = config.maxPduSize;
@@ -251,7 +251,7 @@ private:
         const char* sopClassUid = getSopClassUid(query.root);
 
         // Add presentation context for Query/Retrieve FIND
-        pacs::network::proposed_presentation_context findCtx;
+        kcenon::pacs::network::proposed_presentation_context findCtx;
         findCtx.id = 1;
         findCtx.abstract_syntax = sopClassUid;
         findCtx.transfer_syntaxes = {
@@ -273,10 +273,10 @@ private:
                      config.hostname, config.port, config.calledAeTitle);
 
         // Connect to remote SCP
-        auto timeout = std::chrono::duration_cast<pacs::network::association::duration>(
+        auto timeout = std::chrono::duration_cast<kcenon::pacs::network::association::duration>(
             config.connectionTimeout
         );
-        auto connectResult = pacs::network::association::connect(
+        auto connectResult = kcenon::pacs::network::association::connect(
             config.hostname,
             config.port,
             assocConfig,
@@ -310,32 +310,32 @@ private:
         }
 
         // Build query dataset
-        pacs::core::dicom_dataset queryDataset;
+        kcenon::pacs::core::dicom_dataset queryDataset;
         buildQueryDataset(queryDataset, query);
 
         // Configure query_scu
-        pacs::services::query_scu_config scuConfig;
+        kcenon::pacs::services::query_scu_config scuConfig;
         scuConfig.model = (query.root == QueryRoot::PatientRoot)
-            ? pacs::services::query_model::patient_root
-            : pacs::services::query_model::study_root;
+            ? kcenon::pacs::services::query_model::patient_root
+            : kcenon::pacs::services::query_model::study_root;
 
         switch (query.level) {
             case QueryLevel::Patient:
-                scuConfig.level = pacs::services::query_level::patient;
+                scuConfig.level = kcenon::pacs::services::query_level::patient;
                 break;
             case QueryLevel::Study:
-                scuConfig.level = pacs::services::query_level::study;
+                scuConfig.level = kcenon::pacs::services::query_level::study;
                 break;
             case QueryLevel::Series:
-                scuConfig.level = pacs::services::query_level::series;
+                scuConfig.level = kcenon::pacs::services::query_level::series;
                 break;
             case QueryLevel::Image:
-                scuConfig.level = pacs::services::query_level::image;
+                scuConfig.level = kcenon::pacs::services::query_level::image;
                 break;
         }
         scuConfig.timeout = config.dimseTimeout;
 
-        pacs::services::query_scu scu(scuConfig);
+        kcenon::pacs::services::query_scu scu(scuConfig);
 
         spdlog::debug("Sending C-FIND request");
 
@@ -343,7 +343,7 @@ private:
         auto queryResult = scu.find_streaming(
             assoc,
             queryDataset,
-            [this, &findResult, level = query.level](const pacs::core::dicom_dataset& response) {
+            [this, &findResult, level = query.level](const kcenon::pacs::core::dicom_dataset& response) {
                 if (cancelled_.load()) {
                     spdlog::debug("C-FIND cancelled, stopping result collection");
                     return false;  // Stop receiving
@@ -374,7 +374,7 @@ private:
         );
 
         // Release association gracefully
-        auto dimseTimeout = std::chrono::duration_cast<pacs::network::association::duration>(
+        auto dimseTimeout = std::chrono::duration_cast<kcenon::pacs::network::association::duration>(
             config.dimseTimeout
         );
         auto releaseResult = assoc.release(dimseTimeout);
@@ -394,7 +394,7 @@ private:
                 });
             }
 
-            if (err.code == pacs::error_codes::receive_timeout) {
+            if (err.code == kcenon::pacs::error_codes::receive_timeout) {
                 return std::unexpected(PacsErrorInfo{
                     PacsError::Timeout,
                     "C-FIND timeout: " + err.message
@@ -413,9 +413,9 @@ private:
         return findResult;
     }
 
-    void buildQueryDataset(pacs::core::dicom_dataset& dataset, const FindQuery& query) {
-        using namespace pacs::core;
-        using vr = pacs::encoding::vr_type;
+    void buildQueryDataset(kcenon::pacs::core::dicom_dataset& dataset, const FindQuery& query) {
+        using namespace kcenon::pacs::core;
+        using vr = kcenon::pacs::encoding::vr_type;
 
         // Set Query/Retrieve Level
         dataset.set_string(tags::query_retrieve_level, vr::CS, queryLevelToString(query.level));
@@ -507,11 +507,11 @@ private:
         }
     }
 
-    std::unexpected<PacsErrorInfo> mapAssociationError(const pacs::error_info& err) {
+    std::unexpected<PacsErrorInfo> mapAssociationError(const kcenon::pacs::error_info& err) {
         int code = err.code;
 
-        if (code == pacs::error_codes::connection_failed ||
-            code == pacs::error_codes::connection_timeout) {
+        if (code == kcenon::pacs::error_codes::connection_failed ||
+            code == kcenon::pacs::error_codes::connection_timeout) {
             spdlog::error("Connection failed: {}", err.message);
             return std::unexpected(PacsErrorInfo{
                 PacsError::ConnectionFailed,
@@ -519,7 +519,7 @@ private:
             });
         }
 
-        if (code == pacs::error_codes::association_rejected) {
+        if (code == kcenon::pacs::error_codes::association_rejected) {
             spdlog::error("Association rejected: {}", err.message);
             return std::unexpected(PacsErrorInfo{
                 PacsError::AssociationRejected,
@@ -527,8 +527,8 @@ private:
             });
         }
 
-        if (code == pacs::error_codes::receive_timeout ||
-            code == pacs::error_codes::connection_timeout) {
+        if (code == kcenon::pacs::error_codes::receive_timeout ||
+            code == kcenon::pacs::error_codes::connection_timeout) {
             spdlog::error("Connection timeout: {}", err.message);
             return std::unexpected(PacsErrorInfo{
                 PacsError::Timeout,

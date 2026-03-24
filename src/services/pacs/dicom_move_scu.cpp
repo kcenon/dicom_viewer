@@ -96,8 +96,8 @@ std::string sanitizeUidForPath(const std::string& uid) {
 /**
  * @brief Helper to extract string from pacs_system dataset
  */
-std::string getStringFromDataset(const pacs::core::dicom_dataset& dataset,
-                                  pacs::core::dicom_tag tag) {
+std::string getStringFromDataset(const kcenon::pacs::core::dicom_dataset& dataset,
+                                  kcenon::pacs::core::dicom_tag tag) {
     return dataset.get_string(tag, "");
 }
 
@@ -233,7 +233,7 @@ private:
         auto startTime = std::chrono::steady_clock::now();
 
         // Build association configuration
-        pacs::network::association_config assocConfig;
+        kcenon::pacs::network::association_config assocConfig;
         assocConfig.calling_ae_title = config.callingAeTitle;
         assocConfig.called_ae_title = config.calledAeTitle;
         assocConfig.max_pdu_length = config.maxPduSize;
@@ -242,7 +242,7 @@ private:
         const char* moveSopClassUid = getMoveSopClassUid(moveConfig.queryRoot);
 
         // Add presentation context for Query/Retrieve MOVE
-        pacs::network::proposed_presentation_context moveCtx;
+        kcenon::pacs::network::proposed_presentation_context moveCtx;
         moveCtx.id = 1;
         moveCtx.abstract_syntax = moveSopClassUid;
         moveCtx.transfer_syntaxes = {
@@ -268,10 +268,10 @@ private:
                      config.hostname, config.port, config.calledAeTitle);
 
         // Connect to remote SCP
-        auto timeout = std::chrono::duration_cast<pacs::network::association::duration>(
+        auto timeout = std::chrono::duration_cast<kcenon::pacs::network::association::duration>(
             config.connectionTimeout
         );
-        auto connectResult = pacs::network::association::connect(
+        auto connectResult = kcenon::pacs::network::association::connect(
             config.hostname,
             config.port,
             assocConfig,
@@ -308,7 +308,7 @@ private:
         }
 
         // Build query/move dataset
-        pacs::core::dicom_dataset queryDataset;
+        kcenon::pacs::core::dicom_dataset queryDataset;
         buildMoveDataset(queryDataset, level, studyUid, seriesUid, sopInstanceUid);
 
         // Determine move destination
@@ -319,27 +319,27 @@ private:
         spdlog::info("Sending C-MOVE request (Destination: {})", moveDestination);
 
         // Configure retrieve_scu
-        pacs::services::retrieve_scu_config scuConfig;
-        scuConfig.mode = pacs::services::retrieve_mode::c_move;
+        kcenon::pacs::services::retrieve_scu_config scuConfig;
+        scuConfig.mode = kcenon::pacs::services::retrieve_mode::c_move;
         scuConfig.model = (moveConfig.queryRoot == QueryRoot::PatientRoot)
-            ? pacs::services::query_model::patient_root
-            : pacs::services::query_model::study_root;
+            ? kcenon::pacs::services::query_model::patient_root
+            : kcenon::pacs::services::query_model::study_root;
 
         switch (level) {
             case RetrieveLevel::Study:
-                scuConfig.level = pacs::services::query_level::study;
+                scuConfig.level = kcenon::pacs::services::query_level::study;
                 break;
             case RetrieveLevel::Series:
-                scuConfig.level = pacs::services::query_level::series;
+                scuConfig.level = kcenon::pacs::services::query_level::series;
                 break;
             case RetrieveLevel::Image:
-                scuConfig.level = pacs::services::query_level::image;
+                scuConfig.level = kcenon::pacs::services::query_level::image;
                 break;
         }
         scuConfig.move_destination = moveDestination;
         scuConfig.timeout = config.dimseTimeout;
 
-        pacs::services::retrieve_scu scu(scuConfig);
+        kcenon::pacs::services::retrieve_scu scu(scuConfig);
 
         // Track progress and received files
         MoveResult moveResult;
@@ -352,7 +352,7 @@ private:
             queryDataset,
             moveDestination,
             [this, &moveResult, &progressCallback, &cancelled = cancelled_](
-                const pacs::services::retrieve_progress& p
+                const kcenon::pacs::services::retrieve_progress& p
             ) {
                 if (cancelled.load()) {
                     spdlog::debug("C-MOVE cancelled");
@@ -392,7 +392,7 @@ private:
         );
 
         // Release association gracefully
-        auto dimseTimeout = std::chrono::duration_cast<pacs::network::association::duration>(
+        auto dimseTimeout = std::chrono::duration_cast<kcenon::pacs::network::association::duration>(
             config.dimseTimeout
         );
         auto releaseResult = assoc.release(dimseTimeout);
@@ -412,7 +412,7 @@ private:
                 return moveResult;  // Return partial results on cancellation
             }
 
-            if (err.code == pacs::error_codes::receive_timeout) {
+            if (err.code == kcenon::pacs::error_codes::receive_timeout) {
                 return std::unexpected(PacsErrorInfo{
                     PacsError::Timeout,
                     "C-MOVE timeout: " + err.message
@@ -443,14 +443,14 @@ private:
     }
 
     void buildMoveDataset(
-        pacs::core::dicom_dataset& dataset,
+        kcenon::pacs::core::dicom_dataset& dataset,
         RetrieveLevel level,
         const std::string& studyUid,
         const std::string& seriesUid,
         const std::string& sopInstanceUid
     ) {
-        using namespace pacs::core;
-        using vr = pacs::encoding::vr_type;
+        using namespace kcenon::pacs::core;
+        using vr = kcenon::pacs::encoding::vr_type;
 
         // Set Query/Retrieve Level
         dataset.set_string(tags::query_retrieve_level, vr::CS, retrieveLevelToString(level));
@@ -469,11 +469,11 @@ private:
         }
     }
 
-    std::unexpected<PacsErrorInfo> mapAssociationError(const pacs::error_info& err) {
+    std::unexpected<PacsErrorInfo> mapAssociationError(const kcenon::pacs::error_info& err) {
         int code = err.code;
 
-        if (code == pacs::error_codes::connection_failed ||
-            code == pacs::error_codes::connection_timeout) {
+        if (code == kcenon::pacs::error_codes::connection_failed ||
+            code == kcenon::pacs::error_codes::connection_timeout) {
             spdlog::error("Connection failed: {}", err.message);
             return std::unexpected(PacsErrorInfo{
                 PacsError::ConnectionFailed,
@@ -481,7 +481,7 @@ private:
             });
         }
 
-        if (code == pacs::error_codes::association_rejected) {
+        if (code == kcenon::pacs::error_codes::association_rejected) {
             spdlog::error("Association rejected: {}", err.message);
             return std::unexpected(PacsErrorInfo{
                 PacsError::AssociationRejected,
@@ -489,8 +489,8 @@ private:
             });
         }
 
-        if (code == pacs::error_codes::receive_timeout ||
-            code == pacs::error_codes::connection_timeout) {
+        if (code == kcenon::pacs::error_codes::receive_timeout ||
+            code == kcenon::pacs::error_codes::connection_timeout) {
             spdlog::error("Connection timeout: {}", err.message);
             return std::unexpected(PacsErrorInfo{
                 PacsError::Timeout,
