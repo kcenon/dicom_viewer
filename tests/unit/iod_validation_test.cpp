@@ -40,9 +40,9 @@
 
 namespace {
 
-using namespace pacs::core;
-using namespace pacs::encoding;
-using namespace pacs::services::validation;
+using namespace kcenon::pacs::core;
+using namespace kcenon::pacs::encoding;
+using namespace kcenon::pacs::services::validation;
 
 // Helper to build a minimal CT dataset with required Type 1 attributes
 dicom_dataset buildMinimalCTDataset() {

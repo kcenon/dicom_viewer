@@ -91,7 +91,7 @@ public:
         }
 
         // Configure server
-        pacs::network::server_config serverConfig;
+        kcenon::pacs::network::server_config serverConfig;
         serverConfig.ae_title = config_.aeTitle;
         serverConfig.port = config_.port;
         serverConfig.max_pdu_size = config_.maxPduSize;
@@ -99,18 +99,18 @@ public:
         serverConfig.max_associations = config_.maxAssociations;
 
         // Create server
-        server_ = std::make_unique<pacs::network::dicom_server>(serverConfig);
+        server_ = std::make_unique<kcenon::pacs::network::dicom_server>(serverConfig);
 
         // Create and configure storage SCP service
-        pacs::services::storage_scp_config scpConfig;
+        kcenon::pacs::services::storage_scp_config scpConfig;
         scpConfig.accepted_sop_classes = DicomStoreSCP::getSupportedSopClasses();
-        scpConfig.dup_policy = pacs::services::duplicate_policy::replace;
+        scpConfig.dup_policy = kcenon::pacs::services::duplicate_policy::replace;
 
-        storageScp_ = std::make_unique<pacs::services::storage_scp>(scpConfig);
+        storageScp_ = std::make_unique<kcenon::pacs::services::storage_scp>(scpConfig);
 
         // Set storage handler
         storageScp_->set_handler(
-            [this](const pacs::core::dicom_dataset& dataset,
+            [this](const kcenon::pacs::core::dicom_dataset& dataset,
                    const std::string& callingAe,
                    const std::string& sopClassUid,
                    const std::string& sopInstanceUid) {
@@ -120,7 +120,7 @@ public:
 
         // Set post-store handler for callbacks
         storageScp_->set_post_store_handler(
-            [this](const pacs::core::dicom_dataset& dataset,
+            [this](const kcenon::pacs::core::dicom_dataset& dataset,
                    const std::string& patientId,
                    const std::string& studyUid,
                    const std::string& seriesUid,
@@ -130,14 +130,14 @@ public:
         );
 
         // Create verification SCP for C-ECHO support
-        verificationScp_ = std::make_unique<pacs::services::verification_scp>();
+        verificationScp_ = std::make_unique<kcenon::pacs::services::verification_scp>();
 
         // Register services with server
         server_->register_service(std::move(storageScp_));
         server_->register_service(std::move(verificationScp_));
 
         // Set connection callbacks
-        server_->on_association_established([this](const pacs::network::association& assoc) {
+        server_->on_association_established([this](const kcenon::pacs::network::association& assoc) {
             std::string callingAe{assoc.calling_ae()};
             spdlog::info("Association request from: {}", callingAe);
 
@@ -154,7 +154,7 @@ public:
             }
         });
 
-        server_->on_association_released([this](const pacs::network::association& assoc) {
+        server_->on_association_released([this](const kcenon::pacs::network::association& assoc) {
             std::string callingAe{assoc.calling_ae()};
 
             {
@@ -243,9 +243,9 @@ public:
 
 private:
     StorageScpConfig config_;
-    std::unique_ptr<pacs::network::dicom_server> server_;
-    std::unique_ptr<pacs::services::storage_scp> storageScp_;
-    std::unique_ptr<pacs::services::verification_scp> verificationScp_;
+    std::unique_ptr<kcenon::pacs::network::dicom_server> server_;
+    std::unique_ptr<kcenon::pacs::services::storage_scp> storageScp_;
+    std::unique_ptr<kcenon::pacs::services::verification_scp> verificationScp_;
     std::atomic<bool> isRunning_{false};
 
     mutable std::mutex statusMutex_;
@@ -261,11 +261,11 @@ private:
     std::filesystem::path lastFilePath_;
 
     void validateReceivedDataset(
-        const pacs::core::dicom_dataset& dataset,
+        const kcenon::pacs::core::dicom_dataset& dataset,
         const std::string& sopClassUid,
         const std::string& sopInstanceUid
     ) {
-        using namespace pacs::services::validation;
+        using namespace kcenon::pacs::services::validation;
 
         validation_result result;
 
@@ -303,8 +303,8 @@ private:
         }
     }
 
-    pacs::services::storage_status handleStoreRequest(
-        const pacs::core::dicom_dataset& dataset,
+    kcenon::pacs::services::storage_status handleStoreRequest(
+        const kcenon::pacs::core::dicom_dataset& dataset,
         const std::string& callingAe,
         const std::string& sopClassUid,
         const std::string& sopInstanceUid
@@ -314,15 +314,15 @@ private:
             (sopInstanceUid + ".dcm");
 
         // Create DICOM file from dataset using default transfer syntax
-        auto file = pacs::core::dicom_file::create(
-            pacs::core::dicom_dataset{dataset},
-            pacs::encoding::transfer_syntax::explicit_vr_little_endian
+        auto file = kcenon::pacs::core::dicom_file::create(
+            kcenon::pacs::core::dicom_dataset{dataset},
+            kcenon::pacs::encoding::transfer_syntax::explicit_vr_little_endian
         );
 
         auto saveResult = file.save(filePath);
         if (!saveResult.is_ok()) {
             spdlog::error("Failed to save file: {}", saveResult.error().message);
-            return pacs::services::storage_status::out_of_resources_unable_to_store;
+            return kcenon::pacs::services::storage_status::out_of_resources_unable_to_store;
         }
 
         spdlog::info("Stored image: {}", filePath.string());
@@ -337,17 +337,17 @@ private:
             lastFilePath_ = filePath;
         }
 
-        return pacs::services::storage_status::success;
+        return kcenon::pacs::services::storage_status::success;
     }
 
     void handlePostStore(
-        const pacs::core::dicom_dataset& dataset,
+        const kcenon::pacs::core::dicom_dataset& dataset,
         const std::string& patientId,
         const std::string& studyUid,
         const std::string& seriesUid,
         const std::string& sopInstanceUid
     ) {
-        using namespace pacs::core;
+        using namespace kcenon::pacs::core;
 
         // Get stored info
         std::string callingAe;
@@ -363,7 +363,7 @@ private:
         info.filePath = filePath;
         info.sopClassUid = dataset.get_string(tags::sop_class_uid, "");
         info.sopInstanceUid = sopInstanceUid;
-        info.patientId = pacs::encoding::get_decoded_string(dataset, tags::patient_id);
+        info.patientId = kcenon::pacs::encoding::get_decoded_string(dataset, tags::patient_id);
         info.studyInstanceUid = studyUid;
         info.seriesInstanceUid = seriesUid;
         info.callingAeTitle = callingAe;

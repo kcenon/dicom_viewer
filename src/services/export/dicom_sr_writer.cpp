@@ -75,29 +75,29 @@ std::string formatDateTime(const std::chrono::system_clock::time_point& tp,
 
 // SR-related DICOM tags (not in pacs_system's tag_constants.hpp)
 namespace sr_tags {
-    inline constexpr pacs::core::dicom_tag value_type{0x0040, 0xA040};
-    inline constexpr pacs::core::dicom_tag concept_name_code_sequence{0x0040, 0xA043};
-    inline constexpr pacs::core::dicom_tag content_sequence{0x0040, 0xA730};
-    inline constexpr pacs::core::dicom_tag relationship_type{0x0040, 0xA010};
-    inline constexpr pacs::core::dicom_tag text_value{0x0040, 0xA160};
-    inline constexpr pacs::core::dicom_tag measured_value_sequence{0x0040, 0xA300};
-    inline constexpr pacs::core::dicom_tag measurement_units_code_sequence{0x0040, 0x08EA};
-    inline constexpr pacs::core::dicom_tag numeric_value{0x0040, 0xA30A};
-    inline constexpr pacs::core::dicom_tag code_value{0x0008, 0x0100};
-    inline constexpr pacs::core::dicom_tag coding_scheme_designator{0x0008, 0x0102};
-    inline constexpr pacs::core::dicom_tag code_meaning{0x0008, 0x0104};
-    inline constexpr pacs::core::dicom_tag graphic_type{0x0070, 0x0023};
-    inline constexpr pacs::core::dicom_tag graphic_data{0x0070, 0x0022};
-    inline constexpr pacs::core::dicom_tag referenced_frame_of_reference_uid{0x3006, 0x0024};
-    inline constexpr pacs::core::dicom_tag completion_flag{0x0040, 0xA491};
-    inline constexpr pacs::core::dicom_tag verification_flag{0x0040, 0xA493};
-    inline constexpr pacs::core::dicom_tag uid_value{0x0040, 0xA124};
+    inline constexpr kcenon::pacs::core::dicom_tag value_type{0x0040, 0xA040};
+    inline constexpr kcenon::pacs::core::dicom_tag concept_name_code_sequence{0x0040, 0xA043};
+    inline constexpr kcenon::pacs::core::dicom_tag content_sequence{0x0040, 0xA730};
+    inline constexpr kcenon::pacs::core::dicom_tag relationship_type{0x0040, 0xA010};
+    inline constexpr kcenon::pacs::core::dicom_tag text_value{0x0040, 0xA160};
+    inline constexpr kcenon::pacs::core::dicom_tag measured_value_sequence{0x0040, 0xA300};
+    inline constexpr kcenon::pacs::core::dicom_tag measurement_units_code_sequence{0x0040, 0x08EA};
+    inline constexpr kcenon::pacs::core::dicom_tag numeric_value{0x0040, 0xA30A};
+    inline constexpr kcenon::pacs::core::dicom_tag code_value{0x0008, 0x0100};
+    inline constexpr kcenon::pacs::core::dicom_tag coding_scheme_designator{0x0008, 0x0102};
+    inline constexpr kcenon::pacs::core::dicom_tag code_meaning{0x0008, 0x0104};
+    inline constexpr kcenon::pacs::core::dicom_tag graphic_type{0x0070, 0x0023};
+    inline constexpr kcenon::pacs::core::dicom_tag graphic_data{0x0070, 0x0022};
+    inline constexpr kcenon::pacs::core::dicom_tag referenced_frame_of_reference_uid{0x3006, 0x0024};
+    inline constexpr kcenon::pacs::core::dicom_tag completion_flag{0x0040, 0xA491};
+    inline constexpr kcenon::pacs::core::dicom_tag verification_flag{0x0040, 0xA493};
+    inline constexpr kcenon::pacs::core::dicom_tag uid_value{0x0040, 0xA124};
 }
 
 // Helper to create a coded entry dataset
-pacs::core::dicom_dataset createCodedEntry(const DicomCode& code) {
-    using namespace pacs::encoding;
-    pacs::core::dicom_dataset ds;
+kcenon::pacs::core::dicom_dataset createCodedEntry(const DicomCode& code) {
+    using namespace kcenon::pacs::encoding;
+    kcenon::pacs::core::dicom_dataset ds;
     ds.set_string(sr_tags::code_value, vr_type::SH, code.value);
     ds.set_string(sr_tags::coding_scheme_designator, vr_type::SH, code.scheme);
     ds.set_string(sr_tags::code_meaning, vr_type::LO, code.meaning);
@@ -105,13 +105,13 @@ pacs::core::dicom_dataset createCodedEntry(const DicomCode& code) {
 }
 
 // Helper to create a content item with concept name
-pacs::core::dicom_dataset createContentItem(
+kcenon::pacs::core::dicom_dataset createContentItem(
     const std::string& valueType,
     const std::string& relationshipType,
     const DicomCode& conceptName
 ) {
-    using namespace pacs::encoding;
-    pacs::core::dicom_dataset item;
+    using namespace kcenon::pacs::encoding;
+    kcenon::pacs::core::dicom_dataset item;
     item.set_string(sr_tags::value_type, vr_type::CS, valueType);
     item.set_string(sr_tags::relationship_type, vr_type::CS, relationshipType);
 
@@ -217,9 +217,9 @@ public:
         reportProgress(0.7, "Writing to DICOM file...");
 
         // Create DICOM file and save
-        auto file = pacs::core::dicom_file::create(
+        auto file = kcenon::pacs::core::dicom_file::create(
             std::move(*srDataset),
-            pacs::encoding::transfer_syntax::explicit_vr_little_endian
+            kcenon::pacs::encoding::transfer_syntax::explicit_vr_little_endian
         );
 
         auto saveResult = file.save(outputPath);
@@ -271,15 +271,15 @@ public:
         reportProgress(0.4, "Connecting to PACS...");
 
         // Build association configuration
-        pacs::network::association_config assocConfig;
+        kcenon::pacs::network::association_config assocConfig;
         assocConfig.calling_ae_title = pacsConfig.callingAeTitle;
         assocConfig.called_ae_title = pacsConfig.calledAeTitle;
         assocConfig.max_pdu_length = pacsConfig.maxPduSize;
 
         // Add Comprehensive SR Storage presentation context
-        pacs::network::proposed_presentation_context srCtx;
+        kcenon::pacs::network::proposed_presentation_context srCtx;
         srCtx.id = 1;
-        srCtx.abstract_syntax = std::string(pacs::services::sop_classes::comprehensive_sr_storage_uid);
+        srCtx.abstract_syntax = std::string(kcenon::pacs::services::sop_classes::comprehensive_sr_storage_uid);
         srCtx.transfer_syntaxes = {
             "1.2.840.10008.1.2.1",  // Explicit VR Little Endian
             "1.2.840.10008.1.2.2",  // Explicit VR Big Endian
@@ -288,10 +288,10 @@ public:
         assocConfig.proposed_contexts.push_back(srCtx);
 
         // Connect to PACS
-        auto timeout = std::chrono::duration_cast<pacs::network::association::duration>(
+        auto timeout = std::chrono::duration_cast<kcenon::pacs::network::association::duration>(
             pacsConfig.connectionTimeout
         );
-        auto connectResult = pacs::network::association::connect(
+        auto connectResult = kcenon::pacs::network::association::connect(
             pacsConfig.hostname,
             pacsConfig.port,
             assocConfig,
@@ -308,7 +308,7 @@ public:
         auto assoc = std::move(connectResult.value());
 
         // Check if SR Storage was accepted
-        if (!assoc.has_accepted_context(std::string(pacs::services::sop_classes::comprehensive_sr_storage_uid))) {
+        if (!assoc.has_accepted_context(std::string(kcenon::pacs::services::sop_classes::comprehensive_sr_storage_uid))) {
             assoc.abort();
             return std::unexpected(SRError{
                 SRError::Code::PacsConnectionFailed,
@@ -319,11 +319,11 @@ public:
         reportProgress(0.6, "Sending SR to PACS...");
 
         // Store the SR
-        pacs::services::storage_scu scu;
+        kcenon::pacs::services::storage_scu scu;
         auto storeResult = scu.store(assoc, *srDataset);
 
         // Release association
-        auto dimseTimeout = std::chrono::duration_cast<pacs::network::association::duration>(
+        auto dimseTimeout = std::chrono::duration_cast<kcenon::pacs::network::association::duration>(
             pacsConfig.dimseTimeout
         );
         (void)assoc.release(dimseTimeout);
@@ -428,20 +428,20 @@ private:
                content.roiStatistics.size();
     }
 
-    std::expected<pacs::core::dicom_dataset, SRError> buildSRDataset(
+    std::expected<kcenon::pacs::core::dicom_dataset, SRError> buildSRDataset(
         const SRContent& content,
         const SRWriterOptions& options,
         const std::string& seriesUid,
         const std::string& sopUid) const {
 
-        using namespace pacs::core;
-        using namespace pacs::encoding;
+        using namespace kcenon::pacs::core;
+        using namespace kcenon::pacs::encoding;
 
         dicom_dataset ds;
 
         // SOP Common Module
         ds.set_string(tags::sop_class_uid, vr_type::UI,
-                      std::string(pacs::services::sop_classes::comprehensive_sr_storage_uid));
+                      std::string(kcenon::pacs::services::sop_classes::comprehensive_sr_storage_uid));
         ds.set_string(tags::sop_instance_uid, vr_type::UI, sopUid);
         ds.set_string(tags::specific_character_set, vr_type::CS, "ISO_IR 192");
 
@@ -573,13 +573,13 @@ private:
 
         // Validate SR dataset against IOD before returning
         {
-            pacs::services::validation::sr_iod_validator validator;
+            kcenon::pacs::services::validation::sr_iod_validator validator;
             auto validationResult = validator.validate(ds);
             if (!validationResult.is_valid) {
                 LOG_WARNING(std::format("SR IOD validation findings: {}",
                                      validationResult.summary()));
                 for (const auto& finding : validationResult.findings) {
-                    if (finding.severity == pacs::services::validation::validation_severity::error) {
+                    if (finding.severity == kcenon::pacs::services::validation::validation_severity::error) {
                         LOG_WARNING(std::format("SR IOD error [{}]: {}",
                                              finding.code, finding.message));
                     }
@@ -590,10 +590,10 @@ private:
         return ds;
     }
 
-    void addDistanceMeasurement(std::vector<pacs::core::dicom_dataset>& content,
+    void addDistanceMeasurement(std::vector<kcenon::pacs::core::dicom_dataset>& content,
                                 const DistanceMeasurement& dist,
                                 bool includeSpatialCoords) const {
-        using namespace pacs::encoding;
+        using namespace kcenon::pacs::encoding;
 
         // Measurement Group container
         auto group = createContentItem("CONTAINER", "CONTAINS",
@@ -612,7 +612,7 @@ private:
         auto numItem = createContentItem("NUM", "CONTAINS", SRCodes::Length);
         auto& measuredValueSeq = numItem.get_or_create_sequence(sr_tags::measured_value_sequence);
 
-        pacs::core::dicom_dataset measuredValue;
+        kcenon::pacs::core::dicom_dataset measuredValue;
         auto& unitSeq = measuredValue.get_or_create_sequence(sr_tags::measurement_units_code_sequence);
         unitSeq.push_back(createCodedEntry(SRCodes::Millimeter));
         measuredValue.set_string(sr_tags::numeric_value, vr_type::DS, std::to_string(dist.distanceMm));
@@ -629,10 +629,10 @@ private:
         content.push_back(std::move(group));
     }
 
-    void addAngleMeasurement(std::vector<pacs::core::dicom_dataset>& content,
+    void addAngleMeasurement(std::vector<kcenon::pacs::core::dicom_dataset>& content,
                              const AngleMeasurement& angle,
                              bool includeSpatialCoords) const {
-        using namespace pacs::encoding;
+        using namespace kcenon::pacs::encoding;
 
         auto group = createContentItem("CONTAINER", "CONTAINS",
             DicomCode{"125309", "DCM", "Measurement Group"});
@@ -648,7 +648,7 @@ private:
         auto numItem = createContentItem("NUM", "CONTAINS", SRCodes::Angle);
         auto& measuredValueSeq = numItem.get_or_create_sequence(sr_tags::measured_value_sequence);
 
-        pacs::core::dicom_dataset measuredValue;
+        kcenon::pacs::core::dicom_dataset measuredValue;
         auto& unitSeq = measuredValue.get_or_create_sequence(sr_tags::measurement_units_code_sequence);
         unitSeq.push_back(createCodedEntry(SRCodes::Degree));
         measuredValue.set_string(sr_tags::numeric_value, vr_type::DS, std::to_string(angle.angleDegrees));
@@ -663,10 +663,10 @@ private:
         content.push_back(std::move(group));
     }
 
-    void addAreaMeasurement(std::vector<pacs::core::dicom_dataset>& content,
+    void addAreaMeasurement(std::vector<kcenon::pacs::core::dicom_dataset>& content,
                             const AreaMeasurement& area,
                             bool includeSpatialCoords) const {
-        using namespace pacs::encoding;
+        using namespace kcenon::pacs::encoding;
 
         auto group = createContentItem("CONTAINER", "CONTAINS",
             DicomCode{"125309", "DCM", "Measurement Group"});
@@ -682,7 +682,7 @@ private:
         auto numItem = createContentItem("NUM", "CONTAINS", SRCodes::Area);
         auto& measuredValueSeq = numItem.get_or_create_sequence(sr_tags::measured_value_sequence);
 
-        pacs::core::dicom_dataset measuredValue;
+        kcenon::pacs::core::dicom_dataset measuredValue;
         auto& unitSeq = measuredValue.get_or_create_sequence(sr_tags::measurement_units_code_sequence);
         unitSeq.push_back(createCodedEntry(SRCodes::SquareMillimeter));
         measuredValue.set_string(sr_tags::numeric_value, vr_type::DS, std::to_string(area.areaMm2));
@@ -697,9 +697,9 @@ private:
         content.push_back(std::move(group));
     }
 
-    void addVolumeMeasurement(std::vector<pacs::core::dicom_dataset>& content,
+    void addVolumeMeasurement(std::vector<kcenon::pacs::core::dicom_dataset>& content,
                               const VolumeResult& vol) const {
-        using namespace pacs::encoding;
+        using namespace kcenon::pacs::encoding;
 
         auto group = createContentItem("CONTAINER", "CONTAINS",
             DicomCode{"125309", "DCM", "Measurement Group"});
@@ -717,7 +717,7 @@ private:
         auto& measuredValueSeq = numItem.get_or_create_sequence(sr_tags::measured_value_sequence);
 
         double volumeCm3 = vol.volumeMm3 / 1000.0;
-        pacs::core::dicom_dataset measuredValue;
+        kcenon::pacs::core::dicom_dataset measuredValue;
         auto& unitSeq = measuredValue.get_or_create_sequence(sr_tags::measurement_units_code_sequence);
         unitSeq.push_back(createCodedEntry(SRCodes::CubicCentimeter));
         measuredValue.set_string(sr_tags::numeric_value, vr_type::DS, std::to_string(volumeCm3));
@@ -731,7 +731,7 @@ private:
                 DicomCode{"118565009", "SCT", "Surface Area"});
             auto& surfaceValueSeq = surfaceItem.get_or_create_sequence(sr_tags::measured_value_sequence);
 
-            pacs::core::dicom_dataset surfaceValue;
+            kcenon::pacs::core::dicom_dataset surfaceValue;
             auto& surfaceUnitSeq = surfaceValue.get_or_create_sequence(sr_tags::measurement_units_code_sequence);
             surfaceUnitSeq.push_back(createCodedEntry(SRCodes::SquareMillimeter));
             surfaceValue.set_string(sr_tags::numeric_value, vr_type::DS,
@@ -744,9 +744,9 @@ private:
         content.push_back(std::move(group));
     }
 
-    void addROIStatistics(std::vector<pacs::core::dicom_dataset>& content,
+    void addROIStatistics(std::vector<kcenon::pacs::core::dicom_dataset>& content,
                           const SRROIStatistics& stats) const {
-        using namespace pacs::encoding;
+        using namespace kcenon::pacs::encoding;
 
         auto group = createContentItem("CONTAINER", "CONTAINS",
             DicomCode{"125309", "DCM", "Measurement Group"});
@@ -779,16 +779,16 @@ private:
         content.push_back(std::move(group));
     }
 
-    void addNumericMeasurement(std::vector<pacs::core::dicom_dataset>& content,
+    void addNumericMeasurement(std::vector<kcenon::pacs::core::dicom_dataset>& content,
                                const DicomCode& conceptCode,
                                double value,
                                const DicomCode& unitCode) const {
-        using namespace pacs::encoding;
+        using namespace kcenon::pacs::encoding;
 
         auto numItem = createContentItem("NUM", "CONTAINS", conceptCode);
         auto& measuredValueSeq = numItem.get_or_create_sequence(sr_tags::measured_value_sequence);
 
-        pacs::core::dicom_dataset measuredValue;
+        kcenon::pacs::core::dicom_dataset measuredValue;
         auto& unitSeq = measuredValue.get_or_create_sequence(sr_tags::measurement_units_code_sequence);
         unitSeq.push_back(createCodedEntry(unitCode));
         measuredValue.set_string(sr_tags::numeric_value, vr_type::DS, std::to_string(value));
@@ -797,10 +797,10 @@ private:
         content.push_back(std::move(numItem));
     }
 
-    void addSpatialCoord3D(std::vector<pacs::core::dicom_dataset>& content,
+    void addSpatialCoord3D(std::vector<kcenon::pacs::core::dicom_dataset>& content,
                            const std::string& graphicType,
                            const std::vector<Point3D>& points) const {
-        using namespace pacs::encoding;
+        using namespace kcenon::pacs::encoding;
 
         auto scoord = createContentItem("SCOORD3D", "CONTAINS",
             DicomCode{"111030", "DCM", "Image Region"});

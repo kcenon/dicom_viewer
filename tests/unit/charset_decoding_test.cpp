@@ -39,8 +39,8 @@
 
 namespace {
 
-using namespace pacs::core;
-using namespace pacs::encoding;
+using namespace kcenon::pacs::core;
+using namespace kcenon::pacs::encoding;
 
 class CharsetDecodingTest : public ::testing::Test {};
 

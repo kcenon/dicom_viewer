@@ -14,5 +14,11 @@
         "hiredis",
         "libpq"
     ],
-    "builtin-baseline": "84bab45d415d22042bd0b9081aea57f362da3f35"
+    "overrides": [
+        { "name": "gtest", "version": "1.17.0" },
+        { "name": "benchmark", "version": "1.9.5" },
+        { "name": "spdlog", "version": "1.15.3" },
+        { "name": "openssl", "version": "3.4.1" },
+        { "name": "hiredis", "version": "1.2.0" }
+    ]
 }

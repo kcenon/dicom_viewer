@@ -88,13 +88,13 @@ private:
         auto startTime = std::chrono::steady_clock::now();
 
         // Build association configuration
-        pacs::network::association_config assocConfig;
+        kcenon::pacs::network::association_config assocConfig;
         assocConfig.calling_ae_title = config.callingAeTitle;
         assocConfig.called_ae_title = config.calledAeTitle;
         assocConfig.max_pdu_length = config.maxPduSize;
 
         // Add Verification SOP Class presentation context
-        pacs::network::proposed_presentation_context verificationCtx;
+        kcenon::pacs::network::proposed_presentation_context verificationCtx;
         verificationCtx.id = 1;
         verificationCtx.abstract_syntax = VERIFICATION_SOP_CLASS_UID;
         verificationCtx.transfer_syntaxes = {
@@ -116,10 +116,10 @@ private:
                      config.hostname, config.port, config.calledAeTitle);
 
         // Connect to remote SCP
-        auto timeout = std::chrono::duration_cast<pacs::network::association::duration>(
+        auto timeout = std::chrono::duration_cast<kcenon::pacs::network::association::duration>(
             config.connectionTimeout
         );
-        auto connectResult = pacs::network::association::connect(
+        auto connectResult = kcenon::pacs::network::association::connect(
             config.hostname,
             config.port,
             assocConfig,
@@ -163,7 +163,7 @@ private:
 
         // Create and send C-ECHO request
         uint16_t messageId = nextMessageId_++;
-        auto echoRq = pacs::network::dimse::make_c_echo_rq(messageId, VERIFICATION_SOP_CLASS_UID);
+        auto echoRq = kcenon::pacs::network::dimse::make_c_echo_rq(messageId, VERIFICATION_SOP_CLASS_UID);
 
         spdlog::debug("Sending C-ECHO request (Message ID: {})", messageId);
 
@@ -178,7 +178,7 @@ private:
         }
 
         // Receive C-ECHO response
-        auto dimseTimeout = std::chrono::duration_cast<pacs::network::association::duration>(
+        auto dimseTimeout = std::chrono::duration_cast<kcenon::pacs::network::association::duration>(
             config.dimseTimeout
         );
         auto receiveResult = assoc.receive_dimse(dimseTimeout);
@@ -187,7 +187,7 @@ private:
             spdlog::error("Failed to receive C-ECHO response: {}", err.message);
             assoc.abort();
 
-            if (err.code == pacs::error_codes::receive_timeout) {
+            if (err.code == kcenon::pacs::error_codes::receive_timeout) {
                 return std::unexpected(PacsErrorInfo{
                     PacsError::Timeout,
                     "C-ECHO timeout: " + err.message
@@ -203,7 +203,7 @@ private:
 
         // Check response status
         auto status = respMsg.status();
-        if (status != pacs::network::dimse::status_success) {
+        if (status != kcenon::pacs::network::dimse::status_success) {
             spdlog::error("C-ECHO returned non-success status: {}", static_cast<uint16_t>(status));
             (void)assoc.release();
             return std::unexpected(PacsErrorInfo{
@@ -235,11 +235,11 @@ private:
         };
     }
 
-    std::unexpected<PacsErrorInfo> mapAssociationError(const pacs::error_info& err) {
+    std::unexpected<PacsErrorInfo> mapAssociationError(const kcenon::pacs::error_info& err) {
         int code = err.code;
 
-        if (code == pacs::error_codes::connection_failed ||
-            code == pacs::error_codes::connection_timeout) {
+        if (code == kcenon::pacs::error_codes::connection_failed ||
+            code == kcenon::pacs::error_codes::connection_timeout) {
             spdlog::error("Connection failed: {}", err.message);
             return std::unexpected(PacsErrorInfo{
                 PacsError::ConnectionFailed,
@@ -247,7 +247,7 @@ private:
             });
         }
 
-        if (code == pacs::error_codes::association_rejected) {
+        if (code == kcenon::pacs::error_codes::association_rejected) {
             spdlog::error("Association rejected: {}", err.message);
             return std::unexpected(PacsErrorInfo{
                 PacsError::AssociationRejected,
@@ -255,8 +255,8 @@ private:
             });
         }
 
-        if (code == pacs::error_codes::receive_timeout ||
-            code == pacs::error_codes::connection_timeout) {
+        if (code == kcenon::pacs::error_codes::receive_timeout ||
+            code == kcenon::pacs::error_codes::connection_timeout) {
             spdlog::error("Connection timeout: {}", err.message);
             return std::unexpected(PacsErrorInfo{
                 PacsError::Timeout,

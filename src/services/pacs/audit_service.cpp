@@ -101,13 +101,13 @@ std::string isoTimestampUtc() {
 // Transport config helper
 // ------------------------------------------------------------------
 
-pacs::security::syslog_transport_config toTransportConfig(const AuditConfig& config) {
-    pacs::security::syslog_transport_config tc;
+kcenon::pacs::security::syslog_transport_config toTransportConfig(const AuditConfig& config) {
+    kcenon::pacs::security::syslog_transport_config tc;
     tc.host     = config.host;
     tc.port     = config.port;
     tc.protocol = (config.protocol == AuditTransportProtocol::Tls)
-                  ? pacs::security::syslog_transport_protocol::tls
-                  : pacs::security::syslog_transport_protocol::udp;
+                  ? kcenon::pacs::security::syslog_transport_protocol::tls
+                  : kcenon::pacs::security::syslog_transport_protocol::udp;
     tc.app_name    = "dicom_viewer";
     tc.ca_cert_path = config.caCertPath;
     return tc;
@@ -186,11 +186,11 @@ public:
         auto tc = toTransportConfig(config);
 
         try {
-            auditor_ = std::make_unique<pacs::security::atna_service_auditor>(
+            auditor_ = std::make_unique<kcenon::pacs::security::atna_service_auditor>(
                 tc, config.auditSourceId);
             auditor_->set_enabled(true);
 
-            transport_ = std::make_unique<pacs::security::atna_syslog_transport>(tc);
+            transport_ = std::make_unique<kcenon::pacs::security::atna_syslog_transport>(tc);
         } catch (const std::exception& e) {
             auditor_.reset();
             return std::unexpected(PacsErrorInfo{
@@ -283,7 +283,7 @@ public:
         std::lock_guard lock(mutex_);
         if (!isEnabledLocked()) return;
 
-        auto msg = pacs::security::atna_audit_logger::build_application_activity(
+        auto msg = kcenon::pacs::security::atna_audit_logger::build_application_activity(
             config_.auditSourceId, "dicom_viewer", true);
         sendAudit(msg);
     }
@@ -292,7 +292,7 @@ public:
         std::lock_guard lock(mutex_);
         if (!isEnabledLocked()) return;
 
-        auto msg = pacs::security::atna_audit_logger::build_application_activity(
+        auto msg = kcenon::pacs::security::atna_audit_logger::build_application_activity(
             config_.auditSourceId, "dicom_viewer", false);
         sendAudit(msg);
     }
@@ -399,10 +399,10 @@ private:
         return config_.enabled && auditor_ != nullptr && auditor_->is_enabled();
     }
 
-    void sendAudit(const pacs::security::atna_audit_message& msg) {
+    void sendAudit(const kcenon::pacs::security::atna_audit_message& msg) {
         if (!transport_) return;
 
-        auto xml    = pacs::security::atna_audit_logger::to_xml(msg);
+        auto xml    = kcenon::pacs::security::atna_audit_logger::to_xml(msg);
         auto result = transport_->send(xml);
         if (!result.is_ok()) {
             spdlog::warn("Failed to send ATNA audit event: {}", result.error().message);
@@ -449,8 +449,8 @@ private:
     }
 
     AuditConfig config_;
-    std::unique_ptr<pacs::security::atna_service_auditor> auditor_;
-    std::unique_ptr<pacs::security::atna_syslog_transport> transport_;
+    std::unique_ptr<kcenon::pacs::security::atna_service_auditor> auditor_;
+    std::unique_ptr<kcenon::pacs::security::atna_syslog_transport> transport_;
     std::unique_ptr<IAuditSink> sink_;
     std::vector<AuditRecord> chain_;
     mutable std::mutex mutex_;

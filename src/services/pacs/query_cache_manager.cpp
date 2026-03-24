@@ -59,7 +59,7 @@ public:
             return {};
         }
 
-        pacs::services::cache::query_cache_config qc;
+        kcenon::pacs::services::cache::query_cache_config qc;
         qc.max_entries = config.maxEntries;
         qc.ttl = config.ttl;
         qc.cache_name = config.cacheName;
@@ -67,7 +67,7 @@ public:
         qc.enable_metrics = true;
 
         try {
-            cache_ = std::make_unique<pacs::services::cache::query_cache>(qc);
+            cache_ = std::make_unique<kcenon::pacs::services::cache::query_cache>(qc);
         } catch (const std::exception& e) {
             cache_.reset();
             return std::unexpected(PacsErrorInfo{
@@ -114,7 +114,7 @@ public:
         std::lock_guard lock(mutex_);
         if (!isEnabledLocked()) return;
 
-        pacs::services::cache::cached_query_result cqr;
+        kcenon::pacs::services::cache::cached_query_result cqr;
         cqr.data = result.data;
         cqr.match_count = result.matchCount;
         cqr.cached_at = std::chrono::steady_clock::now();
@@ -189,7 +189,7 @@ private:
     }
 
     QueryCacheConfig config_;
-    std::unique_ptr<pacs::services::cache::query_cache> cache_;
+    std::unique_ptr<kcenon::pacs::services::cache::query_cache> cache_;
     mutable std::mutex mutex_;
 };
 
@@ -261,14 +261,14 @@ void QueryCacheManager::resetStatistics() {
 std::string QueryCacheManager::buildKey(
     const std::string& queryLevel,
     const std::vector<std::pair<std::string, std::string>>& params) {
-    return pacs::services::cache::query_cache::build_key(queryLevel, params);
+    return kcenon::pacs::services::cache::query_cache::build_key(queryLevel, params);
 }
 
 std::string QueryCacheManager::buildKeyWithAe(
     const std::string& callingAe,
     const std::string& queryLevel,
     const std::vector<std::pair<std::string, std::string>>& params) {
-    return pacs::services::cache::query_cache::build_key_with_ae(
+    return kcenon::pacs::services::cache::query_cache::build_key_with_ae(
         callingAe, queryLevel, params);
 }
 
