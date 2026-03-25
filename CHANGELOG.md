@@ -58,6 +58,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Fix `httpClient.request()` always calling `response.json()` for export
+  endpoints that return binary data (PDF, DOCX, CSV). The client now branches
+  on the `Content-Type` header, returning `response.blob()` for non-JSON
+  responses (#549).
+- Display CSV export errors in `ReportPanel` UI; previously only PDF/DOCX
+  export errors were shown (#549).
 - Fix DICOM echo latency assertion that failed on fast localhost connections
   where round-trip time is sub-millisecond (`EXPECT_GT` -> `EXPECT_GE`) (#548).
 - Skip PDF generation tests (`ReportGeneratorTest`) when `wkhtmltopdf` is not
