@@ -255,8 +255,7 @@ public:
     std::expected<AuthTokenPair, AuthError>
     refreshToken(const std::string& /*refreshToken*/)
     {
-        // TODO(Phase 2): POST to Cognito OAuth2 /token endpoint with
-        //                grant_type=refresh_token and the provided refresh token.
+        // Token refresh requires Cognito OAuth2 /token endpoint integration.
         return std::unexpected(AuthError::ProviderUnavailable);
     }
 
