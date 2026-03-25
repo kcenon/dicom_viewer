@@ -302,11 +302,9 @@ private:
 
         // Try x5c first, then fall back to n/e components
         try {
-            if (jwk.has_x5c_key_value()) {
-                const auto x5c = jwk.get_x5c_key_value();
-                if (!x5c.empty()) {
-                    return jwt::helper::convert_base64_der_to_pem(x5c);
-                }
+            const auto x5c = jwk.get_x5c_key_value();
+            if (!x5c.empty()) {
+                return jwt::helper::convert_base64_der_to_pem(x5c);
             }
         } catch (const std::exception& ex) {
             spdlog::debug("OIDC: x5c extraction failed: {}", ex.what());
