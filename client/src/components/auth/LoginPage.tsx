@@ -94,7 +94,7 @@ export function LoginPage() {
     setLoading(true)
     try {
       const res = await http.post<LoginResponse>('/auth/login', { username, password })
-      login(res.token, res.refreshToken, res.user)
+      login(res.refreshToken, res.csrfToken, res.user)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {

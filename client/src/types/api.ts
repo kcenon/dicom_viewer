@@ -92,8 +92,9 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string
   refreshToken: string
+  csrfToken: string
+  expiresAt: number
   user: AuthUser
 }
 
@@ -102,6 +103,15 @@ export interface RefreshTokenRequest {
 }
 
 export interface RefreshTokenResponse {
-  token: string
-  user: AuthUser
+  csrfToken: string
+  expiresAt: number
+}
+
+export interface AuthMeResponse {
+  id: string
+  role: UserRole
+}
+
+export interface CsrfTokenResponse {
+  csrfToken: string
 }
