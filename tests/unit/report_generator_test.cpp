@@ -30,11 +30,24 @@
 #include "services/export/report_generator.hpp"
 
 #include <gtest/gtest.h>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 
 namespace dicom_viewer::services {
 namespace {
+
+// Check whether wkhtmltopdf is available on the system PATH.
+// PDF generation tests are skipped when the tool is missing (e.g. CI runners).
+static bool isWkhtmltopdfAvailable() {
+    static const bool available =
+#ifdef _WIN32
+        std::system("where wkhtmltopdf >nul 2>&1") == 0;
+#else
+        std::system("command -v wkhtmltopdf >/dev/null 2>&1") == 0;
+#endif
+    return available;
+}
 
 // Minimal 1x1 PNG bytes (blue pixel, IHDR+IDAT+IEND) for screenshot tests
 static std::vector<uint8_t> makeMinimalPng() {
@@ -451,6 +464,9 @@ TEST_F(ReportGeneratorTest, GenerateHtmlUnicodeCharacters) {
 // =============================================================================
 
 TEST_F(ReportGeneratorTest, GeneratePdfBasic) {
+    if (!isWkhtmltopdfAvailable()) {
+        GTEST_SKIP() << "wkhtmltopdf not found in PATH";
+    }
     ReportGenerator generator;
     ReportOptions options;
 
@@ -464,6 +480,9 @@ TEST_F(ReportGeneratorTest, GeneratePdfBasic) {
 }
 
 TEST_F(ReportGeneratorTest, GeneratePdfWithOptions) {
+    if (!isWkhtmltopdfAvailable()) {
+        GTEST_SKIP() << "wkhtmltopdf not found in PATH";
+    }
     ReportGenerator generator;
     ReportOptions options;
     options.author = "Test Author";
@@ -486,6 +505,9 @@ TEST_F(ReportGeneratorTest, GeneratePdfInvalidPath) {
 }
 
 TEST_F(ReportGeneratorTest, GeneratePdfEmptyData) {
+    if (!isWkhtmltopdfAvailable()) {
+        GTEST_SKIP() << "wkhtmltopdf not found in PATH";
+    }
     ReportGenerator generator;
     ReportData emptyData;
     ReportOptions options;
@@ -496,6 +518,9 @@ TEST_F(ReportGeneratorTest, GeneratePdfEmptyData) {
 }
 
 TEST_F(ReportGeneratorTest, GeneratePdfLetterSize) {
+    if (!isWkhtmltopdfAvailable()) {
+        GTEST_SKIP() << "wkhtmltopdf not found in PATH";
+    }
     ReportGenerator generator;
     ReportOptions options;
     options.reportTemplate.pageSize = PageSizePreset::Letter;
@@ -506,6 +531,9 @@ TEST_F(ReportGeneratorTest, GeneratePdfLetterSize) {
 }
 
 TEST_F(ReportGeneratorTest, GeneratePdfLandscapeOrientation) {
+    if (!isWkhtmltopdfAvailable()) {
+        GTEST_SKIP() << "wkhtmltopdf not found in PATH";
+    }
     ReportGenerator generator;
     ReportOptions options;
     options.reportTemplate.orientation = PageOrientation::Landscape;
@@ -516,6 +544,9 @@ TEST_F(ReportGeneratorTest, GeneratePdfLandscapeOrientation) {
 }
 
 TEST_F(ReportGeneratorTest, GeneratePdfHighDPI) {
+    if (!isWkhtmltopdfAvailable()) {
+        GTEST_SKIP() << "wkhtmltopdf not found in PATH";
+    }
     ReportGenerator generator;
     ReportOptions options;
     options.imageDPI = 300;
@@ -530,6 +561,9 @@ TEST_F(ReportGeneratorTest, GeneratePdfHighDPI) {
 // =============================================================================
 
 TEST_F(ReportGeneratorTest, ProgressCallback) {
+    if (!isWkhtmltopdfAvailable()) {
+        GTEST_SKIP() << "wkhtmltopdf not found in PATH";
+    }
     ReportGenerator generator;
 
     int callCount = 0;
@@ -647,6 +681,9 @@ TEST_F(ReportGeneratorTest, GenerateHtmlWithScreenshots) {
 }
 
 TEST_F(ReportGeneratorTest, GeneratePdfWithScreenshots) {
+    if (!isWkhtmltopdfAvailable()) {
+        GTEST_SKIP() << "wkhtmltopdf not found in PATH";
+    }
     ReportGenerator generator;
     ReportData data = testData_;
 

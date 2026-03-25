@@ -266,7 +266,15 @@ TEST_F(SessionTokenValidatorTest, TamperedTokenReturnsInvalidSignature) {
 
     auto token = validator.generateToken("user1", "1.2.3.4.5");
     ASSERT_FALSE(token.empty());
-    token.back() = token.back() == 'a' ? 'b' : 'a';
+
+    // Tamper a character in the middle of the signature portion to
+    // guarantee the decoded signature bytes change (flipping the last
+    // base64url character can be a no-op due to padding alignment).
+    auto lastDot = token.rfind('.');
+    ASSERT_NE(lastDot, std::string::npos);
+    auto sigMid = lastDot + 1 + (token.size() - lastDot - 1) / 2;
+    ASSERT_LT(sigMid, token.size());
+    token[sigMid] = token[sigMid] == 'A' ? 'B' : 'A';
 
     auto result = validator.validateToken(token, "1.2.3.4.5");
     EXPECT_EQ(result, TokenValidationResult::InvalidSignature);
