@@ -207,6 +207,24 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                     INTERFACE_LINK_LIBRARIES iconv)
             endif()
 
+            # ICU for character set encoding/decoding (transitive from pacs_system)
+            if(APPLE AND NOT ICU_ROOT)
+                execute_process(
+                    COMMAND brew --prefix icu4c
+                    OUTPUT_VARIABLE _brew_icu_prefix
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    ERROR_QUIET
+                )
+                if(_brew_icu_prefix)
+                    list(APPEND CMAKE_PREFIX_PATH "${_brew_icu_prefix}")
+                endif()
+            endif()
+            find_package(ICU QUIET COMPONENTS uc data)
+            if(ICU_FOUND)
+                set_property(TARGET pacs::encoding APPEND PROPERTY
+                    INTERFACE_LINK_LIBRARIES ICU::uc ICU::data)
+            endif()
+
             # pacs_encoding codec dependencies (transitive from pacs_system)
             find_package(JPEG QUIET)
             if(JPEG_FOUND)
