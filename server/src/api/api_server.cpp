@@ -135,7 +135,8 @@ private:
     void addCorsHeaders(crow::response& res) {
         res.add_header("Access-Control-Allow-Origin", config_.corsOrigin);
         res.add_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-        res.add_header("Access-Control-Allow-Headers", "Authorization, Content-Type");
+        res.add_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-CSRF-Token");
+        res.add_header("Access-Control-Allow-Credentials", "true");
         res.add_header("Content-Type", "application/json");
     }
 
