@@ -35,10 +35,13 @@
 #include "services/auth/oidc_auth_provider.hpp"
 
 #include <jwt-cpp/jwt.h>
+#include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
+#include <openssl/rsa.h>
 
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -162,6 +165,105 @@ std::string mintTestJwt(const std::string& privateKeyPem,
         .set_payload_claim("role", jwt::claim(std::string(role)))
         .set_payload_claim("organization", jwt::claim(std::string(org)))
         .sign(jwt::algorithm::rs256("", privateKeyPem, "", ""));
+}
+
+// ---------------------------------------------------------------------------
+// JWKS test helpers
+// ---------------------------------------------------------------------------
+
+std::string mintTestJwtWithKid(const std::string& privateKeyPem,
+                                const std::string& kid,
+                                const std::string& userId,
+                                const std::string& role,
+                                const std::string& org,
+                                int ttlSeconds = 3600)
+{
+    const auto now = std::chrono::system_clock::now();
+    return jwt::create()
+        .set_type("JWT")
+        .set_key_id(kid)
+        .set_issuer("dicom-viewer")
+        .set_audience("dicom-viewer-api")
+        .set_subject(userId)
+        .set_issued_at(now)
+        .set_expires_at(now + std::chrono::seconds(ttlSeconds))
+        .set_payload_claim("role", jwt::claim(std::string(role)))
+        .set_payload_claim("organization", jwt::claim(std::string(org)))
+        .set_payload_claim("email", jwt::claim(std::string("test@example.com")))
+        .sign(jwt::algorithm::rs256("", privateKeyPem, "", ""));
+}
+
+std::string base64UrlEncode(const unsigned char* data, int len)
+{
+    static const char table[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string encoded;
+    encoded.reserve(static_cast<size_t>((len + 2) / 3 * 4));
+
+    for (int i = 0; i < len; i += 3) {
+        const unsigned int b0 = data[i];
+        const unsigned int b1 = (i + 1 < len) ? data[i + 1] : 0;
+        const unsigned int b2 = (i + 2 < len) ? data[i + 2] : 0;
+
+        encoded.push_back(table[b0 >> 2]);
+        encoded.push_back(table[((b0 & 0x03) << 4) | (b1 >> 4)]);
+        if (i + 1 < len) {
+            encoded.push_back(table[((b1 & 0x0F) << 2) | (b2 >> 6)]);
+        }
+        if (i + 2 < len) {
+            encoded.push_back(table[b2 & 0x3F]);
+        }
+    }
+
+    // Convert to URL-safe: + -> -, / -> _, remove padding
+    for (auto& c : encoded) {
+        if (c == '+') c = '-';
+        else if (c == '/') c = '_';
+    }
+    return encoded;
+}
+
+std::string bnToBase64Url(const BIGNUM* bn)
+{
+    const int numBytes = BN_num_bytes(bn);
+    std::vector<unsigned char> buf(static_cast<size_t>(numBytes));
+    BN_bn2bin(bn, buf.data());
+    return base64UrlEncode(buf.data(), numBytes);
+}
+
+std::string buildJwksJson(const std::string& publicKeyPem, const std::string& kid)
+{
+    BioPtr bio(BIO_new_mem_buf(publicKeyPem.data(),
+                                static_cast<int>(publicKeyPem.size())),
+               BIO_free);
+    EvpPkeyPtr pkey(PEM_read_bio_PUBKEY(bio.get(), nullptr, nullptr, nullptr),
+                    EVP_PKEY_free);
+    if (!pkey) {
+        return {};
+    }
+
+    // Extract RSA components from EVP_PKEY
+    BIGNUM* nBn = nullptr;
+    BIGNUM* eBn = nullptr;
+
+    if (EVP_PKEY_get_bn_param(pkey.get(), "n", &nBn) != 1 ||
+        EVP_PKEY_get_bn_param(pkey.get(), "e", &eBn) != 1) {
+        if (nBn) BN_free(nBn);
+        if (eBn) BN_free(eBn);
+        return {};
+    }
+
+    const auto nStr = bnToBase64Url(nBn);
+    const auto eStr = bnToBase64Url(eBn);
+    BN_free(nBn);
+    BN_free(eBn);
+
+    std::ostringstream ss;
+    ss << R"({"keys":[{"kty":"RSA","kid":")" << kid
+       << R"(","use":"sig","alg":"RS256","n":")" << nStr
+       << R"(","e":")" << eStr
+       << R"("}]})";
+    return ss.str();
 }
 
 } // namespace
@@ -345,7 +447,7 @@ TEST_F(LdapAuthProviderTest, GetActiveSessionCountDefaultZero)
 }
 
 // ---------------------------------------------------------------------------
-// OidcAuthProvider tests (structural validation without JWKS)
+// OidcAuthProvider tests (JWKS signature verification)
 // ---------------------------------------------------------------------------
 
 class OidcAuthProviderTest : public ::testing::Test {
@@ -354,19 +456,32 @@ protected:
     {
         auto [priv, pub] = generateTestRsaKeyPair();
         privateKeyPem_ = priv;
+        publicKeyPem_ = pub;
+
+        jwksJson_ = buildJwksJson(publicKeyPem_, "test-key-1");
+        ASSERT_FALSE(jwksJson_.empty()) << "Failed to build JWKS JSON from test key";
 
         OidcAuthConfig config;
         config.discoveryUrl = "https://cognito.example.com/.well-known/openid-configuration";
+        config.jwksUrl = "https://cognito.example.com/.well-known/jwks.json";
         config.issuer = "dicom-viewer";
         config.audience = "dicom-viewer-api";
-        config.roleClaimName = "role";         // match mintTestJwt's claim name
-        config.orgClaimName = "organization";  // match mintTestJwt's claim name
+        config.roleClaimName = "role";
+        config.orgClaimName = "organization";
         config.defaultRole = "Viewer";
+        config.jwksRefreshIntervalSeconds = 3600;
 
-        provider_ = std::make_unique<OidcAuthProvider>(config);
+        // Inject a mock JWKS fetcher that returns our test JWKS
+        auto fetcher = [this](const std::string& /*url*/) -> std::string {
+            return jwksJson_;
+        };
+
+        provider_ = std::make_unique<OidcAuthProvider>(config, std::move(fetcher));
     }
 
     std::string privateKeyPem_;
+    std::string publicKeyPem_;
+    std::string jwksJson_;
     std::unique_ptr<OidcAuthProvider> provider_;
 };
 
@@ -377,27 +492,26 @@ TEST_F(OidcAuthProviderTest, AuthenticateReturnsUnavailable)
     EXPECT_EQ(result.error(), AuthError::ProviderUnavailable);
 }
 
-TEST_F(OidcAuthProviderTest, ValidateWellFormedTokenSucceeds)
+TEST_F(OidcAuthProviderTest, ValidateWellFormedTokenWithJwksSucceeds)
 {
-    // Mint a test token using our ephemeral key
-    const std::string token = mintTestJwt(privateKeyPem_, "carol", "Radiologist", "hospital");
+    const std::string token =
+        mintTestJwtWithKid(privateKeyPem_, "test-key-1", "carol", "Radiologist", "hospital");
 
-    // OidcAuthProvider does structural validation (no JWKS in tests)
-    // It should succeed on well-formed, non-expired tokens
     auto result = provider_->validateToken(token);
-    // Note: may fail if issuer mismatch; test token issuer = "dicom-viewer" matches config
-    if (result.has_value()) {
-        EXPECT_EQ(result->userId, "carol");
-        EXPECT_EQ(result->role, "Radiologist");
-    } else {
-        // Acceptable: JWKS validation not available in test environment
-        EXPECT_EQ(result.error(), AuthError::TokenInvalid);
-    }
+    ASSERT_TRUE(result.has_value()) << "Token should validate successfully with matching JWKS key";
+    EXPECT_EQ(result->userId, "carol");
+    EXPECT_EQ(result->role, "Radiologist");
+    EXPECT_EQ(result->organization, "hospital");
+    EXPECT_EQ(result->email, "test@example.com");
+    EXPECT_GT(result->issuedAtEpoch, 0u);
+    EXPECT_GT(result->expiryEpoch, result->issuedAtEpoch);
 }
 
 TEST_F(OidcAuthProviderTest, ValidateExpiredTokenReturnsExpired)
 {
-    const std::string token = mintTestJwt(privateKeyPem_, "carol", "Viewer", "hospital", -1);
+    const std::string token =
+        mintTestJwtWithKid(privateKeyPem_, "test-key-1", "carol", "Viewer", "hospital", -1);
+
     auto result = provider_->validateToken(token);
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error(), AuthError::TokenExpired);
@@ -410,10 +524,91 @@ TEST_F(OidcAuthProviderTest, ValidateEmptyTokenReturnsInvalid)
     EXPECT_EQ(result.error(), AuthError::TokenInvalid);
 }
 
+TEST_F(OidcAuthProviderTest, ValidateTokenWithWrongSignatureReturnsInvalid)
+{
+    // Generate a different key pair to produce a token with a wrong signature
+    auto [differentPriv, differentPub] = generateTestRsaKeyPair();
+    const std::string token =
+        mintTestJwtWithKid(differentPriv, "test-key-1", "carol", "Viewer", "hospital");
+
+    // The signature won't match our JWKS public key
+    auto result = provider_->validateToken(token);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), AuthError::TokenInvalid);
+}
+
+TEST_F(OidcAuthProviderTest, ValidateTokenWithUnknownKidReturnsInvalid)
+{
+    const std::string token =
+        mintTestJwtWithKid(privateKeyPem_, "unknown-kid-999", "carol", "Viewer", "hospital");
+
+    auto result = provider_->validateToken(token);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), AuthError::TokenInvalid);
+}
+
+TEST_F(OidcAuthProviderTest, ValidateTokenWithNoKidReturnsInvalid)
+{
+    // Use the old mintTestJwt which does NOT set kid
+    const std::string token = mintTestJwt(privateKeyPem_, "carol", "Radiologist", "hospital");
+
+    auto result = provider_->validateToken(token);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), AuthError::TokenInvalid);
+}
+
+TEST_F(OidcAuthProviderTest, ValidateTokenWithAlgNoneReturnsInvalid)
+{
+    // Craft a token with alg: "none" (unsigned).
+    // jwt-cpp does not support "none" algorithm for creation,
+    // so we manually base64url-encode the header and payload.
+    const auto now = std::chrono::system_clock::now();
+    const std::string header = R"({"alg":"none","typ":"JWT"})";
+    const std::string payload = R"({"sub":"attacker","iss":"dicom-viewer","aud":"dicom-viewer-api","exp":)"
+        + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
+              (now + std::chrono::hours(1)).time_since_epoch()).count())
+        + "}";
+
+    auto b64url = [](const std::string& s) {
+        auto encoded = jwt::base::encode<jwt::alphabet::base64url>(s);
+        // Strip trailing '=' padding for JWT format
+        while (!encoded.empty() && encoded.back() == '=') {
+            encoded.pop_back();
+        }
+        return encoded;
+    };
+
+    const std::string token = b64url(header) + "." + b64url(payload) + ".";
+
+    auto result = provider_->validateToken(token);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), AuthError::TokenInvalid);
+}
+
+TEST_F(OidcAuthProviderTest, ValidateTokenWithHmacAlgReturnsInvalid)
+{
+    // Craft a token signed with HS256 (HMAC) — should be rejected even though
+    // the signature might be structurally valid
+    const auto now = std::chrono::system_clock::now();
+    const std::string hmacToken = jwt::create()
+        .set_type("JWT")
+        .set_key_id("test-key-1")
+        .set_issuer("dicom-viewer")
+        .set_audience("dicom-viewer-api")
+        .set_subject("attacker")
+        .set_issued_at(now)
+        .set_expires_at(now + std::chrono::hours(1))
+        .sign(jwt::algorithm::hs256("some-secret-key"));
+
+    auto result = provider_->validateToken(hmacToken);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), AuthError::TokenInvalid);
+}
+
 TEST_F(OidcAuthProviderTest, RevokeTokenPreventsValidation)
 {
-    // Any string revoked should be blocked before JWT parsing
-    const std::string token = "arbitrary.token.value";
+    const std::string token =
+        mintTestJwtWithKid(privateKeyPem_, "test-key-1", "carol", "Viewer", "hospital");
 
     EXPECT_TRUE(provider_->revokeToken(token).has_value());
 
@@ -427,6 +622,70 @@ TEST_F(OidcAuthProviderTest, RefreshReturnsUnavailable)
     auto result = provider_->refreshToken("some-refresh-token");
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error(), AuthError::ProviderUnavailable);
+}
+
+TEST_F(OidcAuthProviderTest, DefaultRoleWhenRoleClaimAbsent)
+{
+    // Mint a token without a role claim by using an empty role
+    const auto now = std::chrono::system_clock::now();
+    const std::string token = jwt::create()
+        .set_type("JWT")
+        .set_key_id("test-key-1")
+        .set_issuer("dicom-viewer")
+        .set_audience("dicom-viewer-api")
+        .set_subject("dave")
+        .set_issued_at(now)
+        .set_expires_at(now + std::chrono::hours(1))
+        .set_payload_claim("organization", jwt::claim(std::string("hospital")))
+        .sign(jwt::algorithm::rs256("", privateKeyPem_, "", ""));
+
+    auto result = provider_->validateToken(token);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->userId, "dave");
+    EXPECT_EQ(result->role, "Viewer");
+}
+
+TEST_F(OidcAuthProviderTest, WrongIssuerReturnsInvalid)
+{
+    // Mint a token with a different issuer
+    const auto now = std::chrono::system_clock::now();
+    const std::string token = jwt::create()
+        .set_type("JWT")
+        .set_key_id("test-key-1")
+        .set_issuer("wrong-issuer")
+        .set_audience("dicom-viewer-api")
+        .set_subject("carol")
+        .set_issued_at(now)
+        .set_expires_at(now + std::chrono::hours(1))
+        .sign(jwt::algorithm::rs256("", privateKeyPem_, "", ""));
+
+    auto result = provider_->validateToken(token);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), AuthError::TokenInvalid);
+}
+
+TEST_F(OidcAuthProviderTest, JwksFetcherFailureReturnsInvalid)
+{
+    // Create a provider with a fetcher that always fails
+    OidcAuthConfig config;
+    config.jwksUrl = "https://broken.example.com/jwks.json";
+    config.issuer = "dicom-viewer";
+    config.audience = "dicom-viewer-api";
+    config.roleClaimName = "role";
+    config.orgClaimName = "organization";
+
+    auto failingFetcher = [](const std::string& /*url*/) -> std::string {
+        return {};  // Simulate network failure
+    };
+
+    auto failProvider = std::make_unique<OidcAuthProvider>(config, failingFetcher);
+
+    const std::string token =
+        mintTestJwtWithKid(privateKeyPem_, "test-key-1", "carol", "Viewer", "hospital");
+
+    auto result = failProvider->validateToken(token);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), AuthError::TokenInvalid);
 }
 
 // ---------------------------------------------------------------------------

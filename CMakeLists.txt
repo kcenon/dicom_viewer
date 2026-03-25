@@ -576,12 +576,22 @@ target_link_libraries(auth_service PUBLIC
     OpenSSL::SSL
     OpenSSL::Crypto
     nlohmann_json::nlohmann_json
+    spdlog::spdlog
 )
 
 if(LIBLDAP_FOUND)
     target_compile_definitions(auth_service PUBLIC DICOM_VIEWER_HAS_LDAP)
     target_include_directories(auth_service PRIVATE ${LIBLDAP_INCLUDE_DIRS})
     target_link_libraries(auth_service PUBLIC ${LIBLDAP_LIBRARIES})
+endif()
+
+find_package(CURL QUIET)
+if(CURL_FOUND)
+    target_compile_definitions(auth_service PRIVATE DICOM_VIEWER_HAS_CURL)
+    target_link_libraries(auth_service PRIVATE CURL::libcurl)
+    message(STATUS "libcurl found: OIDC JWKS HTTP fetch enabled")
+else()
+    message(STATUS "libcurl not found: OIDC JWKS fetch requires injected fetcher (test mode)")
 endif()
 
 # Coordinate transformation service (unified MPR coordinate system)
