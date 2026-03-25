@@ -51,7 +51,8 @@ using App = crow::App<JwtMiddleware>;
 inline void addCorsHeaders(crow::response& res, const std::string& origin) {
     res.add_header("Access-Control-Allow-Origin", origin);
     res.add_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    res.add_header("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    res.add_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-CSRF-Token");
+    res.add_header("Access-Control-Allow-Credentials", "true");
     res.add_header("Content-Type", "application/json");
 }
 
