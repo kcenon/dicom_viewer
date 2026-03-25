@@ -45,6 +45,9 @@ namespace dicom_viewer::services {
 
 namespace {
 
+/// Maximum JWKS response size (1 MB) to prevent resource exhaustion
+constexpr long kMaxJwksResponseBytes = 1L * 1024 * 1024;
+
 /// Allowed RSA algorithm families for OIDC token verification
 const std::unordered_set<std::string> kAllowedAlgorithms = {"RS256", "RS384", "RS512"};
 
@@ -77,6 +80,7 @@ std::string defaultJwksFetcher(const std::string& url)
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 3L);
+    curl_easy_setopt(curl, CURLOPT_MAXFILESIZE, kMaxJwksResponseBytes);
 
     const CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
