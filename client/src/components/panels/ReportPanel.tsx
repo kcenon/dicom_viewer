@@ -84,6 +84,11 @@ export function ReportPanel() {
           Export failed: {exportReport.error instanceof Error ? exportReport.error.message : 'Unknown error'}
         </div>
       )}
+      {exportCsv.isError && (
+        <div style={{ color: '#ef9a9a', fontSize: '12px' }}>
+          CSV export failed: {exportCsv.error instanceof Error ? exportCsv.error.message : 'Unknown error'}
+        </div>
+      )}
     </div>
   )
 }
