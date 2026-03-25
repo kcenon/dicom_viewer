@@ -282,6 +282,10 @@ int main(int argc, char* argv[]) {
     dicom_viewer::services::SessionTokenConfig tokenCfg;
     tokenCfg.allowEphemeralKeys = true;
     auto tokenValidator = std::make_unique<dicom_viewer::services::SessionTokenValidator>(tokenCfg);
+    if (!tokenValidator) {
+        spdlog::critical("Cannot start server: JWT validator not initialized");
+        return EXIT_FAILURE;
+    }
 
     // Audit service (disabled by default — enable via deployment.yaml)
     auto auditService = std::make_unique<dicom_viewer::services::AuditService>();
