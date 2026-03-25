@@ -63,7 +63,12 @@ async function request<T>(
     return undefined as T
   }
 
-  return response.json() as Promise<T>
+  const contentType = response.headers.get('Content-Type') ?? ''
+  if (contentType.includes('application/json')) {
+    return response.json() as Promise<T>
+  }
+
+  return response.blob() as Promise<T>
 }
 
 export const http = {
