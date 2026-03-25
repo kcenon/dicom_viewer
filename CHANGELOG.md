@@ -52,3 +52,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and attaches `X-CSRF-Token` header for state-changing methods.
 - `OidcAuthProvider` now requires `libcurl` at link time for HTTPS JWKS fetch.
 - Build dependency: added `spdlog` for structured logging inside the auth module.
+- CI test steps no longer use `continue-on-error`; test failures now block
+  PR merges (#548). The `publish-unit-test-result-action` `fail_on` setting
+  is restored to `"test failures"`.
+
+### Fixed
+
+- Fix DICOM echo latency assertion that failed on fast localhost connections
+  where round-trip time is sub-millisecond (`EXPECT_GT` -> `EXPECT_GE`) (#548).
+- Skip PDF generation tests (`ReportGeneratorTest`) when `wkhtmltopdf` is not
+  installed, preventing hard failures on CI runners (#548).
+- Fix JWT token tampering test that was a no-op due to base64url padding
+  alignment; tamper now targets the middle of the signature portion (#548).
+- Fix `find_library` calls for `openjp2`, `openjph`, and `charls` in
+  `CMakeLists.txt` to search `PACS_SYSTEM_LIB_DIR` first (#548).
