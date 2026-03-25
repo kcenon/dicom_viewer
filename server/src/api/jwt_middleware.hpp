@@ -99,10 +99,10 @@ struct JwtMiddleware {
         }
 
         if (!validator) {
-            // No validator configured — allow all (development mode)
-            ctx.authenticated = true;
-            ctx.userId = "anonymous";
-            ctx.role = "Viewer";
+            spdlog::critical("JwtMiddleware: validator is null — rejecting request (fail-closed)");
+            res.code = 500;
+            res.body = R"({"error":"server_misconfigured","message":"Authentication service unavailable"})";
+            res.end();
             return;
         }
 
