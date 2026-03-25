@@ -29,16 +29,16 @@
 
 /**
  * @file oidc_auth_provider.hpp
- * @brief OIDC/Cognito authentication provider stub (Phase 2)
- * @details Stub implementation of AuthProvider for OpenID Connect / AWS Cognito.
- *          Currently validates structure only; full JWKS fetch and claim extraction
- *          will be completed in Phase 2 when cloud deployment is targeted.
+ * @brief OIDC/Cognito authentication provider with JWKS signature verification
+ * @details Implementation of AuthProvider for OpenID Connect / AWS Cognito.
+ *          Fetches JWKS from the identity provider's endpoint and caches
+ *          public keys for RS256 JWT signature verification.
  *
- * ## Phase 2 TODOs
- * - Implement JWKS endpoint fetching with periodic refresh
- * - Validate Cognito-issued ID tokens (signature + standard claims)
- * - Extract custom claims (custom:role, custom:organization)
- * - Implement token refresh via Cognito OAuth2 endpoint
+ * ## Security
+ * - Cryptographic signature verification via JWKS public keys
+ * - Algorithm restriction: only RS256/RS384/RS512 allowed
+ * - Explicit rejection of `alg: "none"` and HMAC algorithms
+ * - Thread-safe JWKS cache with `std::shared_mutex`
  *
  * @author kcenon
  * @since 1.0.0
@@ -48,6 +48,7 @@
 
 #include "services/auth/auth_provider.hpp"
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -94,18 +95,26 @@ struct OidcAuthConfig {
     int maxConcurrentSessions = 3;
 };
 
+/// Callback type for fetching JWKS JSON from a URL.
+/// Returns the raw JSON string on success, or empty string on failure.
+using JwksFetcher = std::function<std::string(const std::string& url)>;
+
 /**
- * @brief OIDC/Cognito authentication provider (Phase 2 stub)
+ * @brief OIDC/Cognito authentication provider with JWKS verification
  *
- * Validates Cognito-issued tokens using the JWKS endpoint.
- * Full implementation is deferred to Phase 2 (cloud deployment).
- * Currently returns AuthError::ProviderUnavailable for all auth operations.
+ * Validates Cognito-issued tokens by verifying the RS256 signature
+ * against public keys fetched from the JWKS endpoint. Keys are cached
+ * in memory and refreshed periodically or on `kid` cache miss.
  *
  * @trace SRS-FR-AUTH-003
  */
 class OidcAuthProvider : public AuthProvider {
 public:
     explicit OidcAuthProvider(const OidcAuthConfig& config);
+
+    /// Constructor with custom JWKS fetcher (for testing)
+    OidcAuthProvider(const OidcAuthConfig& config, JwksFetcher fetcher);
+
     ~OidcAuthProvider() override;
 
     [[nodiscard]] std::expected<AuthResult, AuthError>

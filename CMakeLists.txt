@@ -584,6 +584,15 @@ if(LIBLDAP_FOUND)
     target_link_libraries(auth_service PUBLIC ${LIBLDAP_LIBRARIES})
 endif()
 
+find_package(CURL QUIET)
+if(CURL_FOUND)
+    target_compile_definitions(auth_service PRIVATE DICOM_VIEWER_HAS_CURL)
+    target_link_libraries(auth_service PRIVATE CURL::libcurl)
+    message(STATUS "libcurl found: OIDC JWKS HTTP fetch enabled")
+else()
+    message(STATUS "libcurl not found: OIDC JWKS fetch requires injected fetcher (test mode)")
+endif()
+
 # Coordinate transformation service (unified MPR coordinate system)
 add_library(coordinate_service STATIC
     src/services/coordinate/mpr_coordinate_transformer.cpp

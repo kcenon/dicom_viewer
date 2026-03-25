@@ -31,11 +31,74 @@
 
 #include <jwt-cpp/jwt.h>
 
+#include <chrono>
 #include <mutex>
+#include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
 
+#ifdef DICOM_VIEWER_HAS_CURL
+#include <curl/curl.h>
+#endif
+
 namespace dicom_viewer::services {
+
+namespace {
+
+/// Allowed RSA algorithm families for OIDC token verification
+const std::unordered_set<std::string> kAllowedAlgorithms = {"RS256", "RS384", "RS512"};
+
+/// Algorithms that must be explicitly rejected (security: prevent algorithm confusion)
+const std::unordered_set<std::string> kDeniedAlgorithms = {
+    "none", "HS256", "HS384", "HS512"
+};
+
+#ifdef DICOM_VIEWER_HAS_CURL
+
+size_t curlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata)
+{
+    const auto totalBytes = size * nmemb;
+    auto* response = static_cast<std::string*>(userdata);
+    response->append(ptr, totalBytes);
+    return totalBytes;
+}
+
+std::string defaultJwksFetcher(const std::string& url)
+{
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        return {};
+    }
+
+    std::string response;
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 3L);
+
+    const CURLcode res = curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK) {
+        return {};
+    }
+
+    return response;
+}
+
+#else
+
+std::string defaultJwksFetcher(const std::string& /*url*/)
+{
+    // libcurl not compiled in — JWKS fetch unavailable
+    return {};
+}
+
+#endif // DICOM_VIEWER_HAS_CURL
+
+} // namespace
 
 // ---------------------------------------------------------------------------
 // Impl
@@ -43,16 +106,21 @@ namespace dicom_viewer::services {
 
 class OidcAuthProvider::Impl {
 public:
-    explicit Impl(const OidcAuthConfig& config) : config_(config) {}
+    explicit Impl(const OidcAuthConfig& config)
+        : config_(config), jwksFetcher_(defaultJwksFetcher)
+    {
+    }
 
-    // Phase 2 stub: password-based auth is not an OIDC pattern.
-    // This stub signals that the OIDC provider requires federation
-    // (user logs in via Cognito Hosted UI, not username/password here).
+    Impl(const OidcAuthConfig& config, JwksFetcher fetcher)
+        : config_(config), jwksFetcher_(std::move(fetcher))
+    {
+    }
+
     std::expected<AuthResult, AuthError>
     authenticate(const std::string& /*username*/, const std::string& /*password*/)
     {
-        // TODO(Phase 2): Support resource owner password credentials flow
-        //                if Cognito pool is configured for it.
+        // OIDC authentication requires federation (Cognito Hosted UI).
+        // Direct username/password is not an OIDC pattern.
         return std::unexpected(AuthError::ProviderUnavailable);
     }
 
@@ -70,31 +138,71 @@ public:
             }
         }
 
-        // TODO(Phase 2): Fetch JWKS from config_.jwksUrl and cache with
-        //                periodic refresh every config_.jwksRefreshIntervalSeconds.
-        //                For now, perform structural validation only.
         try {
             auto decoded = jwt::decode(accessToken);
 
+            // Reject tokens without an algorithm header
             if (!decoded.has_algorithm()) {
                 return std::unexpected(AuthError::TokenInvalid);
             }
 
+            const auto alg = decoded.get_algorithm();
+
+            // Reject explicitly denied algorithms (none, HMAC)
+            if (kDeniedAlgorithms.count(alg)) {
+                return std::unexpected(AuthError::TokenInvalid);
+            }
+
+            // Only allow RSA algorithm family
+            if (!kAllowedAlgorithms.count(alg)) {
+                return std::unexpected(AuthError::TokenInvalid);
+            }
+
+            // Extract kid from token header for JWKS lookup
+            if (!decoded.has_key_id()) {
+                return std::unexpected(AuthError::TokenInvalid);
+            }
+            const auto kid = decoded.get_key_id();
+
+            // Retrieve the public key from JWKS cache
+            auto publicKeyPem = getPublicKeyForKid(kid);
+            if (publicKeyPem.empty()) {
+                return std::unexpected(AuthError::TokenInvalid);
+            }
+
+            // Build the verifier with the appropriate RSA algorithm
+            auto verifier = jwt::verify();
+
+            if (alg == "RS256") {
+                verifier.allow_algorithm(jwt::algorithm::rs256(publicKeyPem, "", "", ""));
+            } else if (alg == "RS384") {
+                verifier.allow_algorithm(jwt::algorithm::rs384(publicKeyPem, "", "", ""));
+            } else if (alg == "RS512") {
+                verifier.allow_algorithm(jwt::algorithm::rs512(publicKeyPem, "", "", ""));
+            }
+
             // Verify issuer if configured
             if (!config_.issuer.empty()) {
-                if (!decoded.has_issuer() || decoded.get_issuer() != config_.issuer) {
-                    return std::unexpected(AuthError::TokenInvalid);
-                }
+                verifier.with_issuer(config_.issuer);
             }
 
-            // Check expiry structurally (no signature validation without JWKS)
-            if (decoded.has_expires_at()) {
-                const auto expiresAt = decoded.get_expires_at();
-                if (expiresAt < std::chrono::system_clock::now()) {
+            // Verify audience if configured
+            if (!config_.audience.empty()) {
+                verifier.with_audience(config_.audience);
+            }
+
+            std::error_code ec;
+            verifier.verify(decoded, ec);
+
+            if (ec) {
+                using jwt::error::token_verification_error;
+                if (ec == token_verification_error::token_expired) {
                     return std::unexpected(AuthError::TokenExpired);
                 }
+                return std::unexpected(AuthError::TokenInvalid);
             }
 
+            // Extract claims into payload
             AuthTokenPayload payload;
             payload.userId = decoded.get_subject();
             if (decoded.has_payload_claim(config_.roleClaimName)) {
@@ -153,7 +261,6 @@ public:
     std::expected<AuthUserInfo, AuthError>
     getUserInfo(const std::string& userId)
     {
-        // TODO(Phase 2): Query Cognito /oauth2/userInfo endpoint.
         std::lock_guard lock(userCacheMutex_);
         const auto it = userCache_.find(userId);
         if (it == userCache_.end()) {
@@ -169,7 +276,111 @@ public:
         return (it != sessionCounts_.end()) ? it->second : 0;
     }
 
+private:
+    /// Extract PEM public key from a single JWK entry
+    static std::string extractPublicKeyPem(const jwt::jwk<jwt::traits::kazuho_picojson>& jwk)
+    {
+        // Check key type — only RSA keys
+        if (jwk.has_jwk_claim("kty")) {
+            const auto kty = jwk.get_jwk_claim("kty").as_string();
+            if (kty != "RSA") {
+                return {};
+            }
+        }
+
+        // Try x5c first, then fall back to n/e components
+        try {
+            if (jwk.has_x5c_key_value()) {
+                const auto x5c = jwk.get_x5c_key_value();
+                if (!x5c.empty()) {
+                    return jwt::helper::convert_base64_der_to_pem(x5c);
+                }
+            }
+        } catch (...) {
+            // Fall through to n/e extraction
+        }
+
+        try {
+            if (jwk.has_jwk_claim("n") && jwk.has_jwk_claim("e")) {
+                const auto n = jwk.get_jwk_claim("n").as_string();
+                const auto e = jwk.get_jwk_claim("e").as_string();
+                return jwt::helper::create_public_key_from_rsa_components(n, e);
+            }
+        } catch (...) {
+            // Malformed key
+        }
+
+        return {};
+    }
+
+    /// Retrieve the PEM public key for a given kid, refreshing JWKS if needed
+    std::string getPublicKeyForKid(const std::string& kid)
+    {
+        // Try reading from cache first (shared/read lock)
+        {
+            std::shared_lock readLock(jwksMutex_);
+            if (jwksData_ && !isCacheExpired() && jwksData_->has_jwk(kid)) {
+                return extractPublicKeyPem(jwksData_->get_jwk(kid));
+            }
+        }
+
+        // Cache miss or expired — refresh JWKS (exclusive/write lock)
+        {
+            std::unique_lock writeLock(jwksMutex_);
+
+            // Double-check after acquiring write lock
+            if (jwksData_ && !isCacheExpired() && jwksData_->has_jwk(kid)) {
+                return extractPublicKeyPem(jwksData_->get_jwk(kid));
+            }
+
+            refreshJwksCache();
+
+            if (jwksData_ && jwksData_->has_jwk(kid)) {
+                return extractPublicKeyPem(jwksData_->get_jwk(kid));
+            }
+        }
+
+        return {};
+    }
+
+    /// Check whether the JWKS cache has expired
+    bool isCacheExpired() const
+    {
+        if (config_.jwksRefreshIntervalSeconds == 0) {
+            return true;
+        }
+        const auto elapsed = std::chrono::steady_clock::now() - jwksLastFetch_;
+        return elapsed > std::chrono::seconds(config_.jwksRefreshIntervalSeconds);
+    }
+
+    /// Fetch and parse JWKS from the configured endpoint (caller must hold write lock)
+    void refreshJwksCache()
+    {
+        if (config_.jwksUrl.empty() || !jwksFetcher_) {
+            return;
+        }
+
+        const auto jwksJson = jwksFetcher_(config_.jwksUrl);
+        if (jwksJson.empty()) {
+            return;
+        }
+
+        try {
+            jwksData_ = std::make_unique<jwt::jwks<jwt::traits::kazuho_picojson>>(
+                jwt::parse_jwks(jwksJson));
+            jwksLastFetch_ = std::chrono::steady_clock::now();
+        } catch (...) {
+            // JWKS parse failure — keep existing cache
+        }
+    }
+
     OidcAuthConfig config_;
+    JwksFetcher jwksFetcher_;
+
+    // JWKS cache protected by shared_mutex (read-heavy workload)
+    mutable std::shared_mutex jwksMutex_;
+    std::unique_ptr<jwt::jwks<jwt::traits::kazuho_picojson>> jwksData_;
+    std::chrono::steady_clock::time_point jwksLastFetch_{};
 
     mutable std::mutex blacklistMutex_;
     std::unordered_set<std::string> revokedTokens_;
@@ -187,6 +398,11 @@ public:
 
 OidcAuthProvider::OidcAuthProvider(const OidcAuthConfig& config)
     : impl_(std::make_unique<Impl>(config))
+{
+}
+
+OidcAuthProvider::OidcAuthProvider(const OidcAuthConfig& config, JwksFetcher fetcher)
+    : impl_(std::make_unique<Impl>(config, std::move(fetcher)))
 {
 }
 
