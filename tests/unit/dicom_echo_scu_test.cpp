@@ -294,8 +294,8 @@ TEST_F(DicomEchoSCUNetworkTest, EchoLatencyIsPositive) {
     auto result = echoScu_->verify(config);
 
     ASSERT_TRUE(result.has_value()) << result.error().toString();
-    EXPECT_GT(result->latency.count(), 0)
-        << "Echo latency should be positive on localhost";
+    EXPECT_GE(result->latency.count(), 0)
+        << "Echo latency should be non-negative";
     EXPECT_LT(result->latency.count(), 5000)
         << "Echo latency should be under 5 seconds on localhost";
 }

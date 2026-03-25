@@ -219,7 +219,7 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                 set_property(TARGET pacs::encoding APPEND PROPERTY
                     INTERFACE_LINK_LIBRARIES openjp2)
             else()
-                find_library(OPENJP2_LIB openjp2)
+                find_library(OPENJP2_LIB openjp2 HINTS ${PACS_SYSTEM_LIB_DIR})
                 if(OPENJP2_LIB)
                     set_property(TARGET pacs::encoding APPEND PROPERTY
                         INTERFACE_LINK_LIBRARIES "${OPENJP2_LIB}")
@@ -231,7 +231,7 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                 set_property(TARGET pacs::encoding APPEND PROPERTY
                     INTERFACE_LINK_LIBRARIES openjph::openjph)
             else()
-                find_library(OPENJPH_LIB openjph)
+                find_library(OPENJPH_LIB openjph HINTS ${PACS_SYSTEM_LIB_DIR})
                 if(OPENJPH_LIB)
                     set_property(TARGET pacs::encoding APPEND PROPERTY
                         INTERFACE_LINK_LIBRARIES "${OPENJPH_LIB}")
@@ -243,7 +243,7 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
                 set_property(TARGET pacs::encoding APPEND PROPERTY
                     INTERFACE_LINK_LIBRARIES charls::charls)
             else()
-                find_library(CHARLS_LIB charls)
+                find_library(CHARLS_LIB charls HINTS ${PACS_SYSTEM_LIB_DIR})
                 if(CHARLS_LIB)
                     set_property(TARGET pacs::encoding APPEND PROPERTY
                         INTERFACE_LINK_LIBRARIES "${CHARLS_LIB}")

@@ -121,9 +121,6 @@ jobs:
       - name: Run unit tests
         id: unit-tests
         if: always() && steps.build.outcome == 'success'
-        # TODO: Remove continue-on-error once pre-existing test failures
-        # on main are resolved (see issue backlog for failing tests).
-        continue-on-error: true
         working-directory: build
         run: |
           ctest --output-on-failure --timeout 120 \
@@ -154,9 +151,6 @@ jobs:
       - name: Run integration tests
         id: integration-tests
         if: always() && steps.build.outcome == 'success'
-        # TODO: Remove continue-on-error once pre-existing test failures
-        # on main are resolved (see issue backlog for failing tests).
-        continue-on-error: true
         working-directory: build
         run: |
           ctest --output-on-failure --timeout 300 \
@@ -167,8 +161,6 @@ jobs:
       # ---------------------------------------------------------------
       # 7. Test result reporting
       # ---------------------------------------------------------------
-      # TODO: Change fail_on back to "test failures" once pre-existing
-      # test failures on main are resolved (see issue backlog).
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action/macos@v2
         if: always() && steps.build.outcome == 'success'
@@ -176,7 +168,7 @@ jobs:
           files: build/*-test-results.xml
           check_name: Test Results
           comment_mode: always
-          fail_on: nothing
+          fail_on: "test failures"
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
