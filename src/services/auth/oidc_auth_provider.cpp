@@ -48,6 +48,9 @@ namespace {
 /// Maximum JWKS response size (1 MB) to prevent resource exhaustion
 constexpr long kMaxJwksResponseBytes = 1L * 1024 * 1024;
 
+/// Minimum cooldown between kid-miss-triggered JWKS refreshes (seconds)
+constexpr int kKidMissRefreshCooldownSeconds = 30;
+
 /// Allowed RSA algorithm families for OIDC token verification
 const std::unordered_set<std::string> kAllowedAlgorithms = {"RS256", "RS384", "RS512"};
 
@@ -335,6 +338,15 @@ private:
             // Double-check after acquiring write lock
             if (jwksData_ && !isCacheExpired() && jwksData_->has_jwk(kid)) {
                 return extractPublicKeyPem(jwksData_->get_jwk(kid));
+            }
+
+            // Rate-limit kid-miss-triggered refreshes to prevent IdP DoS
+            const auto now = std::chrono::steady_clock::now();
+            const bool isCacheFresh = jwksData_ && !isCacheExpired();
+            const auto sinceLastFetch = now - jwksLastFetch_;
+            if (isCacheFresh &&
+                sinceLastFetch < std::chrono::seconds(kKidMissRefreshCooldownSeconds)) {
+                return {};
             }
 
             refreshJwksCache();
