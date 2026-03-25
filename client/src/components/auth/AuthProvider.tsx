@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useAuthStore } from '@/stores/authStore'
-import { http, clearToken } from '@/api/httpClient'
-import type { RefreshTokenResponse } from '@/types/api'
+import { http, setCsrfToken } from '@/api/httpClient'
+import type { AuthMeResponse, CsrfTokenResponse, RefreshTokenResponse } from '@/types/api'
 import { LoginPage } from './LoginPage'
 import { SessionTimeoutModal } from './SessionTimeoutModal'
 
@@ -19,19 +19,42 @@ export function AuthProvider({ children }: Props) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const user = useAuthStore((s) => s.user)
   const refreshToken = useAuthStore((s) => s.refreshToken)
-  const logout = useAuthStore((s) => s.logout)
-  const updateToken = useAuthStore((s) => s.updateToken)
+  const storeLogout = useAuthStore((s) => s.logout)
+  const updateAfterRefresh = useAuthStore((s) => s.updateAfterRefresh)
+  const setUser = useAuthStore((s) => s.setUser)
+
+  // Server-side logout (revoke token + clear cookie) then clear client state
+  const logout = useCallback(() => {
+    http.post('/auth/logout').catch(() => {})
+    storeLogout()
+  }, [storeLogout])
 
   const [showTimeoutModal, setShowTimeoutModal] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
 
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastActivityRef = useRef<number>(0)
 
-  // Clear stale localStorage token on mount (in-memory auth only)
+  // Check existing session on mount via /auth/me (cookie-based)
   useEffect(() => {
-    clearToken()
-  }, [])
+    let cancelled = false
+    http.get<AuthMeResponse>('/auth/me')
+      .then(async (res) => {
+        if (cancelled) return
+        setUser({ id: res.id, username: res.id, role: res.role, expiresAt: 0 })
+        // Fetch CSRF token for this tab (sessionStorage is per-tab)
+        const csrf = await http.get<CsrfTokenResponse>('/auth/csrf-token')
+        if (!cancelled) setCsrfToken(csrf.csrfToken)
+      })
+      .catch(() => {
+        // No valid session — stay on login page
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingSession(false)
+      })
+    return () => { cancelled = true }
+  }, [setUser])
 
   // Reset idle timers on user activity (throttled to once per minute)
   const resetIdleTimers = useCallback(() => {
@@ -67,7 +90,7 @@ export function AuthProvider({ children }: Props) {
   // Auto-refresh token before it expires
   const expiresAt = user?.expiresAt ?? null
   useEffect(() => {
-    if (!isAuthenticated || expiresAt === null || refreshToken === null) return
+    if (!isAuthenticated || expiresAt === null || expiresAt === 0 || refreshToken === null) return
 
     const msUntilExpiry = expiresAt - Date.now()
     if (msUntilExpiry <= 0) {
@@ -79,20 +102,24 @@ export function AuthProvider({ children }: Props) {
     const timer = setTimeout(async () => {
       try {
         const res = await http.post<RefreshTokenResponse>('/auth/refresh', { refreshToken })
-        updateToken(res.token, res.user)
+        updateAfterRefresh(res.csrfToken, res.expiresAt)
       } catch {
         logout()
       }
     }, refreshAt)
 
     return () => clearTimeout(timer)
-  }, [isAuthenticated, expiresAt, refreshToken, logout, updateToken])
+  }, [isAuthenticated, expiresAt, refreshToken, logout, updateAfterRefresh])
 
   // Bypass throttle when user explicitly chooses to stay logged in
   const handleStayLoggedIn = useCallback(() => {
     lastActivityRef.current = 0
     resetIdleTimers()
   }, [resetIdleTimers])
+
+  if (checkingSession) {
+    return null
+  }
 
   if (!isAuthenticated) {
     return <LoginPage />
