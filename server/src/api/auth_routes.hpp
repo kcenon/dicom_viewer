@@ -38,7 +38,9 @@
  * |--------|-----------------------------------|-----------|
  * | POST   | /api/v1/auth/login                | Public    |
  * | POST   | /api/v1/auth/refresh              | Public    |
- * | POST   | /api/v1/auth/logout               | Bearer    |
+ * | GET    | /api/v1/auth/csrf-token           | Public    |
+ * | GET    | /api/v1/auth/me                   | Cookie/Bearer |
+ * | POST   | /api/v1/auth/logout               | Cookie/Bearer |
  * | POST   | /api/v1/auth/emergency-access     | Clinician |
  *
  * @author kcenon

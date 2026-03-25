@@ -35,6 +35,10 @@
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 
+#include <random>
+#include <sstream>
+#include <iomanip>
+
 namespace dicom_viewer::server {
 
 using routes::addCorsHeaders;
@@ -43,6 +47,42 @@ using routes::requireRole;
 using nlohmann::json;
 
 namespace {
+
+/// Generate a cryptographically random hex string for CSRF tokens
+std::string generateCsrfToken() {
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::uniform_int_distribution<uint64_t> dist;
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0');
+    oss << std::setw(16) << dist(gen);
+    oss << std::setw(16) << dist(gen);
+    return oss.str();
+}
+
+/// Build a Set-Cookie header value for the httpOnly access token
+std::string buildAccessTokenCookie(const std::string& token, bool clear = false) {
+    std::string cookie = "access_token=";
+    if (clear) {
+        cookie += "; Max-Age=0";
+    } else {
+        cookie += token;
+    }
+    cookie += "; Path=/api; HttpOnly; Secure; SameSite=Strict";
+    return cookie;
+}
+
+/// Build a Set-Cookie header value for the CSRF token (readable by JavaScript)
+std::string buildCsrfCookie(const std::string& token, bool clear = false) {
+    std::string cookie = "csrf_token=";
+    if (clear) {
+        cookie += "; Max-Age=0";
+    } else {
+        cookie += token;
+    }
+    cookie += "; Path=/api; Secure; SameSite=Strict";
+    return cookie;
+}
 
 /// Map AuthError to HTTP response and end the response.
 void respondAuthError(crow::response& res, services::AuthError err,
@@ -135,10 +175,17 @@ void registerAuthRoutes(routes::App* app,
             spdlog::info("[auth] Login success: user='{}' role='{}'",
                          authResult.userInfo.userId, authResult.userInfo.role);
 
+            // Set httpOnly cookie with access token
+            res.add_header("Set-Cookie", buildAccessTokenCookie(authResult.tokens.accessToken));
+
+            // Set CSRF token cookie (JavaScript-readable for double-submit pattern)
+            const auto csrfToken = generateCsrfToken();
+            res.add_header("Set-Cookie", buildCsrfCookie(csrfToken));
+
             json resp;
-            resp["accessToken"]  = authResult.tokens.accessToken;
-            resp["refreshToken"] = authResult.tokens.refreshToken;
             resp["expiresAt"]    = authResult.tokens.accessExpiresAt;
+            resp["refreshToken"] = authResult.tokens.refreshToken;
+            resp["csrfToken"]    = csrfToken;
             resp["user"] = {
                 {"id",       authResult.userInfo.userId},
                 {"username", authResult.userInfo.displayName},
@@ -192,9 +239,17 @@ void registerAuthRoutes(routes::App* app,
             }
 
             const auto& tokens = *result;
+
+            // Update httpOnly cookie with new access token
+            res.add_header("Set-Cookie", buildAccessTokenCookie(tokens.accessToken));
+
+            // Rotate CSRF token on refresh
+            const auto csrfToken = generateCsrfToken();
+            res.add_header("Set-Cookie", buildCsrfCookie(csrfToken));
+
             json resp;
-            resp["accessToken"] = tokens.accessToken;
-            resp["expiresAt"]   = tokens.accessExpiresAt;
+            resp["expiresAt"]  = tokens.accessExpiresAt;
+            resp["csrfToken"]  = csrfToken;
 
             res.code = 200;
             res.body = resp.dump();
@@ -203,7 +258,7 @@ void registerAuthRoutes(routes::App* app,
             (void)app;
         });
 
-    // POST /api/v1/auth/logout — Authenticated (revokes the access token)
+    // POST /api/v1/auth/logout — Authenticated (revokes the access token, clears cookie)
     CROW_ROUTE((*app), "/api/v1/auth/logout")
         .methods(crow::HTTPMethod::Post)(
         [app, auth, audit, corsOrigin](const crow::request& req, crow::response& res) {
@@ -214,13 +269,27 @@ void registerAuthRoutes(routes::App* app,
             const auto& ctx = app->get_context<JwtMiddleware>(req);
             const auto  userId = ctx.userId;
 
-            // Extract the Bearer token to revoke it
+            // Extract token from Authorization header or Cookie for revocation
+            std::string token;
             const std::string authHeader = req.get_header_value("Authorization");
-            const bool hasBearer = authHeader.size() > 7 &&
-                                   authHeader.compare(0, 7, "Bearer ") == 0;
+            if (authHeader.size() > 7 && authHeader.compare(0, 7, "Bearer ") == 0) {
+                token = authHeader.substr(7);
+            } else {
+                const std::string cookieHeader = req.get_header_value("Cookie");
+                if (!cookieHeader.empty()) {
+                    // Reuse middleware's cookie extraction logic inline
+                    const std::string prefix = "access_token=";
+                    auto pos = cookieHeader.find(prefix);
+                    if (pos != std::string::npos) {
+                        const auto valueStart = pos + prefix.size();
+                        const auto valueEnd = cookieHeader.find(';', valueStart);
+                        token = cookieHeader.substr(valueStart,
+                            valueEnd == std::string::npos ? std::string::npos : valueEnd - valueStart);
+                    }
+                }
+            }
 
-            if (auth && hasBearer) {
-                const std::string token = authHeader.substr(7);
+            if (auth && !token.empty()) {
                 const auto revokeResult = auth->revokeToken(token);
                 if (!revokeResult) {
                     spdlog::warn("[auth] Token revocation failed: user='{}' error={}",
@@ -228,10 +297,50 @@ void registerAuthRoutes(routes::App* app,
                 }
             }
 
+            // Clear auth cookies
+            res.add_header("Set-Cookie", buildAccessTokenCookie("", true));
+            res.add_header("Set-Cookie", buildCsrfCookie("", true));
+
             if (audit) audit->auditAssociation(userId, false, true);
             spdlog::info("[auth] Logout: user='{}'", userId);
 
             res.code = 204;
+            res.end();
+        });
+
+    // GET /api/v1/auth/csrf-token — Public (returns a fresh CSRF token pair)
+    CROW_ROUTE((*app), "/api/v1/auth/csrf-token")
+        .methods(crow::HTTPMethod::Get)(
+        [corsOrigin](const crow::request& /*req*/, crow::response& res) {
+            addCorsHeaders(res, corsOrigin);
+
+            const auto csrfToken = generateCsrfToken();
+            res.add_header("Set-Cookie", buildCsrfCookie(csrfToken));
+
+            json resp;
+            resp["csrfToken"] = csrfToken;
+
+            res.code = 200;
+            res.body = resp.dump();
+            res.end();
+        });
+
+    // GET /api/v1/auth/me — Authenticated (returns current user info from JWT context)
+    CROW_ROUTE((*app), "/api/v1/auth/me")
+        .methods(crow::HTTPMethod::Get)(
+        [app, corsOrigin](const crow::request& req, crow::response& res) {
+            addCorsHeaders(res, corsOrigin);
+
+            if (!requireAuth(*app, req, res, corsOrigin)) return;
+
+            const auto& ctx = app->get_context<JwtMiddleware>(req);
+
+            json resp;
+            resp["id"]       = ctx.userId;
+            resp["role"]     = ctx.role;
+
+            res.code = 200;
+            res.body = resp.dump();
             res.end();
         });
 

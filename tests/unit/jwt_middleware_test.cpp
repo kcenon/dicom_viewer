@@ -113,10 +113,10 @@ TEST(JwtMiddleware, PublicEndpointBypassesValidation) {
 }
 
 // ============================================================================
-// JwtMiddleware — missing Bearer token (with non-null validator)
+// JwtMiddleware — missing token (no Cookie, no Authorization header)
 // ============================================================================
 
-TEST(JwtMiddleware, MissingBearerTokenReturns401) {
+TEST(JwtMiddleware, MissingTokenReturns401) {
     // Use a real validator to test the missing-token path
     dicom_viewer::services::SessionTokenConfig cfg;
     cfg.allowEphemeralKeys = true;
@@ -127,7 +127,7 @@ TEST(JwtMiddleware, MissingBearerTokenReturns401) {
 
     crow::request req;
     req.url = "/api/v1/sessions";
-    // No Authorization header set
+    // No Authorization header or Cookie set
 
     crow::response res;
     JwtMiddleware::context ctx;
@@ -137,4 +137,179 @@ TEST(JwtMiddleware, MissingBearerTokenReturns401) {
     EXPECT_EQ(res.code, 401);
     EXPECT_FALSE(ctx.authenticated);
     EXPECT_NE(res.body.find("missing_token"), std::string::npos);
+}
+
+// ============================================================================
+// JwtMiddleware — Authorization: Bearer fallback still works
+// ============================================================================
+
+TEST(JwtMiddleware, BearerTokenFallbackStillWorks) {
+    JwtMiddleware mw;
+    mw.validator = nullptr;  // will hit null-validator check after token extraction
+
+    crow::request req;
+    req.url = "/api/v1/sessions";
+    req.add_header("Authorization", "Bearer test-token");
+
+    crow::response res;
+    JwtMiddleware::context ctx;
+
+    mw.before_handle(req, res, ctx);
+
+    // Should reach the null-validator check (500), not token-missing (401)
+    EXPECT_EQ(res.code, 500);
+    EXPECT_FALSE(ctx.authenticated);
+}
+
+// ============================================================================
+// JwtMiddleware — CSRF token endpoint is public
+// ============================================================================
+
+TEST(JwtMiddleware, CsrfTokenEndpointIsPublic) {
+    JwtMiddleware mw;
+    mw.validator = nullptr;
+
+    crow::request req;
+    req.url = "/api/v1/auth/csrf-token";
+
+    crow::response res;
+    JwtMiddleware::context ctx;
+
+    mw.before_handle(req, res, ctx);
+
+    EXPECT_TRUE(ctx.skip);
+    EXPECT_NE(res.code, 500);
+}
+
+// ============================================================================
+// JwtMiddleware — Cookie-based token extraction (null validator path)
+// ============================================================================
+
+TEST(JwtMiddleware, CookieTokenExtraction) {
+    JwtMiddleware mw;
+    mw.validator = nullptr;  // will hit null-validator check after extraction
+
+    crow::request req;
+    req.url = "/api/v1/sessions";
+    req.add_header("Cookie", "access_token=my-jwt-token; csrf_token=my-csrf");
+
+    crow::response res;
+    JwtMiddleware::context ctx;
+
+    mw.before_handle(req, res, ctx);
+
+    // Should reach the null-validator check (500), meaning token was extracted
+    EXPECT_EQ(res.code, 500);
+    EXPECT_FALSE(ctx.authenticated);
+}
+
+// ============================================================================
+// JwtMiddleware — Cookie preferred over Authorization header
+// ============================================================================
+
+TEST(JwtMiddleware, CookiePreferredOverBearerHeader) {
+    JwtMiddleware mw;
+    mw.validator = nullptr;
+
+    crow::request req;
+    req.url = "/api/v1/sessions";
+    req.add_header("Cookie", "access_token=cookie-token");
+    req.add_header("Authorization", "Bearer bearer-token");
+
+    crow::response res;
+    JwtMiddleware::context ctx;
+
+    mw.before_handle(req, res, ctx);
+
+    // Should reach null-validator (500) — cookie token extracted first
+    EXPECT_EQ(res.code, 500);
+}
+
+// ============================================================================
+// JwtMiddleware — CSRF validation for state-changing methods with cookie auth
+// ============================================================================
+
+TEST(JwtMiddleware, CsrfRequiredForPostWithCookieAuth) {
+    dicom_viewer::services::SessionTokenConfig cfg;
+    cfg.allowEphemeralKeys = true;
+    dicom_viewer::services::SessionTokenValidator validator(cfg);
+
+    JwtMiddleware mw;
+    mw.validator = &validator;
+
+    crow::request req;
+    req.url = "/api/v1/auth/logout";
+    req.method = crow::HTTPMethod::Post;
+    // Cookie has access_token but no matching CSRF
+    req.add_header("Cookie", "access_token=some-token");
+
+    crow::response res;
+    JwtMiddleware::context ctx;
+
+    mw.before_handle(req, res, ctx);
+
+    EXPECT_EQ(res.code, 403);
+    EXPECT_FALSE(ctx.authenticated);
+    EXPECT_NE(res.body.find("csrf_validation_failed"), std::string::npos);
+}
+
+TEST(JwtMiddleware, CsrfMismatchReturns403) {
+    dicom_viewer::services::SessionTokenConfig cfg;
+    cfg.allowEphemeralKeys = true;
+    dicom_viewer::services::SessionTokenValidator validator(cfg);
+
+    JwtMiddleware mw;
+    mw.validator = &validator;
+
+    crow::request req;
+    req.url = "/api/v1/auth/logout";
+    req.method = crow::HTTPMethod::Post;
+    req.add_header("Cookie", "access_token=some-token; csrf_token=cookie-csrf");
+    req.add_header("X-CSRF-Token", "different-csrf-value");
+
+    crow::response res;
+    JwtMiddleware::context ctx;
+
+    mw.before_handle(req, res, ctx);
+
+    EXPECT_EQ(res.code, 403);
+    EXPECT_NE(res.body.find("csrf_validation_failed"), std::string::npos);
+}
+
+TEST(JwtMiddleware, CsrfNotRequiredForGetWithCookieAuth) {
+    JwtMiddleware mw;
+    mw.validator = nullptr;  // will hit null-validator after CSRF check skipped
+
+    crow::request req;
+    req.url = "/api/v1/studies";
+    req.method = crow::HTTPMethod::Get;
+    req.add_header("Cookie", "access_token=some-token");
+    // No CSRF header — should be fine for GET
+
+    crow::response res;
+    JwtMiddleware::context ctx;
+
+    mw.before_handle(req, res, ctx);
+
+    // Should NOT be 403 (CSRF), should be 500 (null validator)
+    EXPECT_EQ(res.code, 500);
+}
+
+TEST(JwtMiddleware, CsrfNotRequiredForBearerAuth) {
+    JwtMiddleware mw;
+    mw.validator = nullptr;
+
+    crow::request req;
+    req.url = "/api/v1/auth/logout";
+    req.method = crow::HTTPMethod::Post;
+    // Bearer auth — no CSRF needed
+    req.add_header("Authorization", "Bearer some-token");
+
+    crow::response res;
+    JwtMiddleware::context ctx;
+
+    mw.before_handle(req, res, ctx);
+
+    // Should NOT be 403 (CSRF), should be 500 (null validator)
+    EXPECT_EQ(res.code, 500);
 }

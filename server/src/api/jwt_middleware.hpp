@@ -29,10 +29,13 @@
 
 /**
  * @file jwt_middleware.hpp
- * @brief Crow middleware for JWT Bearer token validation on REST API routes
- * @details Extracts the Bearer token from the Authorization header and
- *          validates it using SessionTokenValidator. Attaches decoded payload
+ * @brief Crow middleware for JWT token validation on REST API routes
+ * @details Extracts the JWT from the Cookie header (httpOnly cookie) with
+ *          fallback to Authorization: Bearer header for non-browser API clients.
+ *          Validates using SessionTokenValidator and attaches decoded payload
  *          to the Crow context for downstream route handlers.
+ *          Enforces CSRF token validation for state-changing requests (POST/PUT/DELETE)
+ *          when the token is sourced from a cookie.
  *
  * ## Usage
  * Routes that require authentication should be defined on a Crow app
@@ -69,12 +72,21 @@ struct JwtContext {
     bool skip = false;
 };
 
+/// Cookie name for the httpOnly JWT access token
+inline constexpr const char* kAccessTokenCookie = "access_token";
+
+/// CSRF token header name
+inline constexpr const char* kCsrfTokenHeader = "X-CSRF-Token";
+
 /**
- * @brief Crow middleware that validates JWT Bearer tokens
+ * @brief Crow middleware that validates JWT tokens from Cookie or Authorization header
  *
- * Validates the Authorization: Bearer <token> header on each request.
- * Sets JwtContext::authenticated = true on success.
- * Returns 401 Unauthorized on invalid or missing tokens for protected routes.
+ * Token resolution order:
+ * 1. Cookie: access_token=<jwt> (browser clients)
+ * 2. Authorization: Bearer <token> (non-browser API clients)
+ *
+ * When the token is sourced from a cookie, state-changing requests (POST/PUT/DELETE)
+ * require a valid X-CSRF-Token header (double-submit cookie pattern).
  *
  * Public paths (health check, static docs) set skip = true to bypass validation.
  */
@@ -88,11 +100,12 @@ struct JwtMiddleware {
     services::SessionTokenValidator* validator = nullptr;
 
     void before_handle(crow::request& req, crow::response& res, context& ctx) {
-        // Public endpoints: health check, auth login/refresh (no Bearer token yet)
+        // Public endpoints: health check, auth login/refresh, CSRF token endpoint
         if (req.url == "/api/v1/health" ||
             req.url == "/api/v1/health/gpu" ||
             req.url == "/api/v1/auth/login" ||
             req.url == "/api/v1/auth/refresh" ||
+            req.url == "/api/v1/auth/csrf-token" ||
             req.url == "/") {
             ctx.skip = true;
             return;
@@ -106,15 +119,44 @@ struct JwtMiddleware {
             return;
         }
 
-        const std::string authHeader = req.get_header_value("Authorization");
-        if (authHeader.substr(0, 7) != "Bearer ") {
+        // Resolve token: Cookie first, then Authorization header fallback
+        std::string token;
+        bool tokenFromCookie = false;
+
+        const std::string cookieHeader = req.get_header_value("Cookie");
+        if (!cookieHeader.empty()) {
+            token = extractCookieValue(cookieHeader, kAccessTokenCookie);
+            if (!token.empty()) {
+                tokenFromCookie = true;
+            }
+        }
+
+        if (token.empty()) {
+            const std::string authHeader = req.get_header_value("Authorization");
+            if (authHeader.size() > 7 && authHeader.compare(0, 7, "Bearer ") == 0) {
+                token = authHeader.substr(7);
+            }
+        }
+
+        if (token.empty()) {
             res.code = 401;
-            res.body = R"({"error":"missing_token","message":"Authorization: Bearer <token> required"})";
+            res.body = R"({"error":"missing_token","message":"Authentication token required"})";
             res.end();
             return;
         }
 
-        const std::string token = authHeader.substr(7);
+        // CSRF validation for state-changing requests when token comes from cookie
+        if (tokenFromCookie && isStateChangingMethod(req.method)) {
+            const std::string csrfToken = req.get_header_value(kCsrfTokenHeader);
+            const std::string csrfCookie = extractCookieValue(cookieHeader, "csrf_token");
+            if (csrfToken.empty() || csrfCookie.empty() || csrfToken != csrfCookie) {
+                res.code = 403;
+                res.body = R"({"error":"csrf_validation_failed","message":"Invalid or missing CSRF token"})";
+                res.end();
+                return;
+            }
+        }
+
         services::TokenPayload payload;
         const auto result = validator->validateToken(token, payload);
 
@@ -135,6 +177,34 @@ struct JwtMiddleware {
 
     void after_handle(crow::request& /*req*/, crow::response& /*res*/, context& /*ctx*/) {
         // No post-processing needed
+    }
+
+private:
+    static std::string extractCookieValue(const std::string& cookieHeader,
+                                          const char* name) {
+        const std::string prefix = std::string(name) + "=";
+        std::string::size_type pos = 0;
+        while (pos < cookieHeader.size()) {
+            // Skip leading whitespace
+            while (pos < cookieHeader.size() && cookieHeader[pos] == ' ') ++pos;
+            if (cookieHeader.compare(pos, prefix.size(), prefix) == 0) {
+                const auto valueStart = pos + prefix.size();
+                const auto valueEnd = cookieHeader.find(';', valueStart);
+                return cookieHeader.substr(valueStart,
+                    valueEnd == std::string::npos ? std::string::npos : valueEnd - valueStart);
+            }
+            pos = cookieHeader.find(';', pos);
+            if (pos == std::string::npos) break;
+            ++pos; // skip ';'
+        }
+        return {};
+    }
+
+    static bool isStateChangingMethod(crow::HTTPMethod method) {
+        return method == crow::HTTPMethod::Post ||
+               method == crow::HTTPMethod::Put ||
+               method == crow::HTTPMethod::Delete ||
+               method == crow::HTTPMethod::Patch;
     }
 };
 

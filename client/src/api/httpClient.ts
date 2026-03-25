@@ -1,39 +1,49 @@
-// HTTP client with JWT Bearer injection and 401 redirect
+// HTTP client with httpOnly cookie auth and CSRF protection
 
 const BASE_URL = '/api'
-const TOKEN_KEY = 'dicom_viewer_token'
+const CSRF_STORAGE_KEY = 'dicom_viewer_csrf'
 
-function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY)
+export function getCsrfToken(): string | null {
+  return sessionStorage.getItem(CSRF_STORAGE_KEY)
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token)
+export function setCsrfToken(token: string): void {
+  sessionStorage.setItem(CSRF_STORAGE_KEY, token)
 }
 
-export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY)
+export function clearCsrfToken(): void {
+  sessionStorage.removeItem(CSRF_STORAGE_KEY)
 }
 
 function redirectToLogin(): void {
-  clearToken()
+  clearCsrfToken()
   window.location.href = '/login'
+}
+
+function isStateChangingMethod(method: string): boolean {
+  return ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method.toUpperCase())
 }
 
 async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getToken()
   const headers = new Headers(options.headers)
   headers.set('Content-Type', 'application/json')
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
+
+  // Attach CSRF token for state-changing requests
+  const method = (options.method ?? 'GET').toUpperCase()
+  if (isStateChangingMethod(method)) {
+    const csrfToken = getCsrfToken()
+    if (csrfToken) {
+      headers.set('X-CSRF-Token', csrfToken)
+    }
   }
 
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
+    credentials: 'include',
   })
 
   if (response.status === 401) {

@@ -155,7 +155,7 @@ DICOM Viewer adopts a **3-Layer Architecture** to maximize separation of concern
 │  Server API Layer (Crow REST + WebSocket)                               │
 │  • REST endpoints: auth, study, render, segmentation, measurement      │
 │  • WebSocket: multiplex viewport frame streaming                        │
-│  • JWT authentication (RS256 + JWKS verification), RBAC, HIPAA audit    │
+│  • JWT auth (httpOnly cookie + CSRF, RS256/JWKS), RBAC, HIPAA audit     │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  Service Layer                                                          │
 │  • Render: VolumeRenderer, SurfaceRenderer, MPRRenderer (VTK)           │
