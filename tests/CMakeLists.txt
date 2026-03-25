@@ -2029,6 +2029,30 @@ target_include_directories(rbac_middleware_test PRIVATE
 
 gtest_discover_tests(rbac_middleware_test)
 
+# Unit tests for JwtMiddleware (fail-closed when validator is null)
+add_executable(jwt_middleware_test
+    unit/jwt_middleware_test.cpp
+)
+
+target_link_libraries(jwt_middleware_test PRIVATE
+    render_service
+    GTest::gtest
+    GTest::gtest_main
+)
+
+target_include_directories(jwt_middleware_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/server/src
+)
+
+# Inherit Crow + Asio include paths from render_service
+get_target_property(JWT_MW_TEST_RENDER_INCLUDES render_service INTERFACE_INCLUDE_DIRECTORIES)
+if(JWT_MW_TEST_RENDER_INCLUDES)
+    target_include_directories(jwt_middleware_test PRIVATE ${JWT_MW_TEST_RENDER_INCLUDES})
+endif()
+
+gtest_discover_tests(jwt_middleware_test DISCOVERY_TIMEOUT 60)
+
 # Integration tests for Redis session store (requires Docker)
 add_executable(redis_session_store_integration_test
     integration/redis_session_store_test.cpp
