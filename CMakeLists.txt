@@ -576,6 +576,7 @@ target_link_libraries(auth_service PUBLIC
     OpenSSL::SSL
     OpenSSL::Crypto
     nlohmann_json::nlohmann_json
+    spdlog::spdlog
 )
 
 if(LIBLDAP_FOUND)

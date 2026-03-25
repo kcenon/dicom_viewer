@@ -30,6 +30,7 @@
 #include "services/auth/oidc_auth_provider.hpp"
 
 #include <jwt-cpp/jwt.h>
+#include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <mutex>
@@ -89,6 +90,7 @@ std::string defaultJwksFetcher(const std::string& url)
     curl_easy_cleanup(curl);
 
     if (res != CURLE_OK) {
+        spdlog::debug("OIDC: JWKS fetch failed for {}: {}", url, curl_easy_strerror(res));
         return {};
     }
 
@@ -241,7 +243,11 @@ public:
             }
 
             return payload;
+        } catch (const std::exception& ex) {
+            spdlog::debug("OIDC: token validation failed: {}", ex.what());
+            return std::unexpected(AuthError::TokenInvalid);
         } catch (...) {
+            spdlog::debug("OIDC: token validation failed with unknown exception");
             return std::unexpected(AuthError::TokenInvalid);
         }
     }
@@ -303,8 +309,10 @@ private:
                     return jwt::helper::convert_base64_der_to_pem(x5c);
                 }
             }
+        } catch (const std::exception& ex) {
+            spdlog::debug("OIDC: x5c extraction failed: {}", ex.what());
         } catch (...) {
-            // Fall through to n/e extraction
+            spdlog::debug("OIDC: x5c extraction failed with unknown exception");
         }
 
         try {
@@ -313,8 +321,10 @@ private:
                 const auto e = jwk.get_jwk_claim("e").as_string();
                 return jwt::helper::create_public_key_from_rsa_components(n, e);
             }
+        } catch (const std::exception& ex) {
+            spdlog::debug("OIDC: RSA n/e extraction failed: {}", ex.what());
         } catch (...) {
-            // Malformed key
+            spdlog::debug("OIDC: RSA n/e extraction failed with unknown exception");
         }
 
         return {};
@@ -385,8 +395,10 @@ private:
             jwksData_ = std::make_unique<jwt::jwks<jwt::traits::kazuho_picojson>>(
                 jwt::parse_jwks(jwksJson));
             jwksLastFetch_ = std::chrono::steady_clock::now();
+        } catch (const std::exception& ex) {
+            spdlog::debug("OIDC: JWKS parse failed: {}", ex.what());
         } catch (...) {
-            // JWKS parse failure — keep existing cache
+            spdlog::debug("OIDC: JWKS parse failed with unknown exception");
         }
     }
 
