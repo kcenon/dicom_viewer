@@ -276,6 +276,12 @@ public:
         inputCallback_ = std::move(callback);
     }
 
+    void setOwnershipChecker(OwnershipChecker checker)
+    {
+        std::lock_guard lock(mutex_);
+        ownershipChecker_ = std::move(checker);
+    }
+
     [[nodiscard]] bool isRunning() const { return running_.load(); }
     [[nodiscard]] uint16_t port() const { return port_.load(); }
 
@@ -534,8 +540,7 @@ void WebSocketFrameStreamer::setTokenValidator(SessionTokenValidator* validator)
 void WebSocketFrameStreamer::setOwnershipChecker(OwnershipChecker checker)
 {
     if (!impl_) return;
-    std::lock_guard lock(impl_->mutex_);
-    impl_->ownershipChecker_ = std::move(checker);
+    impl_->setOwnershipChecker(std::move(checker));
 }
 
 void WebSocketFrameStreamer::setAuditService(AuditService* audit)
