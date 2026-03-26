@@ -447,6 +447,99 @@ TEST_F(LdapAuthProviderTest, GetActiveSessionCountDefaultZero)
 }
 
 // ---------------------------------------------------------------------------
+// LDAP filter escaping tests (ldap_detail namespace)
+// ---------------------------------------------------------------------------
+
+using dicom_viewer::services::ldap_detail::escapeLdapFilterValue;
+using dicom_viewer::services::ldap_detail::replaceUsername;
+using dicom_viewer::services::ldap_detail::kMaxUsernameLength;
+
+TEST(LdapFilterEscapeTest, InjectionPayloadIsEscaped)
+{
+    const std::string payload = "admin)(|(uid=*)";
+    const std::string escaped = escapeLdapFilterValue(payload);
+    EXPECT_EQ(escaped, "admin\\29\\28|\\28uid=\\2a\\29");
+}
+
+TEST(LdapFilterEscapeTest, NormalUsernamePassesThrough)
+{
+    EXPECT_EQ(escapeLdapFilterValue("alice"), "alice");
+    EXPECT_EQ(escapeLdapFilterValue("john.doe"), "john.doe");
+    EXPECT_EQ(escapeLdapFilterValue("user-123"), "user-123");
+    EXPECT_EQ(escapeLdapFilterValue("Admin01"), "Admin01");
+}
+
+TEST(LdapFilterEscapeTest, BackslashEscaped)
+{
+    EXPECT_EQ(escapeLdapFilterValue("a\\b"), "a\\5cb");
+}
+
+TEST(LdapFilterEscapeTest, AsteriskEscaped)
+{
+    EXPECT_EQ(escapeLdapFilterValue("a*b"), "a\\2ab");
+}
+
+TEST(LdapFilterEscapeTest, OpenParenEscaped)
+{
+    EXPECT_EQ(escapeLdapFilterValue("a(b"), "a\\28b");
+}
+
+TEST(LdapFilterEscapeTest, CloseParenEscaped)
+{
+    EXPECT_EQ(escapeLdapFilterValue("a)b"), "a\\29b");
+}
+
+TEST(LdapFilterEscapeTest, NulCharacterEscaped)
+{
+    const std::string input(std::string("a") + '\0' + "b");
+    EXPECT_EQ(escapeLdapFilterValue(input), "a\\00b");
+}
+
+TEST(LdapFilterEscapeTest, EmptyStringReturnsEmpty)
+{
+    EXPECT_EQ(escapeLdapFilterValue(""), "");
+}
+
+TEST(LdapReplaceUsernameTest, NormalSubstitution)
+{
+    const std::string result = replaceUsername("(uid={username})", "alice");
+    EXPECT_EQ(result, "(uid=alice)");
+}
+
+TEST(LdapReplaceUsernameTest, InjectionPayloadIsSanitized)
+{
+    const std::string result = replaceUsername("(uid={username})", "admin)(|(uid=*)");
+    EXPECT_EQ(result, "(uid=admin\\29\\28|\\28uid=\\2a\\29)");
+}
+
+TEST(LdapReplaceUsernameTest, EmptyUsernameReturnsEmpty)
+{
+    const std::string result = replaceUsername("(uid={username})", "");
+    EXPECT_TRUE(result.empty());
+}
+
+TEST(LdapReplaceUsernameTest, ExcessivelyLongUsernameReturnsEmpty)
+{
+    const std::string longName(kMaxUsernameLength + 1, 'a');
+    const std::string result = replaceUsername("(uid={username})", longName);
+    EXPECT_TRUE(result.empty());
+}
+
+TEST(LdapReplaceUsernameTest, MaxLengthUsernameIsAccepted)
+{
+    const std::string maxName(kMaxUsernameLength, 'a');
+    const std::string result = replaceUsername("(uid={username})", maxName);
+    EXPECT_FALSE(result.empty());
+    EXPECT_EQ(result, "(uid=" + maxName + ")");
+}
+
+TEST(LdapReplaceUsernameTest, NoPlaceholderReturnsFilterUnchanged)
+{
+    const std::string result = replaceUsername("(uid=fixed)", "alice");
+    EXPECT_EQ(result, "(uid=fixed)");
+}
+
+// ---------------------------------------------------------------------------
 // OidcAuthProvider tests (JWKS signature verification)
 // ---------------------------------------------------------------------------
 

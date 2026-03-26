@@ -124,6 +124,20 @@ struct LdapAuthConfig {
     std::string caCertPath;
 };
 
+namespace ldap_detail {
+
+/// Maximum allowed username length for LDAP filter interpolation.
+constexpr size_t kMaxUsernameLength = 256;
+
+/// Escape special characters in an LDAP filter value per RFC 4515 Section 3.
+std::string escapeLdapFilterValue(const std::string& value);
+
+/// Replace `{username}` placeholder in an LDAP filter with the escaped username.
+/// Returns empty string if the username is empty or exceeds kMaxUsernameLength.
+std::string replaceUsername(const std::string& filter, const std::string& username);
+
+} // namespace ldap_detail
+
 /**
  * @brief LDAP/AD authentication provider with RS256 JWT issuance
  *
