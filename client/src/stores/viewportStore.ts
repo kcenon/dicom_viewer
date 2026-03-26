@@ -1,10 +1,16 @@
 import { create } from 'zustand'
 import type { ViewportLayout, ViewportChannel } from '@/types/models'
 
+interface FrameResolution {
+  width: number
+  height: number
+}
+
 interface ViewportState {
   layout: ViewportLayout
   activeViewportIndex: number
   channels: ViewportChannel[]
+  frameResolutions: Record<number, FrameResolution>
   setLayout: (layout: ViewportLayout) => void
   setActiveViewport: (index: number) => void
   assignChannel: (viewportIndex: number, channelId: number) => void
@@ -14,6 +20,7 @@ interface ViewportState {
     seriesInstanceUid: string
   ) => void
   clearChannel: (viewportIndex: number) => void
+  setFrameResolution: (channelId: number, width: number, height: number) => void
 }
 
 function layoutToViewportCount(layout: ViewportLayout): number {
@@ -37,6 +44,7 @@ export const useViewportStore = create<ViewportState>((set) => ({
   layout: '1x1',
   activeViewportIndex: 0,
   channels: initChannels(1),
+  frameResolutions: {},
 
   setLayout: (layout) =>
     set({
@@ -71,4 +79,13 @@ export const useViewportStore = create<ViewportState>((set) => ({
           : ch
       ),
     })),
+
+  setFrameResolution: (channelId, width, height) =>
+    set((state) => {
+      const prev = state.frameResolutions[channelId]
+      if (prev && prev.width === width && prev.height === height) return state
+      return {
+        frameResolutions: { ...state.frameResolutions, [channelId]: { width, height } },
+      }
+    }),
 }))

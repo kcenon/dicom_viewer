@@ -16,16 +16,12 @@ function layoutToColumns(layout: ViewportLayout): number {
   }
 }
 
-// Canvas dimensions for the SVG viewBox (must stay in sync with actual frame size).
-// We use a fixed logical coordinate space matching common DICOM display resolutions.
-const OVERLAY_WIDTH = 512
-const OVERLAY_HEIGHT = 512
-
 export function ViewportGrid() {
   const layout = useViewportStore((s) => s.layout)
   const channels = useViewportStore((s) => s.channels)
   const activeViewportIndex = useViewportStore((s) => s.activeViewportIndex)
   const setActiveViewport = useViewportStore((s) => s.setActiveViewport)
+  const frameResolutions = useViewportStore((s) => s.frameResolutions)
 
   const cols = layoutToColumns(layout)
 
@@ -52,11 +48,13 @@ export function ViewportGrid() {
             isActive={ch.viewportIndex === activeViewportIndex}
             onClick={() => setActiveViewport(ch.viewportIndex)}
           />
-          <MeasurementOverlay
-            channelId={ch.channelId}
-            width={OVERLAY_WIDTH}
-            height={OVERLAY_HEIGHT}
-          />
+          {frameResolutions[ch.channelId] && (
+            <MeasurementOverlay
+              channelId={ch.channelId}
+              width={frameResolutions[ch.channelId].width}
+              height={frameResolutions[ch.channelId].height}
+            />
+          )}
         </div>
       ))}
     </div>
