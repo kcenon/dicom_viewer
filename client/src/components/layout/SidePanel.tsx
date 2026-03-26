@@ -6,6 +6,7 @@ import { SegmentationPanel } from '@/components/panels/SegmentationPanel'
 import { FlowToolPanel } from '@/components/panels/FlowToolPanel'
 import { OverlayControlPanel } from '@/components/panels/OverlayControlPanel'
 import { ReportPanel } from '@/components/panels/ReportPanel'
+import { MeasurementPanel } from '@/components/panels/MeasurementPanel'
 
 type ActivePanel = NonNullable<ReturnType<typeof useUiStore.getState>['activePanel']>
 
@@ -25,12 +26,7 @@ function ActivePanelContent({ activePanel }: { activePanel: ActivePanel }) {
     case 'flow': return <FlowToolPanel />
     case 'overlay': return <OverlayControlPanel />
     case 'report': return <ReportPanel />
-    case 'measurement':
-      return (
-        <div style={{ color: '#555', fontSize: '12px', textAlign: 'center', marginTop: '8px' }}>
-          Use the viewport tools to add measurements
-        </div>
-      )
+    case 'measurement': return <MeasurementPanel />
   }
 }
 
