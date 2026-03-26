@@ -205,6 +205,33 @@ std::string generateOpaqueToken()
     return ss.str();
 }
 
+} // namespace
+
+// ---------------------------------------------------------------------------
+// LDAP filter escaping (ldap_detail -- visible to tests)
+// ---------------------------------------------------------------------------
+
+namespace ldap_detail {
+
+std::string escapeLdapFilterValue(const std::string& value)
+{
+    std::string escaped;
+    escaped.reserve(value.size());
+
+    for (unsigned char ch : value) {
+        switch (ch) {
+        case '\\': escaped += "\\5c"; break;
+        case '*':  escaped += "\\2a"; break;
+        case '(':  escaped += "\\28"; break;
+        case ')':  escaped += "\\29"; break;
+        case '\0': escaped += "\\00"; break;
+        default:   escaped += static_cast<char>(ch); break;
+        }
+    }
+
+    return escaped;
+}
+
 std::string replaceUsername(const std::string& filter, const std::string& username)
 {
     const std::string placeholder = "{username}";
@@ -212,10 +239,16 @@ std::string replaceUsername(const std::string& filter, const std::string& userna
     if (pos == std::string::npos) {
         return filter;
     }
-    return filter.substr(0, pos) + username + filter.substr(pos + placeholder.size());
+
+    if (username.empty() || username.size() > kMaxUsernameLength) {
+        return {};
+    }
+
+    const std::string safe = escapeLdapFilterValue(username);
+    return filter.substr(0, pos) + safe + filter.substr(pos + placeholder.size());
 }
 
-} // namespace
+} // namespace ldap_detail
 
 // ---------------------------------------------------------------------------
 // Impl
@@ -480,7 +513,10 @@ private:
         }
 
         // Search for user entry
-        const std::string filter = replaceUsername(config_.userSearchFilter, username);
+        const std::string filter = ldap_detail::replaceUsername(config_.userSearchFilter, username);
+        if (filter.empty()) {
+            return std::unexpected(AuthError::InvalidCredentials);
+        }
         const char* attrs[] = {"dn", "cn", "mail", "displayName",
                                 config_.groupAttribute.c_str(), nullptr};
 
