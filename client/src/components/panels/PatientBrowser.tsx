@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useStudies, usePacsQuery } from '@/api/endpoints'
 import { useStudyStore } from '@/stores/studyStore'
 import { usePacsStore } from '@/stores/pacsStore'
+import { SeriesList } from './SeriesList'
 import type { PacsQueryParams } from '@/types/api'
 
 const rowStyle: React.CSSProperties = {
@@ -32,6 +33,8 @@ export function PatientBrowser() {
 
   const selectedStudyUid = useStudyStore((s) => s.selectedStudyUid)
   const selectStudy = useStudyStore((s) => s.selectStudy)
+  const expandedStudyUid = useStudyStore((s) => s.expandedStudyUid)
+  const toggleStudyExpansion = useStudyStore((s) => s.toggleStudyExpansion)
 
   const firstServer = pacsServers[0]
 
@@ -98,24 +101,32 @@ export function PatientBrowser() {
 
       {displayStudies.map((study) => {
         const isActive = study.studyInstanceUid === selectedStudyUid
+        const isExpanded = study.studyInstanceUid === expandedStudyUid
         return (
-          <div
-            key={study.studyInstanceUid}
-            onClick={() => selectStudy(study.studyInstanceUid)}
-            style={{
-              ...rowStyle,
-              background: isActive ? '#1565c0' : '#2a2a2a',
-            }}
-          >
-            <div style={{ color: '#e0e0e0', fontWeight: 500 }}>
-              {study.patientName || '—'}
+          <div key={study.studyInstanceUid}>
+            <div
+              onClick={() => {
+                selectStudy(study.studyInstanceUid)
+                toggleStudyExpansion(study.studyInstanceUid)
+              }}
+              style={{
+                ...rowStyle,
+                background: isActive ? '#1565c0' : '#2a2a2a',
+              }}
+            >
+              <div style={{ color: '#e0e0e0', fontWeight: 500 }}>
+                {study.patientName || '—'}
+              </div>
+              <div style={{ color: '#aaa', marginTop: '2px' }}>
+                {study.studyDate} &mdash; {study.studyDescription || 'No description'}
+              </div>
+              <div style={{ color: '#666', marginTop: '2px' }}>
+                {study.modalities.join(', ')} &bull; {study.seriesCount} series
+              </div>
             </div>
-            <div style={{ color: '#aaa', marginTop: '2px' }}>
-              {study.studyDate} &mdash; {study.studyDescription || 'No description'}
-            </div>
-            <div style={{ color: '#666', marginTop: '2px' }}>
-              {study.modalities.join(', ')} &bull; {study.seriesCount} series
-            </div>
+            {isExpanded && (
+              <SeriesList studyInstanceUid={study.studyInstanceUid} />
+            )}
           </div>
         )
       })}
