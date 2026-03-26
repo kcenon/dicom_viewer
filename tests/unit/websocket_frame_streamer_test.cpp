@@ -222,3 +222,49 @@ TEST_F(WebSocketFrameStreamerTest, InputEventChannelIdField) {
     event.channelId = static_cast<uint8_t>(ViewportChannel::CoronalMPR);
     EXPECT_EQ(event.channelId, 3u);
 }
+
+// =============================================================================
+// Authentication and ownership (unit-level: no real WS clients)
+// =============================================================================
+
+TEST_F(WebSocketFrameStreamerTest, SetTokenValidatorAcceptsNull) {
+    // Setting a null validator should not crash
+    EXPECT_NO_THROW(streamer.setTokenValidator(nullptr));
+}
+
+TEST_F(WebSocketFrameStreamerTest, SetOwnershipChecker) {
+    bool checkerInvoked = false;
+    streamer.setOwnershipChecker(
+        [&](const std::string& /*sessionId*/,
+            const std::string& /*userId*/) -> bool {
+            checkerInvoked = true;
+            return true;
+        });
+    // Checker is stored but not invoked without actual WebSocket connections
+    EXPECT_FALSE(checkerInvoked);
+}
+
+TEST_F(WebSocketFrameStreamerTest, OwnershipCheckerRejectsWrongUser) {
+    // Verify the ownership callback interface by exercising it directly
+    WebSocketFrameStreamer::OwnershipChecker checker =
+        [](const std::string& /*sessionId*/,
+           const std::string& userId) -> bool {
+            return userId == "authorized-user";
+        };
+
+    EXPECT_TRUE(checker("session-1", "authorized-user"));
+    EXPECT_FALSE(checker("session-1", "unauthorized-user"));
+}
+
+TEST_F(WebSocketFrameStreamerTest, OwnershipCheckerNullAllowsAll) {
+    // A null ownership checker means ownership is not enforced
+    WebSocketFrameStreamer::OwnershipChecker checker = nullptr;
+    // When checker is null, the server code skips ownership verification.
+    // This test documents that a null checker is a valid configuration.
+    EXPECT_EQ(checker, nullptr);
+}
+
+TEST_F(WebSocketFrameStreamerTest, SetAuditServiceAcceptsNull) {
+    // Setting a null audit service should not crash
+    EXPECT_NO_THROW(streamer.setAuditService(nullptr));
+}

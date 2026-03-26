@@ -17,23 +17,30 @@ type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 class WebSocketManager {
   private ws: WebSocket | null = null
   private url: string | null = null
+  private token: string | null = null
   private reconnectAttempts = 0
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private frameHandlers = new Map<number, Set<FrameHandler>>()
   private statusListeners = new Set<(status: ConnectionStatus) => void>()
   private status: ConnectionStatus = 'disconnected'
 
-  connect(wsUrl: string): void {
+  connect(wsUrl: string, token?: string): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       return
     }
     this.url = wsUrl
+    this.token = token ?? null
     this.reconnectAttempts = 0
     this.openConnection()
   }
 
+  updateToken(token: string): void {
+    this.token = token
+  }
+
   disconnect(): void {
     this.url = null
+    this.token = null
     this.clearReconnectTimer()
     if (this.ws) {
       this.ws.onclose = null
@@ -71,7 +78,12 @@ class WebSocketManager {
   private openConnection(): void {
     if (!this.url) return
     this.setStatus('connecting')
-    this.ws = new WebSocket(this.url)
+    let connectUrl = this.url
+    if (this.token) {
+      const separator = connectUrl.includes('?') ? '&' : '?'
+      connectUrl = `${connectUrl}${separator}token=${encodeURIComponent(this.token)}`
+    }
+    this.ws = new WebSocket(connectUrl)
     this.ws.binaryType = 'arraybuffer'
 
     this.ws.onopen = () => {
