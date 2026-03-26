@@ -116,7 +116,8 @@ public:
                         token = tokenParam;
                     }
 
-                    auto result = validator->validateToken(token);
+                    TokenPayload payload;
+                    auto result = validator->validateToken(token, payload);
                     if (result != TokenValidationResult::Valid) {
                         // Audit authentication failure
                         AuditService* audit = auditService_.load();
@@ -150,6 +151,25 @@ public:
                                 break;
                             }
                             audit->auditSecurityAlert("anonymous", desc);
+                        }
+                        return false;
+                    }
+
+                    // Verify session ownership
+                    OwnershipChecker checker;
+                    {
+                        std::lock_guard lock(mutex_);
+                        checker = ownershipChecker_;
+                    }
+                    if (checker && !checker(sessionId, payload.userId)) {
+                        AuditService* audit = auditService_.load();
+                        if (audit) {
+                            audit->auditSecurityAlert(
+                                payload.userId,
+                                "WebSocket session ownership denied: user '"
+                                    + payload.userId
+                                    + "' attempted to connect to session "
+                                    + sessionId);
                         }
                         return false;
                     }
@@ -256,6 +276,12 @@ public:
         inputCallback_ = std::move(callback);
     }
 
+    void setOwnershipChecker(OwnershipChecker checker)
+    {
+        std::lock_guard lock(mutex_);
+        ownershipChecker_ = std::move(checker);
+    }
+
     [[nodiscard]] bool isRunning() const { return running_.load(); }
     [[nodiscard]] uint16_t port() const { return port_.load(); }
 
@@ -273,6 +299,8 @@ public:
     }
 
 private:
+    using OwnershipChecker = WebSocketFrameStreamer::OwnershipChecker;
+
     void onOpen(crow::websocket::connection& conn,
                 const std::string& sessionId)
     {
@@ -428,6 +456,7 @@ private:
                        std::string> connectionSessions_;
 
     InputEventCallback inputCallback_;
+    OwnershipChecker ownershipChecker_;
 
 public:
     std::atomic<SessionTokenValidator*> tokenValidator_{nullptr};
@@ -506,6 +535,12 @@ void WebSocketFrameStreamer::setTokenValidator(SessionTokenValidator* validator)
 {
     if (!impl_) return;
     impl_->tokenValidator_.store(validator);
+}
+
+void WebSocketFrameStreamer::setOwnershipChecker(OwnershipChecker checker)
+{
+    if (!impl_) return;
+    impl_->setOwnershipChecker(std::move(checker));
 }
 
 void WebSocketFrameStreamer::setAuditService(AuditService* audit)

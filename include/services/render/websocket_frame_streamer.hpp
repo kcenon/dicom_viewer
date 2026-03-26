@@ -37,26 +37,26 @@
  * ## Architecture
  * - Standalone Crow WebSocket server on a configurable port
  * - Endpoint: ws://host:port/render/{session_id}
- * - Binary frames: server → client (encoded image data with header)
- * - Text frames: client → server (JSON input events)
+ * - Binary frames: server -> client (encoded image data with header)
+ * - Text frames: client -> server (JSON input events)
  *
  * ## Wire Protocol
  *
- * Server → Client (v2 binary frame):
+ * Server -> Client (v2 binary frame):
  * ```
  * [1 byte: version=0x02][4 bytes: session_id_len][N bytes: session_id]
  * [1 byte: channel_id][4 bytes: frame_seq][1 byte: frame_type]
  * [4 bytes: width][4 bytes: height][M bytes: encoded image data]
  * ```
  *
- * Server → Client (v1 binary frame, legacy):
+ * Server -> Client (v1 binary frame, legacy):
  * ```
  * [4 bytes: session_id_len][N bytes: session_id][4 bytes: frame_seq]
  * [4 bytes: width][4 bytes: height][M bytes: encoded image data]
  * ```
  * Note: v1 is detected by the absence of a leading 0x02 version byte.
  *
- * Client → Server (text frame, JSON):
+ * Client -> Server (text frame, JSON):
  * ```json
  * {"session_id":"abc","channel_id":0,"type":"mouse_move","x":512,"y":384,
  *  "buttons":1,"modifiers":[],"ts":1709600000123}
@@ -233,6 +233,15 @@ public:
     [[nodiscard]] bool hasClients(const std::string& sessionId) const;
 
     /**
+     * @brief Callback type to verify session ownership
+     * @param sessionId The render session being connected to
+     * @param userId The authenticated user from the JWT token
+     * @return true if the user is authorized to access the session
+     */
+    using OwnershipChecker = std::function<bool(
+        const std::string& sessionId, const std::string& userId)>;
+
+    /**
      * @brief Set the token validator for WebSocket authentication
      * @details When set, clients must pass a valid token as query parameter:
      *          ws://host:port/render/{session_id}?token=<token>
@@ -240,6 +249,12 @@ public:
      * @param validator Non-owning pointer to a token validator
      */
     void setTokenValidator(SessionTokenValidator* validator);
+
+    /**
+     * @brief Set callback to verify session ownership after token validation
+     * @param checker Ownership verification callback
+     */
+    void setOwnershipChecker(OwnershipChecker checker);
 
     /**
      * @brief Set the audit service for ATNA audit trail logging

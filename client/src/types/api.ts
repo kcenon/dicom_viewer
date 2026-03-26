@@ -9,6 +9,7 @@ export interface SessionCreateRequest {
 export interface SessionCreateResponse {
   sessionId: string
   wsUrl: string
+  token: string
   channelId: number
 }
 
