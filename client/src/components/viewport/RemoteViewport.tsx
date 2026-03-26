@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useCallback } from 'react'
 import { wsManager } from '@/api/wsManager'
+import { useViewportStore } from '@/stores/viewportStore'
 import { FrameType } from '@/types/websocket'
 import type { BinaryFrame } from '@/types/websocket'
 import type { InputEvent } from '@/types/websocket'
@@ -23,6 +24,7 @@ export function RemoteViewport({ channelId, isActive, onClick }: Props) {
   const rafIdRef = useRef<number>(0)
   // Track canvas size for input coordinate normalisation
   const canvasSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 })
+  const setFrameResolution = useViewportStore((s) => s.setFrameResolution)
 
   // Decode an incoming frame into an ImageBitmap off the main thread
   const handleFrame = useCallback(async (frame: BinaryFrame) => {
@@ -63,6 +65,7 @@ export function RemoteViewport({ channelId, isActive, onClick }: Props) {
           canvas.width = pending.width
           canvas.height = pending.height
           canvasSizeRef.current = { width: pending.width, height: pending.height }
+          setFrameResolution(channelId, pending.width, pending.height)
         }
         ctx.drawImage(pending, 0, 0)
 
@@ -74,7 +77,7 @@ export function RemoteViewport({ channelId, isActive, onClick }: Props) {
     }
 
     rafIdRef.current = requestAnimationFrame(renderLoop)
-  }, [])
+  }, [channelId, setFrameResolution])
 
   // Subscribe to frames for this channel
   useEffect(() => {
