@@ -31,8 +31,8 @@
 
 #include <services/dicomweb_service.hpp>
 
-#include <pacs/web/rest_config.hpp>
-#include <pacs/web/rest_types.hpp>
+#include <pacs/web/rest_config.h>
+#include <pacs/web/rest_types.h>
 
 #include <string>
 

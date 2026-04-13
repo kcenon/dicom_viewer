@@ -33,7 +33,7 @@
 
 #include <spdlog/spdlog.h>
 
-#include <pacs/services/cache/query_cache.hpp>
+#include <pacs/services/cache/query_cache.h>
 
 namespace dicom_viewer::services {
 

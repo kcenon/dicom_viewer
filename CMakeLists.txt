@@ -130,7 +130,7 @@ if(EXISTS "${PACS_SYSTEM_ROOT}" AND EXISTS "${PACS_SYSTEM_BUILD_DIR}/lib")
     message(STATUS "pacs_system build directory: ${PACS_SYSTEM_BUILD_DIR}")
 
     # pacs_system include directory
-    set(PACS_SYSTEM_INCLUDE_DIR "${PACS_SYSTEM_ROOT}/include")
+    set(PACS_SYSTEM_INCLUDE_DIR "${PACS_SYSTEM_ROOT}/include/kcenon")
 
     # pacs_system library directory
     set(PACS_SYSTEM_LIB_DIR "${PACS_SYSTEM_BUILD_DIR}/lib")

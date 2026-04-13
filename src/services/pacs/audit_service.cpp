@@ -40,9 +40,9 @@
 
 #include <spdlog/spdlog.h>
 
-#include <pacs/security/atna_audit_logger.hpp>
-#include <pacs/security/atna_service_auditor.hpp>
-#include <pacs/security/atna_syslog_transport.hpp>
+#include <pacs/security/atna_audit_logger.h>
+#include <pacs/security/atna_service_auditor.h>
+#include <pacs/security/atna_syslog_transport.h>
 
 namespace dicom_viewer::services {
 

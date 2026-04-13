@@ -29,11 +29,11 @@
 
 #include <gtest/gtest.h>
 
-#include <pacs/core/dicom_dataset.hpp>
-#include <pacs/core/dicom_tag_constants.hpp>
-#include <pacs/encoding/character_set.hpp>
-#include <pacs/encoding/dataset_charset.hpp>
-#include <pacs/encoding/vr_type.hpp>
+#include <pacs/core/dicom_dataset.h>
+#include <pacs/core/dicom_tag_constants.h>
+#include <pacs/encoding/character_set.h>
+#include <pacs/encoding/dataset_charset.h>
+#include <pacs/encoding/vr_type.h>
 
 #include <string>
 

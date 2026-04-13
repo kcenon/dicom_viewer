@@ -33,8 +33,8 @@
 
 #include <spdlog/spdlog.h>
 
-#include <pacs/web/rest_config.hpp>
-#include <pacs/web/rest_server.hpp>
+#include <pacs/web/rest_config.h>
+#include <pacs/web/rest_server.h>
 
 namespace dicom_viewer::services {
 

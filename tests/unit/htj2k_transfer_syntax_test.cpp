@@ -31,9 +31,9 @@
 
 #include <services/dicom_store_scp.hpp>
 
-#include <pacs/encoding/transfer_syntax.hpp>
-#include <pacs/encoding/compression/htj2k_codec.hpp>
-#include <pacs/encoding/compression/codec_factory.hpp>
+#include <pacs/encoding/transfer_syntax.h>
+#include <pacs/encoding/compression/htj2k_codec.h>
+#include <pacs/encoding/compression/codec_factory.h>
 
 #include <algorithm>
 #include <string>
