@@ -41,19 +41,19 @@
 #include <kcenon/common/logging/log_macros.h>
 
 // pacs_system headers
-#include <pacs/core/dicom_dataset.h>
-#include <pacs/core/dicom_file.h>
-#include <pacs/core/dicom_tag.h>
-#include <pacs/core/dicom_tag_constants.h>
-#include <pacs/core/result.h>
-#include <pacs/encoding/dataset_charset.h>
-#include <pacs/encoding/transfer_syntax.h>
-#include <pacs/encoding/vr_type.h>
-#include <pacs/network/association.h>
-#include <pacs/network/dimse/dimse_message.h>
-#include <pacs/services/sop_classes/sr_storage.h>
-#include <pacs/services/storage_scu.h>
-#include <pacs/services/validation/sr_iod_validator.h>
+#include <kcenon/pacs/core/dicom_dataset.h>
+#include <kcenon/pacs/core/dicom_file.h>
+#include <kcenon/pacs/core/dicom_tag.h>
+#include <kcenon/pacs/core/dicom_tag_constants.h>
+#include <kcenon/pacs/core/result.h>
+#include <kcenon/pacs/encoding/dataset_charset.h>
+#include <kcenon/pacs/encoding/transfer_syntax.h>
+#include <kcenon/pacs/encoding/vr_type.h>
+#include <kcenon/pacs/network/association.h>
+#include <kcenon/pacs/network/dimse/dimse_message.h>
+#include <kcenon/pacs/services/sop_classes/sr_storage.h>
+#include <kcenon/pacs/services/storage_scu.h>
+#include <kcenon/pacs/services/validation/sr_iod_validator.h>
 
 namespace dicom_viewer::services {
 

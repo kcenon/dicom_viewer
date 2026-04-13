@@ -36,10 +36,10 @@
 #include <spdlog/spdlog.h>
 
 // pacs_system headers
-#include <pacs/core/result.h>
-#include <pacs/network/association.h>
-#include <pacs/network/dimse/dimse_message.h>
-#include <pacs/network/dimse/status_codes.h>
+#include <kcenon/pacs/core/result.h>
+#include <kcenon/pacs/network/association.h>
+#include <kcenon/pacs/network/dimse/dimse_message.h>
+#include <kcenon/pacs/network/dimse/status_codes.h>
 
 namespace dicom_viewer::services {
 

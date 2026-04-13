@@ -31,7 +31,7 @@
 
 #include <services/query_cache_manager.hpp>
 
-#include <pacs/services/cache/query_cache.h>
+#include <kcenon/pacs/services/cache/query_cache.h>
 
 #include <string>
 #include <vector>

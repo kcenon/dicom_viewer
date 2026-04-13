@@ -37,15 +37,15 @@
 #include <spdlog/spdlog.h>
 
 // pacs_system headers
-#include <pacs/core/dicom_dataset.h>
-#include <pacs/core/dicom_tag_constants.h>
-#include <pacs/core/result.h>
-#include <pacs/network/association.h>
-#include <pacs/network/dimse/dimse_message.h>
-#include <pacs/network/dimse/status_codes.h>
-#include <pacs/services/query_scu.h>
-#include <pacs/encoding/dataset_charset.h>
-#include <pacs/encoding/vr_type.h>
+#include <kcenon/pacs/core/dicom_dataset.h>
+#include <kcenon/pacs/core/dicom_tag_constants.h>
+#include <kcenon/pacs/core/result.h>
+#include <kcenon/pacs/network/association.h>
+#include <kcenon/pacs/network/dimse/dimse_message.h>
+#include <kcenon/pacs/network/dimse/status_codes.h>
+#include <kcenon/pacs/services/query_scu.h>
+#include <kcenon/pacs/encoding/dataset_charset.h>
+#include <kcenon/pacs/encoding/vr_type.h>
 
 namespace dicom_viewer::services {
 
