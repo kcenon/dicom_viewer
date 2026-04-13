@@ -29,12 +29,12 @@
 
 #include <gtest/gtest.h>
 
-#include <pacs/core/dicom_dataset.hpp>
-#include <pacs/core/dicom_tag_constants.hpp>
-#include <pacs/encoding/vr_type.hpp>
-#include <pacs/services/validation/ct_iod_validator.hpp>
-#include <pacs/services/validation/mr_iod_validator.hpp>
-#include <pacs/services/validation/sr_iod_validator.hpp>
+#include <kcenon/pacs/core/dicom_dataset.h>
+#include <kcenon/pacs/core/dicom_tag_constants.h>
+#include <kcenon/pacs/encoding/vr_type.h>
+#include <kcenon/pacs/services/validation/ct_iod_validator.h>
+#include <kcenon/pacs/services/validation/mr_iod_validator.h>
+#include <kcenon/pacs/services/validation/sr_iod_validator.h>
 
 #include <string>
 

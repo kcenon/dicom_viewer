@@ -37,19 +37,19 @@
 #include <spdlog/spdlog.h>
 
 // pacs_system headers
-#include <pacs/core/dicom_dataset.hpp>
-#include <pacs/core/dicom_file.hpp>
-#include <pacs/core/dicom_tag_constants.hpp>
-#include <pacs/core/result.hpp>
-#include <pacs/network/dicom_server.hpp>
-#include <pacs/network/server_config.hpp>
-#include <pacs/services/storage_scp.hpp>
-#include <pacs/services/verification_scp.hpp>
-#include <pacs/encoding/dataset_charset.hpp>
-#include <pacs/encoding/vr_type.hpp>
-#include <pacs/encoding/transfer_syntax.hpp>
-#include <pacs/services/validation/ct_iod_validator.hpp>
-#include <pacs/services/validation/mr_iod_validator.hpp>
+#include <kcenon/pacs/core/dicom_dataset.h>
+#include <kcenon/pacs/core/dicom_file.h>
+#include <kcenon/pacs/core/dicom_tag_constants.h>
+#include <kcenon/pacs/core/result.h>
+#include <kcenon/pacs/network/dicom_server.h>
+#include <kcenon/pacs/network/server_config.h>
+#include <kcenon/pacs/services/storage_scp.h>
+#include <kcenon/pacs/services/verification_scp.h>
+#include <kcenon/pacs/encoding/dataset_charset.h>
+#include <kcenon/pacs/encoding/vr_type.h>
+#include <kcenon/pacs/encoding/transfer_syntax.h>
+#include <kcenon/pacs/services/validation/ct_iod_validator.h>
+#include <kcenon/pacs/services/validation/mr_iod_validator.h>
 
 namespace dicom_viewer::services {
 

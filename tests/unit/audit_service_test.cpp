@@ -31,8 +31,8 @@
 
 #include <services/audit_service.hpp>
 
-#include <pacs/security/atna_audit_logger.hpp>
-#include <pacs/security/atna_config.hpp>
+#include <kcenon/pacs/security/atna_audit_logger.h>
+#include <kcenon/pacs/security/atna_config.h>
 
 #include <atomic>
 #include <string>

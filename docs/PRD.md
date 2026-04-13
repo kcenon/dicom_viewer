@@ -1140,7 +1140,7 @@
 
 ### B. DICOM Tag Reference
 
-For key DICOM tags, see [04-dicom-pipeline.md](reference/04-dicom-pipeline.md#22-key-dicom-tags).
+For key DICOM tags, see [04-dicom-pipeline.md](reference/04-dicom-pipeline.md#22-core-dicom-tags).
 
 ### C. Coordinate Systems
 

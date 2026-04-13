@@ -884,11 +884,11 @@
 
 ### B. DICOM Tag Reference
 
-주요 DICOM 태그는 [04-dicom-pipeline.md](reference/04-dicom-pipeline.md#22-핵심-dicom-태그) 참조.
+주요 DICOM 태그는 [04-dicom-pipeline.md](reference/04-dicom-pipeline.md#22-core-dicom-tags) 참조.
 
 ### C. Coordinate Systems
 
-좌표계 정보는 [03-itk-vtk-integration.md](reference/03-itk-vtk-integration.md#3-좌표계-통합) 참조.
+좌표계 정보는 [03-itk-vtk-integration.md](reference/03-itk-vtk-integration.md#3-coordinate-system-integration) 참조.
 
 ### D. Related Documentation
 

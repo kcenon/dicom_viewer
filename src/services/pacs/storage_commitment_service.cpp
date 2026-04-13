@@ -34,8 +34,8 @@
 
 #include <spdlog/spdlog.h>
 
-#include <pacs/services/storage_commitment_scu.hpp>
-#include <pacs/services/storage_commitment_types.hpp>
+#include <kcenon/pacs/services/storage_commitment_scu.h>
+#include <kcenon/pacs/services/storage_commitment_types.h>
 
 namespace dicom_viewer::services {
 

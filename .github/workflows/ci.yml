@@ -68,7 +68,12 @@ jobs:
           git clone --depth 1 https://github.com/kcenon/container_system.git
           git clone --depth 1 https://github.com/kcenon/thread_system.git
           git clone --depth 1 https://github.com/kcenon/logger_system.git
-          git clone --depth 1 https://github.com/kcenon/network_system.git
+          # Pin network_system to last commit compatible with current pacs_system.
+          # network_system@8d0679e (2026-04-13) introduced Result<T> API change
+          # and @a77c4cf (2026-04-10) relocated internal headers, both breaking
+          # pacs_system build. Remove pin after pacs_system is updated.
+          git clone --no-checkout --filter=blob:none https://github.com/kcenon/network_system.git
+          cd network_system && git checkout c1f2c750e7f9 && cd ..
           git clone --depth 1 https://github.com/kcenon/pacs_system.git
 
       # ---------------------------------------------------------------
@@ -78,7 +83,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/../pacs_system/build
-          key: pacs-build-${{ runner.os }}-${{ runner.arch }}-v1
+          key: pacs-build-${{ runner.os }}-${{ runner.arch }}-v2
           restore-keys: |
             pacs-build-${{ runner.os }}-${{ runner.arch }}-
 
