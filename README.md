@@ -1,3 +1,7 @@
+> Status: archived 2026-09. No further maintenance; kept for reference.
+>
+> Performance figures and feature claims in this README were written during active development and have not been re-verified.
+
 # DICOM Viewer
 
 > **High-Performance Medical Image Viewer** - CT/MRI 3D Volume Rendering and MPR View Support
