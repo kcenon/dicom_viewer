@@ -49,6 +49,8 @@ navigation:
     url: /SRS
   - title: SDS
     url: /SDS
+  - title: SaMD Checklists
+    url: /checklists/README
   - title: Reference
     url: /reference/
   - title: 한국어

@@ -244,6 +244,7 @@ dicom_viewer/
 | [PRD](docs/PRD.md) | 제품 요구사항 문서 - 비전, 목표, 기능 요구사항 |
 | [SRS](docs/SRS.md) | 소프트웨어 요구사항 명세서 - 상세 기술 요구사항 |
 | [SDS](docs/SDS.md) | 소프트웨어 설계 명세서 - 아키텍처 및 모듈 설계 |
+| [SaMD Checklists (English)](docs/checklists/README.md) | SaMD 인증 준비 체크리스트 및 검토 기록 양식 |
 | [Reference](docs/reference/README.md) | 기술 참조 문서 - ITK, VTK, pacs_system |
 
 ## 로드맵
