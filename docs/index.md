@@ -29,6 +29,7 @@ A high-performance medical image viewer designed for radiologists and medical im
 | [PRD](PRD.md) | Product Requirements Document - Vision, Goals, Feature Requirements |
 | [SRS](SRS.md) | Software Requirements Specification - Detailed Technical Requirements |
 | [SDS](SDS.md) | Software Design Specification - Architecture and Module Design |
+| [SaMD Checklists](checklists/README.md) | Certification readiness reviews, evidence requirements and assessment records |
 
 ## Reference Documentation
 

@@ -412,6 +412,7 @@ dicom_viewer/
 | [PRD](docs/PRD.md) | Product Requirements Document - Vision, Goals, Feature Requirements |
 | [SRS](docs/SRS.md) | Software Requirements Specification - Detailed Technical Requirements |
 | [SDS](docs/SDS.md) | Software Design Specification - Architecture and Module Design |
+| [SaMD Checklists](docs/checklists/README.md) | Certification readiness reviews for software, risk, usability, cybersecurity, QMS and MFDS submissions |
 | [Reference](docs/reference/README.md) | Technical Reference Documentation - ITK, VTK, pacs_system |
 
 ## Roadmap
